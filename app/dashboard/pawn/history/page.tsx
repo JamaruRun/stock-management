@@ -9,6 +9,8 @@ export default function PawnHistoryPage() {
   const supabase = createClient();
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [filterBranch, setFilterBranch] = useState('');
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -55,6 +57,10 @@ export default function PawnHistoryPage() {
       .order('redeem_date', { ascending: false });
 
     setItems(historyData || []);
+
+    const { data: branchesData } = await supabase.from('branches').select('*').order('name');
+    setBranches(branchesData || []);
+
     setLoading(false);
   }
 
@@ -62,15 +68,20 @@ export default function PawnHistoryPage() {
     loadData();
   }, []);
 
+  const countByBranch = branches.reduce((acc: any, b) => {
+    acc[b.id] = items.filter((i) => i.branch_id === b.id).length;
+    return acc;
+  }, {});
+
   const filtered = items.filter((item) => {
     const s = search.toLowerCase();
-    return (
-      !s ||
+    const matchSearch = !s ||
       item.imei.toLowerCase().includes(s) ||
       item.model.toLowerCase().includes(s) ||
       item.customer_name.toLowerCase().includes(s) ||
-      (item.customer_phone && item.customer_phone.includes(s))
-    );
+      (item.customer_phone && item.customer_phone.includes(s));
+    const matchBranch = !filterBranch || item.branch_id === filterBranch;
+    return matchSearch && matchBranch;
   });
 
   const totalRedeemed = items.length;
@@ -159,6 +170,28 @@ export default function PawnHistoryPage() {
           <div className="value small">{items[0]?.model || '-'}</div>
         </div>
       </div>
+
+      {branches.length > 0 && (
+        <div className="branch-tabs">
+          <button
+            className={`branch-tab ${filterBranch === '' ? 'active' : ''}`}
+            onClick={() => setFilterBranch('')}
+          >
+            <span>ทุกสาขา</span>
+            <span className="count">{items.length}</span>
+          </button>
+          {branches.map((b) => (
+            <button
+              key={b.id}
+              className={`branch-tab ${filterBranch === b.id ? 'active' : ''}`}
+              onClick={() => setFilterBranch(b.id)}
+            >
+              <span>{b.name}</span>
+              <span className="count">{countByBranch[b.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="toolbar">
         <div className="search-box">

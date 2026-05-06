@@ -9,10 +9,12 @@ export default function HistoryPage() {
   const supabase = createClient();
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStaff, setFilterStaff] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
@@ -56,6 +58,10 @@ export default function HistoryPage() {
       .order('sold_date', { ascending: false });
 
     setItems(historyData || []);
+
+    const { data: branchesData } = await supabase.from('branches').select('*').order('name');
+    setBranches(branchesData || []);
+
     setLoading(false);
   }
 
@@ -72,6 +78,11 @@ export default function HistoryPage() {
     ).entries()
   );
 
+  const countByBranch = branches.reduce((acc: any, b) => {
+    acc[b.id] = items.filter((i) => i.branch_id === b.id).length;
+    return acc;
+  }, {});
+
   // filter
   const filtered = items.filter((item) => {
     const s = search.toLowerCase();
@@ -81,7 +92,8 @@ export default function HistoryPage() {
       item.model.toLowerCase().includes(s) ||
       (item.sold_by_profile?.full_name || '').toLowerCase().includes(s);
     const matchStaff = !filterStaff || item.sold_by === filterStaff;
-    return matchSearch && matchStaff;
+    const matchBranch = !filterBranch || item.branch_id === filterBranch;
+    return matchSearch && matchStaff && matchBranch;
   });
 
   // stats
@@ -175,6 +187,28 @@ export default function HistoryPage() {
           <div className="value">{thisMonth}</div>
         </div>
       </div>
+
+      {branches.length > 0 && (
+        <div className="branch-tabs">
+          <button
+            className={`branch-tab ${filterBranch === '' ? 'active' : ''}`}
+            onClick={() => setFilterBranch('')}
+          >
+            <span>ทุกสาขา</span>
+            <span className="count">{items.length}</span>
+          </button>
+          {branches.map((b) => (
+            <button
+              key={b.id}
+              className={`branch-tab ${filterBranch === b.id ? 'active' : ''}`}
+              onClick={() => setFilterBranch(b.id)}
+            >
+              <span>{b.name}</span>
+              <span className="count">{countByBranch[b.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="toolbar">
         <div className="search-box">

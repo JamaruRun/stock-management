@@ -7,10 +7,12 @@ import Toast from '@/components/Toast';
 export default function StockPage() {
   const supabase = createClient();
   const [items, setItems] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterModel, setFilterModel] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
@@ -44,6 +46,13 @@ export default function StockPage() {
       .order('created_at', { ascending: false });
 
     setItems(stockData || []);
+
+    // โหลดรายชื่อสาขาเฉพาะ admin
+    if (profileData?.role === 'admin') {
+      const { data: branchesData } = await supabase.from('branches').select('*').order('name');
+      setBranches(branchesData || []);
+    }
+
     setLoading(false);
   }
 
@@ -56,6 +65,12 @@ export default function StockPage() {
   // unique models
   const models = Array.from(new Set(items.map((i) => i.model)));
 
+  // จำนวนเครื่องในแต่ละสาขา
+  const countByBranch = branches.reduce((acc: any, b) => {
+    acc[b.id] = items.filter((i) => i.branch_id === b.id).length;
+    return acc;
+  }, {});
+
   // filter
   const filtered = items.filter((item) => {
     const s = search.toLowerCase();
@@ -65,7 +80,8 @@ export default function StockPage() {
       item.model.toLowerCase().includes(s) ||
       (item.color && item.color.toLowerCase().includes(s));
     const matchModel = !filterModel || item.model === filterModel;
-    return matchSearch && matchModel;
+    const matchBranch = !filterBranch || item.branch_id === filterBranch;
+    return matchSearch && matchModel && matchBranch;
   });
 
   // stats
@@ -151,6 +167,28 @@ export default function StockPage() {
         </div>
       </div>
 
+      {isAdmin && branches.length > 0 && (
+        <div className="branch-tabs">
+          <button
+            className={`branch-tab ${filterBranch === '' ? 'active' : ''}`}
+            onClick={() => setFilterBranch('')}
+          >
+            <span>ทุกสาขา</span>
+            <span className="count">{items.length}</span>
+          </button>
+          {branches.map((b) => (
+            <button
+              key={b.id}
+              className={`branch-tab ${filterBranch === b.id ? 'active' : ''}`}
+              onClick={() => setFilterBranch(b.id)}
+            >
+              <span>{b.name}</span>
+              <span className="count">{countByBranch[b.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="toolbar">
         <div className="search-box">
           <input
@@ -173,7 +211,7 @@ export default function StockPage() {
           <div className="empty-icon">▦</div>
           <div className="empty-title">ไม่มีเครื่องในสต๊อก</div>
           <div className="empty-sub">
-            {search || filterModel ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีเครื่องที่เพิ่มเข้ามา'}
+            {search || filterModel || filterBranch ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีเครื่องที่เพิ่มเข้ามา'}
           </div>
         </div>
       ) : (

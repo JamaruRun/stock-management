@@ -21,6 +21,7 @@ interface InstallmentItem {
   customer_id_card: string;
   added_by_name?: string;
   added_by_profile?: { full_name: string };
+  branch_id?: string;
   branch?: { name: string };
   paid_periods: number;
   total_paid: number;
@@ -29,10 +30,12 @@ interface InstallmentItem {
 export default function InstallmentStockPage() {
   const supabase = createClient();
   const [items, setItems] = useState<InstallmentItem[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -72,10 +75,22 @@ export default function InstallmentStockPage() {
     );
 
     setItems(itemsWithPayments as any);
+
+    if (profileData?.role === 'admin') {
+      const { data: branchesData } = await supabase.from('branches').select('*').order('name');
+      setBranches(branchesData || []);
+    }
+
     setLoading(false);
   }
 
   useEffect(() => { loadData(); }, []);
+
+  const isAdmin = profile?.role === 'admin';
+  const countByBranch = branches.reduce((acc: any, b) => {
+    acc[b.id] = items.filter((i) => i.branch_id === b.id).length;
+    return acc;
+  }, {});
 
   // คำนวณสถานะของแต่ละรายการ
   function getStatus(item: InstallmentItem) {
@@ -103,6 +118,9 @@ export default function InstallmentStockPage() {
       item.customer_name.toLowerCase().includes(s) ||
       item.customer_phone.includes(s) ||
       item.customer_id_card.includes(s);
+    
+    const matchBranch = !filterBranch || item.branch_id === filterBranch;
+    if (!matchBranch) return false;
     
     if (!filterStatus) return matchSearch;
     const status = getStatus(item);
@@ -160,6 +178,28 @@ export default function InstallmentStockPage() {
           <div className="value small">฿{stats.totalValue.toLocaleString()}</div>
         </div>
       </div>
+
+      {isAdmin && branches.length > 0 && (
+        <div className="branch-tabs">
+          <button
+            className={`branch-tab ${filterBranch === '' ? 'active' : ''}`}
+            onClick={() => setFilterBranch('')}
+          >
+            <span>ทุกสาขา</span>
+            <span className="count">{items.length}</span>
+          </button>
+          {branches.map((b) => (
+            <button
+              key={b.id}
+              className={`branch-tab ${filterBranch === b.id ? 'active' : ''}`}
+              onClick={() => setFilterBranch(b.id)}
+            >
+              <span>{b.name}</span>
+              <span className="count">{countByBranch[b.id] || 0}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="toolbar">
         <div className="search-box">

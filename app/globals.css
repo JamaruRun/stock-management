@@ -240,6 +240,80 @@ body {
   color: var(--text-dim);
 }
 
+.version-badge {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 2px 6px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .version-badge { display: none; }
+}
+
+/* Branch Tabs (filter for admin) */
+.branch-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.branch-tabs::-webkit-scrollbar { height: 4px; }
+.branch-tabs::-webkit-scrollbar-thumb { background: var(--border); }
+
+.branch-tab {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.branch-tab:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.branch-tab.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.branch-tab .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.branch-tab.active .count {
+  background: rgba(0,0,0,0.2);
+  color: var(--bg);
+}
+
+.branch-tab:not(.active) .count {
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
 /* Module Tabs (desktop) */
 .module-tabs {
   display: none;
