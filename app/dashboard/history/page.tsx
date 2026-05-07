@@ -245,6 +245,26 @@ export default function HistoryPage() {
               </div>
               <div className="imei">IMEI: {item.imei}</div>
               <div className="meta">
+                {item.device_condition === 'new' && (
+                  <span className="tag" style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+                    ✨ มือ 1
+                  </span>
+                )}
+                {item.device_condition === 'used' && (
+                  <span className="tag" style={{ color: '#3742fa', borderColor: '#3742fa' }}>
+                    📱 มือ 2
+                  </span>
+                )}
+                {item.payment_type === 'cash' && (
+                  <span className="tag" style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+                    💵 เงินสด
+                  </span>
+                )}
+                {item.payment_type === 'installment' && (
+                  <span className="tag" style={{ color: '#3742fa', borderColor: '#3742fa' }}>
+                    💳 ผ่อน
+                  </span>
+                )}
                 {item.color && <span className="tag">{item.color}</span>}
                 {item.spec && <span className="tag">{item.spec}</span>}
                 {item.branch?.name && <span className="tag">{item.branch.name}</span>}
@@ -313,6 +333,22 @@ export default function HistoryPage() {
               <div className="detail-item">
                 <div className="label">สาขา</div>
                 <div className="value">{viewing.branch?.name || '-'}</div>
+              </div>
+              <div className="detail-item">
+                <div className="label">สภาพเครื่อง</div>
+                <div className="value">
+                  {viewing.device_condition === 'new' && '✨ มือ 1 (ใหม่)'}
+                  {viewing.device_condition === 'used' && '📱 มือ 2 (มือสอง)'}
+                  {!viewing.device_condition && '-'}
+                </div>
+              </div>
+              <div className="detail-item">
+                <div className="label">ประเภทการชำระ</div>
+                <div className="value">
+                  {viewing.payment_type === 'cash' && '💵 เงินสด'}
+                  {viewing.payment_type === 'installment' && '💳 ผ่อน'}
+                  {!viewing.payment_type && '-'}
+                </div>
               </div>
               <div className="detail-item">
                 <div className="label">เพิ่มโดย</div>

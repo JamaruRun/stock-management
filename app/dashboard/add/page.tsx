@@ -23,6 +23,7 @@ export default function AddStockPage() {
     price: '',
     addedDate: new Date().toISOString().split('T')[0],
     branchId: '',
+    deviceCondition: 'new', // มือ 1 (new) / มือ 2 (used)
   });
   const [profile, setProfile] = useState<any>(null);
   const [branches, setBranches] = useState<any[]>([]);
@@ -97,6 +98,7 @@ export default function AddStockPage() {
       imei: '', model: '', color: '', spec: '', price: '',
       addedDate: new Date().toISOString().split('T')[0],
       branchId: profile?.branch_id || '',
+      deviceCondition: 'new',
     });
     setSuggestions([]);
   }
@@ -142,6 +144,7 @@ export default function AddStockPage() {
       added_by: user.id,
       added_by_name: profile.full_name,
       branch_id: form.branchId,
+      device_condition: form.deviceCondition,
     });
 
     setLoading(false);
@@ -256,6 +259,49 @@ export default function AddStockPage() {
             <div className="field"><label>วันที่ลงสต๊อก</label>
               <input type="date" value={form.addedDate}
                 onChange={(e) => setForm({ ...form, addedDate: e.target.value })} /></div>
+
+            {/* Device Condition - มือ 1 / มือ 2 */}
+            <div className="field full">
+              <label>สภาพเครื่อง <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, deviceCondition: 'new' })}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: form.deviceCondition === 'new' ? 'var(--accent)' : 'var(--surface-2)',
+                    color: form.deviceCondition === 'new' ? 'var(--bg)' : 'var(--text)',
+                    border: `1px solid ${form.deviceCondition === 'new' ? 'var(--accent)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  ✨ มือ 1 (ใหม่)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, deviceCondition: 'used' })}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: form.deviceCondition === 'used' ? 'var(--accent)' : 'var(--surface-2)',
+                    color: form.deviceCondition === 'used' ? 'var(--bg)' : 'var(--text)',
+                    border: `1px solid ${form.deviceCondition === 'used' ? 'var(--accent)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  📱 มือ 2 (มือสอง)
+                </button>
+              </div>
+            </div>
 
             {/* Branch Selector */}
             <div className="field full">

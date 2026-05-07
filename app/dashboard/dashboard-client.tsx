@@ -98,7 +98,7 @@ export default function DashboardClient({ profile, children }: Props) {
             <span className="module-label">{moduleInfo[currentModule].label}</span>
             <span className="module-arrow">▾</span>
           </button>
-          <span className="version-badge">v1.1</span>
+          <span className="version-badge">v1.2</span>
         </div>
         <div className="header-user">
           <div className="user-info">

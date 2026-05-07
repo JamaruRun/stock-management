@@ -224,6 +224,16 @@ export default function StockPage() {
               </div>
               <div className="imei">IMEI: {item.imei}</div>
               <div className="meta">
+                {item.device_condition === 'new' && (
+                  <span className="tag" style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+                    ✨ มือ 1
+                  </span>
+                )}
+                {item.device_condition === 'used' && (
+                  <span className="tag" style={{ color: '#3742fa', borderColor: '#3742fa' }}>
+                    📱 มือ 2
+                  </span>
+                )}
                 {item.color && <span className="tag">{item.color}</span>}
                 {item.spec && <span className="tag">{item.spec}</span>}
                 {isAdmin && item.branch?.name && <span className="tag">{item.branch.name}</span>}
@@ -285,6 +295,14 @@ export default function StockPage() {
               <div className="detail-item">
                 <div className="label">วันที่ลงสต๊อก</div>
                 <div className="value">{viewing.added_date}</div>
+              </div>
+              <div className="detail-item">
+                <div className="label">สภาพเครื่อง</div>
+                <div className="value">
+                  {viewing.device_condition === 'new' && '✨ มือ 1 (ใหม่)'}
+                  {viewing.device_condition === 'used' && '📱 มือ 2 (มือสอง)'}
+                  {!viewing.device_condition && '-'}
+                </div>
               </div>
               <div className="detail-item full">
                 <div className="label">เพิ่มโดย</div>

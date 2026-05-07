@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '1.1.0',
-  date: '2026-05-06',
+  version: '1.2.0',
+  date: '2026-05-07',
   features: [
     {
-      icon: '🏪',
-      title: 'แถบกรองสาขา',
-      desc: 'Admin สามารถกดแถบสาขาเพื่อดูเฉพาะเครื่องในสาขานั้นได้ มีในทุกหน้าสต๊อก/ประวัติ',
-    },
-    {
-      icon: '📊',
-      title: 'แสดงจำนวนเครื่องในแต่ละสาขา',
-      desc: 'แต่ละแถบสาขาจะแสดงจำนวนเครื่องที่มีอยู่ ทำให้ดูภาพรวมได้ง่ายขึ้น',
-    },
-    {
       icon: '✨',
-      title: 'UI ลื่นขึ้น',
-      desc: 'เลื่อนแถบสาขาแนวนอนได้ดี ใช้งานบนมือถือสะดวก',
+      title: 'มือ 1 / มือ 2',
+      desc: 'เลือกสภาพเครื่องตอนเพิ่มสต๊อก แสดงป้ายในรายการสต๊อก',
+    },
+    {
+      icon: '💵',
+      title: 'เลือกประเภทการชำระ',
+      desc: 'ตอนขายเครื่อง เลือกได้ว่าเงินสดหรือผ่อน บันทึกในประวัติให้ Admin ดู',
+    },
+    {
+      icon: '🏪',
+      title: 'แถบกรองสาขา (v1.1)',
+      desc: 'Admin กดแถบสาขาเพื่อดูเฉพาะสาขานั้นได้',
     },
   ],
 };

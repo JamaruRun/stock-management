@@ -12,6 +12,7 @@ export default function SellPage() {
   const [confirming, setConfirming] = useState(false);
   const [foundItem, setFoundItem] = useState<any>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -96,6 +97,8 @@ export default function SellPage() {
       sold_by_name: profile?.full_name,
       sold_date: new Date().toISOString().split('T')[0],
       branch_id: foundItem.branch_id,
+      device_condition: foundItem.device_condition,
+      payment_type: paymentType,
     });
 
     if (insertError) {
@@ -193,11 +196,73 @@ export default function SellPage() {
                 <div className="label">วันที่ลงสต๊อก</div>
                 <div className="value">{foundItem.added_date}</div>
               </div>
+              {foundItem.device_condition && (
+                <div className="detail-item">
+                  <div className="label">สภาพเครื่อง</div>
+                  <div className="value">
+                    {foundItem.device_condition === 'new' && '✨ มือ 1 (ใหม่)'}
+                    {foundItem.device_condition === 'used' && '📱 มือ 2 (มือสอง)'}
+                  </div>
+                </div>
+              )}
               <div className="detail-item full">
                 <div className="label">เพิ่มโดย</div>
                 <div className="value">{foundItem.added_by_profile?.full_name || '-'}</div>
               </div>
             </div>
+
+            {/* Payment Type Selector */}
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <label style={{ 
+                display: 'block', 
+                fontSize: 11, 
+                color: 'var(--text-dim)', 
+                fontFamily: 'JetBrains Mono, monospace', 
+                letterSpacing: 1, 
+                marginBottom: 8 
+              }}>
+                // ประเภทการชำระ
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setPaymentType('cash')}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: paymentType === 'cash' ? 'var(--success)' : 'var(--surface-2)',
+                    color: paymentType === 'cash' ? '#fff' : 'var(--text)',
+                    border: `1px solid ${paymentType === 'cash' ? 'var(--success)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  💵 เงินสด
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentType('installment')}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: paymentType === 'installment' ? '#3742fa' : 'var(--surface-2)',
+                    color: paymentType === 'installment' ? '#fff' : 'var(--text)',
+                    border: `1px solid ${paymentType === 'installment' ? '#3742fa' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  💳 ผ่อน
+                </button>
+              </div>
+            </div>
+
             <div className="modal-actions">
               <button className="btn" onClick={confirmSell} disabled={confirming}>
                 {confirming ? 'กำลังบันทึก...' : 'ยืนยันการขาย ✓'}
