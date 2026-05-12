@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { useState } from 'react';
 import UpdatePopup from '@/components/UpdatePopup';
+import TrialBanner from '@/components/TrialBanner';
 
 interface Props {
   profile: any;
@@ -98,7 +99,7 @@ export default function DashboardClient({ profile, children }: Props) {
             <span className="module-label">{moduleInfo[currentModule].label}</span>
             <span className="module-arrow">▾</span>
           </button>
-          <span className="version-badge">v1.2</span>
+          <span className="version-badge">v1.3</span>
         </div>
         <div className="header-user">
           <div className="user-info">
@@ -106,6 +107,12 @@ export default function DashboardClient({ profile, children }: Props) {
             <div className={`role ${profile.role}`}>{profile.role.toUpperCase()}</div>
             {profile.branches?.name && <div className="branch">{profile.branches.name}</div>}
           </div>
+          {profile.is_super_admin && (
+            <Link href="/super-admin" className="logout-btn" style={{ borderColor: '#ffa502', color: '#ffa502', marginRight: 4 }}>
+              <span>👑</span>
+              <span>SUPER</span>
+            </Link>
+          )}
           <button className="logout-btn" onClick={() => setShowLogout(true)}>
             <span>⏻</span>
             <span>ออก</span>
@@ -167,7 +174,10 @@ export default function DashboardClient({ profile, children }: Props) {
         })}
       </nav>
 
-      <main className="main">{children}</main>
+      <main className="main">
+        <TrialBanner />
+        {children}
+      </main>
 
       <UpdatePopup />
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '1.2.0',
-  date: '2026-05-07',
+  version: '1.3.0',
+  date: '2026-05-08',
   features: [
     {
-      icon: '✨',
-      title: 'มือ 1 / มือ 2',
-      desc: 'เลือกสภาพเครื่องตอนเพิ่มสต๊อก แสดงป้ายในรายการสต๊อก',
-    },
-    {
-      icon: '💵',
-      title: 'เลือกประเภทการชำระ',
-      desc: 'ตอนขายเครื่อง เลือกได้ว่าเงินสดหรือผ่อน บันทึกในประวัติให้ Admin ดู',
-    },
-    {
       icon: '🏪',
-      title: 'แถบกรองสาขา (v1.1)',
-      desc: 'Admin กดแถบสาขาเพื่อดูเฉพาะสาขานั้นได้',
+      title: 'รองรับหลายร้าน (Multi-tenant)',
+      desc: 'ระบบรองรับหลายร้านในที่เดียว แต่ละร้านเห็นแค่ข้อมูลตัวเอง',
+    },
+    {
+      icon: '🎁',
+      title: 'ระบบทดลองใช้ (Trial)',
+      desc: 'แสดงวันหมดอายุ + แจ้งเตือนล่วงหน้า 7 วัน',
+    },
+    {
+      icon: '👑',
+      title: 'Super Admin Panel',
+      desc: 'สำหรับเจ้าของระบบ จัดการร้านทั้งหมด ต่ออายุ ระงับ',
     },
   ],
 };
