@@ -17,11 +17,9 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    // ใช้ username + dummy email เพื่อ login (Supabase ต้องใช้ email)
-    // เราจะเก็บ email เป็น username@example.com
     const email = `${username.trim()}@example.com`;
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -30,6 +28,37 @@ export default function LoginPage() {
       setError('Username หรือ Password ไม่ถูกต้อง');
       setLoading(false);
       return;
+    }
+
+    // เช็คสถานะร้าน
+    if (authData.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_super_admin, shops(name, status, package, expires_at)')
+        .eq('id', authData.user.id)
+        .single();
+
+      const shop = (profile?.shops as any);
+      const isSuperAdmin = profile?.is_super_admin;
+
+      if (!isSuperAdmin && shop) {
+        if (shop.status === 'suspended') {
+          await supabase.auth.signOut();
+          setError(`⛔ ร้าน "${shop.name}" ถูกระงับการใช้งาน - กรุณาติดต่อผู้ดูแลระบบ`);
+          setLoading(false);
+          return;
+        }
+
+        if (shop.package !== 'lifetime' && shop.expires_at) {
+          const expires = new Date(shop.expires_at);
+          if (expires < new Date()) {
+            await supabase.auth.signOut();
+            setError(`⏰ ร้าน "${shop.name}" หมดอายุการใช้งาน - กรุณาติดต่อผู้ดูแลระบบเพื่อต่ออายุ`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
     }
 
     router.push('/dashboard/stock');
