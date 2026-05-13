@@ -148,6 +148,7 @@ export default function AddInstallmentPage() {
       added_by: user.id,
       added_by_name: profile.full_name,
       branch_id: form.branchId,
+      shop_id: profile.shop_id,
     });
 
     setLoading(false);

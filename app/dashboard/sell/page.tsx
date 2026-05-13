@@ -78,11 +78,8 @@ export default function SellPage() {
       return;
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .single();
+    const { data: profileWithShop } = await supabase
+      .from('profiles').select('full_name, shop_id').eq('id', user.id).single();
 
     const { error: insertError } = await supabase.from('sales_history').insert({
       imei: foundItem.imei,
@@ -94,11 +91,12 @@ export default function SellPage() {
       added_by: foundItem.added_by,
       added_by_name: foundItem.added_by_name,
       sold_by: user.id,
-      sold_by_name: profile?.full_name,
+      sold_by_name: profileWithShop?.full_name,
       sold_date: new Date().toISOString().split('T')[0],
       branch_id: foundItem.branch_id,
       device_condition: foundItem.device_condition,
       payment_type: paymentType,
+      shop_id: profileWithShop?.shop_id,
     });
 
     if (insertError) {

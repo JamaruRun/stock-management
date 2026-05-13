@@ -82,6 +82,9 @@ export default function AddPawnPage() {
       return;
     }
 
+    const { data: profileWithShop } = await supabase
+      .from('profiles').select('shop_id').eq('id', user.id).single();
+
     const { error } = await supabase.from('pawn_stock').insert({
       imei: form.imei, model: form.model,
       color: form.color || null, spec: form.spec || null,
@@ -91,6 +94,7 @@ export default function AddPawnPage() {
       customer_note: form.customerNote || null,
       added_by: user.id, added_by_name: profile.full_name,
       branch_id: form.branchId,
+      shop_id: profileWithShop?.shop_id,
     });
 
     setLoading(false);

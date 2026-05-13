@@ -79,7 +79,7 @@ export default function RedeemPage() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, shop_id')
       .eq('id', user.id)
       .single();
 
@@ -99,6 +99,7 @@ export default function RedeemPage() {
       redeemed_by_name: profile?.full_name,
       redeem_date: new Date().toISOString().split('T')[0],
       branch_id: foundItem.branch_id,
+      shop_id: profile?.shop_id,
     });
 
     if (insertError) {

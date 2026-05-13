@@ -134,6 +134,9 @@ export default function AddStockPage() {
       return;
     }
 
+    const { data: profileWithShop } = await supabase
+      .from('profiles').select('shop_id').eq('id', user.id).single();
+
     const { error } = await supabase.from('stock').insert({
       imei: form.imei,
       model: form.model,
@@ -145,6 +148,7 @@ export default function AddStockPage() {
       added_by_name: profile.full_name,
       branch_id: form.branchId,
       device_condition: form.deviceCondition,
+      shop_id: profileWithShop?.shop_id,
     });
 
     setLoading(false);

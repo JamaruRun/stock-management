@@ -124,6 +124,7 @@ function InstallmentDetailContent() {
       paid_by: user.id,
       paid_by_name: profile?.full_name,
       note: newPayment.note || null,
+      shop_id: item.shop_id,
     });
 
     if (error) {
@@ -205,6 +206,7 @@ function InstallmentDetailContent() {
       closed_by_name: profile?.full_name,
       branch_id: item.branch_id,
       payment_history: payments,
+      shop_id: item.shop_id,
     });
 
     if (insertError) {
