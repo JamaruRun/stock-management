@@ -23,16 +23,24 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // สำคัญ: เรียก getUser() เพื่อ refresh session cookies
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Redirect logic
   const path = request.nextUrl.pathname;
-  
-  // ยังไม่ login + พยายามเข้า dashboard → ไป login
-  if (!user && path.startsWith('/dashboard')) {
+
+  // routes ที่ต้อง login
+  const protectedRoutes = ['/dashboard', '/super-admin', '/api/admin', '/api/super-admin'];
+  const isProtected = protectedRoutes.some(r => path.startsWith(r));
+
+  // ยังไม่ login + เข้า route ที่ป้องกัน → ไป login
+  if (!user && isProtected) {
+    // ถ้าเป็น API → return JSON error
+    if (path.startsWith('/api/')) {
+      return NextResponse.json({ error: 'ต้อง login' }, { status: 401 });
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  
+
   // login แล้ว + พยายามเข้า login → ไป dashboard
   if (user && (path === '/login' || path === '/')) {
     return NextResponse.redirect(new URL('/dashboard/stock', request.url));
@@ -42,5 +50,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 };
