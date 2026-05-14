@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '1.6.0',
+  version: '1.7.0',
   date: '2026-05-14',
   features: [
     {
-      icon: '🎨',
-      title: 'ระบบเปลี่ยน Theme',
-      desc: 'เลือก theme ได้ 5 แบบ: 🖤 Dark, 🤍 Light, 💚 Matrix, 🌊 Ocean, 🌸 Sakura',
+      icon: '🎒',
+      title: 'โมดูลใหม่: สต๊อกของ',
+      desc: 'จัดการอุปกรณ์เสริม เคส หูฟัง ฟิล์ม และอะไหล่ต่างๆ พร้อมระบบ Barcode',
     },
     {
-      icon: '💾',
-      title: 'จำการตั้งค่าได้',
-      desc: 'เลือก theme แล้วจะจดจำไว้ ครั้งหน้าเข้ามาเหมือนเดิม',
+      icon: '🖨️',
+      title: 'ปริ้น Barcode ได้!',
+      desc: 'เพิ่มสินค้า → ระบบสร้าง SKU → ปริ้น barcode ติดสติ๊กเกอร์ (3 ขนาดให้เลือก)',
     },
     {
-      icon: '🔀',
-      title: 'สลับได้ทุกที่',
-      desc: 'มีปุ่มเปลี่ยน theme ทั้งหน้า Login และในระบบ',
+      icon: '📷',
+      title: 'ขายด้วยการสแกน',
+      desc: 'สแกน barcode → เพิ่มเข้าตะกร้า → หักสต๊อกอัตโนมัติ ขายหลายชิ้นในใบเดียวกัน',
     },
   ],
 };

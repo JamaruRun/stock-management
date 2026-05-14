@@ -13,7 +13,7 @@ interface Props {
   children: React.ReactNode;
 }
 
-type Module = 'stock' | 'pawn' | 'installment' | 'users';
+type Module = 'stock' | 'pawn' | 'installment' | 'goods' | 'users';
 
 export default function DashboardClient({ profile, children }: Props) {
   const pathname = usePathname();
@@ -29,6 +29,8 @@ export default function DashboardClient({ profile, children }: Props) {
     ? 'pawn'
     : pathname.startsWith('/dashboard/installment')
     ? 'installment'
+    : pathname.startsWith('/dashboard/goods')
+    ? 'goods'
     : pathname.startsWith('/dashboard/users')
     ? 'users'
     : 'stock';
@@ -60,6 +62,14 @@ export default function DashboardClient({ profile, children }: Props) {
     ...(isAdmin ? [{ path: '/dashboard/installment/history', icon: '⌛', label: 'ประวัติ', adminOnly: true }] : []),
   ];
 
+  const goodsNav = [
+    { path: '/dashboard/goods/add', icon: '+', label: 'เพิ่ม' },
+    { path: '/dashboard/goods/sell', icon: '📷', label: 'ขาย' },
+    { path: '/dashboard/goods/stock', icon: '▦', label: 'สต๊อก' },
+    { path: '/dashboard/goods/print', icon: '🖨️', label: 'ปริ้น' },
+    ...(isAdmin ? [{ path: '/dashboard/goods/history', icon: '⌛', label: 'ประวัติ', adminOnly: true }] : []),
+  ];
+
   const usersNav = [
     { path: '/dashboard/users', icon: '⚙', label: 'ผู้ใช้' },
   ];
@@ -68,6 +78,8 @@ export default function DashboardClient({ profile, children }: Props) {
     ? pawnNav 
     : currentModule === 'installment'
     ? installmentNav
+    : currentModule === 'goods'
+    ? goodsNav
     : currentModule === 'users' 
     ? usersNav 
     : stockNav;
@@ -76,6 +88,7 @@ export default function DashboardClient({ profile, children }: Props) {
     stock: { icon: '📦', label: 'สต๊อกเครื่อง', color: 'var(--accent)' },
     pawn: { icon: '💰', label: 'จำนำเครื่อง', color: '#ffa502' },
     installment: { icon: '💳', label: 'ผ่อนเครื่อง', color: '#3742fa' },
+    goods: { icon: '🎒', label: 'สต๊อกของ', color: '#2ed573' },
     users: { icon: '👥', label: 'จัดการผู้ใช้', color: '#3742fa' },
   };
 
@@ -84,6 +97,7 @@ export default function DashboardClient({ profile, children }: Props) {
     if (m === 'stock') router.push('/dashboard/stock');
     if (m === 'pawn') router.push('/dashboard/pawn/stock');
     if (m === 'installment') router.push('/dashboard/installment/stock');
+    if (m === 'goods') router.push('/dashboard/goods/stock');
     if (m === 'users') router.push('/dashboard/users');
   }
 
@@ -100,7 +114,7 @@ export default function DashboardClient({ profile, children }: Props) {
             <span className="module-label">{moduleInfo[currentModule].label}</span>
             <span className="module-arrow">▾</span>
           </button>
-          <span className="version-badge">v1.6</span>
+          <span className="version-badge">v1.7</span>
         </div>
         <div className="header-user">
           <div className="user-info">
@@ -145,6 +159,13 @@ export default function DashboardClient({ profile, children }: Props) {
           >
             <span>💳</span>
             <span>ผ่อนเครื่อง</span>
+          </button>
+          <button
+            className={`module-tab ${currentModule === 'goods' ? 'active' : ''}`}
+            onClick={() => switchModule('goods')}
+          >
+            <span>🎒</span>
+            <span>สต๊อกของ</span>
           </button>
           {isAdmin && (
             <button
@@ -233,6 +254,21 @@ export default function DashboardClient({ profile, children }: Props) {
                   </div>
                 </div>
                 {currentModule === 'installment' && <span style={{ color: 'var(--accent)' }}>✓</span>}
+              </button>
+
+              <button
+                className="module-option"
+                onClick={() => switchModule('goods')}
+                style={{ borderColor: currentModule === 'goods' ? 'var(--accent)' : 'var(--border)' }}
+              >
+                <span style={{ fontSize: 24 }}>🎒</span>
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 600 }}>สต๊อกของ <span style={{ color: '#2ed573', fontSize: 10 }}>NEW!</span></div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                    อุปกรณ์เสริม / Barcode / สแกนขาย
+                  </div>
+                </div>
+                {currentModule === 'goods' && <span style={{ color: 'var(--accent)' }}>✓</span>}
               </button>
 
               {isAdmin && (
