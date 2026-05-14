@@ -97,7 +97,7 @@ export default function HistoryPage() {
   });
 
   // stats
-  const totalRevenue = items.reduce((sum, i) => sum + Number(i.price), 0);
+  const totalRevenue = items.reduce((sum, i) => sum + Number(i.final_price || i.price), 0);
   const sellerCounts: Record<string, number> = {};
   items.forEach((i) => {
     if (i.sold_by) sellerCounts[i.sold_by] = (sellerCounts[i.sold_by] || 0) + 1;
@@ -241,7 +241,24 @@ export default function HistoryPage() {
             <div key={item.id} className="item-card">
               <div className="top-row">
                 <div className="model">{item.model}</div>
-                <div className="price">฿{Number(item.price).toLocaleString()}</div>
+                <div className="price">
+                  {item.discount && Number(item.discount) > 0 ? (
+                    <>
+                      <span style={{ 
+                        fontSize: 11, 
+                        textDecoration: 'line-through', 
+                        color: 'var(--text-dim)', 
+                        marginRight: 6,
+                        fontWeight: 'normal',
+                      }}>
+                        ฿{Number(item.price).toLocaleString()}
+                      </span>
+                      ฿{Number(item.final_price || item.price).toLocaleString()}
+                    </>
+                  ) : (
+                    <>฿{Number(item.final_price || item.price).toLocaleString()}</>
+                  )}
+                </div>
               </div>
               <div className="imei">IMEI: {item.imei}</div>
               <div className="meta">
@@ -263,6 +280,11 @@ export default function HistoryPage() {
                 {item.payment_type === 'installment' && (
                   <span className="tag" style={{ color: '#3742fa', borderColor: '#3742fa' }}>
                     💳 ผ่อน
+                  </span>
+                )}
+                {item.discount && Number(item.discount) > 0 && (
+                  <span className="tag" style={{ color: '#ff6b6b', borderColor: '#ff6b6b' }}>
+                    💸 ลด ฿{Number(item.discount).toLocaleString()}
                   </span>
                 )}
                 {item.color && <span className="tag">{item.color}</span>}
@@ -350,6 +372,28 @@ export default function HistoryPage() {
                   {!viewing.payment_type && '-'}
                 </div>
               </div>
+              {viewing.discount && Number(viewing.discount) > 0 && (
+                <>
+                  <div className="detail-item">
+                    <div className="label">ราคาเดิม</div>
+                    <div className="value" style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>
+                      ฿{Number(viewing.price).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="detail-item">
+                    <div className="label">ส่วนลด</div>
+                    <div className="value" style={{ color: '#ff6b6b' }}>
+                      -฿{Number(viewing.discount).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="detail-item">
+                    <div className="label">ราคาขายจริง</div>
+                    <div className="value" style={{ color: 'var(--success)' }}>
+                      ฿{Number(viewing.final_price).toLocaleString()}
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="detail-item">
                 <div className="label">เพิ่มโดย</div>
                 <div className="value">

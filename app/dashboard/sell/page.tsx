@@ -13,6 +13,7 @@ export default function SellPage() {
   const [foundItem, setFoundItem] = useState<any>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
+  const [discount, setDiscount] = useState('');
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -78,6 +79,21 @@ export default function SellPage() {
       return;
     }
 
+    const discountValue = parseFloat(discount) || 0;
+    const finalPrice = Number(foundItem.price) - discountValue;
+
+    if (discountValue < 0) {
+      showToast('ส่วนลดต้องไม่ติดลบ', '', 'danger');
+      setConfirming(false);
+      return;
+    }
+
+    if (finalPrice < 0) {
+      showToast('ส่วนลดเกินราคา', 'ส่วนลดมากกว่าราคาขาย', 'danger');
+      setConfirming(false);
+      return;
+    }
+
     const { data: profileWithShop } = await supabase
       .from('profiles').select('full_name, shop_id').eq('id', user.id).single();
 
@@ -87,6 +103,8 @@ export default function SellPage() {
       color: foundItem.color,
       spec: foundItem.spec,
       price: foundItem.price,
+      discount: discountValue,
+      final_price: finalPrice,
       added_date: foundItem.added_date,
       added_by: foundItem.added_by,
       added_by_name: foundItem.added_by_name,
@@ -116,9 +134,10 @@ export default function SellPage() {
       return;
     }
 
-    showToast('ขายสำเร็จ', `${foundItem.model} - ฿${foundItem.price.toLocaleString()}`);
+    showToast('ขายสำเร็จ', `${foundItem.model} - ฿${finalPrice.toLocaleString()}`);
     setFoundItem(null);
     setImei('');
+    setDiscount('');
     setConfirming(false);
   }
 
@@ -206,6 +225,85 @@ export default function SellPage() {
               <div className="detail-item full">
                 <div className="label">เพิ่มโดย</div>
                 <div className="value">{foundItem.added_by_profile?.full_name || '-'}</div>
+              </div>
+            </div>
+
+            {/* Discount Input */}
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <label style={{ 
+                display: 'block', 
+                fontSize: 11, 
+                color: 'var(--text-dim)', 
+                fontFamily: 'JetBrains Mono, monospace', 
+                letterSpacing: 1, 
+                marginBottom: 8 
+              }}>
+                // ส่วนลด (ถ้ามี)
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  style={{ 
+                    width: '100%',
+                    paddingRight: 50,
+                  }}
+                />
+                <span style={{ 
+                  position: 'absolute', 
+                  right: 14, 
+                  top: '50%', 
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-dim)',
+                  fontSize: 12,
+                  fontFamily: 'JetBrains Mono, monospace',
+                  pointerEvents: 'none',
+                }}>
+                  บาท
+                </span>
+              </div>
+              
+              {/* Price Summary */}
+              <div style={{ 
+                marginTop: 12,
+                padding: 12,
+                background: 'var(--surface-2)',
+                borderLeft: '3px solid var(--accent)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span style={{ color: 'var(--text-dim)' }}>ราคาเดิม:</span>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                    ฿{Number(foundItem.price).toLocaleString()}
+                  </span>
+                </div>
+                {parseFloat(discount) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                    <span style={{ color: 'var(--danger)' }}>ส่วนลด:</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--danger)' }}>
+                      -฿{parseFloat(discount).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  fontSize: 15, 
+                  fontWeight: 700,
+                  paddingTop: 8,
+                  borderTop: '1px solid var(--border)',
+                }}>
+                  <span>ราคาขายจริง:</span>
+                  <span style={{ 
+                    color: 'var(--accent)',
+                    fontFamily: 'JetBrains Mono, monospace',
+                  }}>
+                    ฿{(Number(foundItem.price) - (parseFloat(discount) || 0)).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
 
