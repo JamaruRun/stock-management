@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -67,8 +68,11 @@ export default function LoginPage() {
 
   return (
     <div className="login-screen">
+      <div className="login-theme-switch">
+        <ThemeSwitcher />
+      </div>
       <div className="login-box">
-        <div className="logo-text">SYS_v1.5 // STOCK MANAGEMENT</div>
+        <div className="logo-text">SYS_v1.6 // STOCK MANAGEMENT</div>
         <h1 className="login-title">เข้าสู่ระบบ</h1>
         <p className="login-sub">ระบบจัดการสต๊อกมือถือ</p>
 

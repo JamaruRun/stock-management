@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '1.5.0',
+  version: '1.6.0',
   date: '2026-05-14',
   features: [
     {
-      icon: '✏️',
-      title: 'แก้ไขข้อมูลเก่าได้แล้ว',
-      desc: 'Admin แก้ไขสภาพเครื่อง (มือ 1/2) ในสต๊อก และแก้ไขส่วนลด + ประเภทการชำระในประวัติได้',
+      icon: '🎨',
+      title: 'ระบบเปลี่ยน Theme',
+      desc: 'เลือก theme ได้ 5 แบบ: 🖤 Dark, 🤍 Light, 💚 Matrix, 🌊 Ocean, 🌸 Sakura',
     },
     {
-      icon: '💸',
-      title: 'แก้ไขส่วนลดย้อนหลัง',
-      desc: 'ในประวัติ Admin แก้ไขราคา + ส่วนลด → ระบบคำนวณราคาขายจริงให้อัตโนมัติ',
+      icon: '💾',
+      title: 'จำการตั้งค่าได้',
+      desc: 'เลือก theme แล้วจะจดจำไว้ ครั้งหน้าเข้ามาเหมือนเดิม',
     },
     {
-      icon: '🔄',
-      title: 'อัพเดทประวัติให้ตรงกับปัจจุบัน',
-      desc: 'ข้อมูลเก่าที่ไม่มีค่ามือ 1/2 หรือเงินสด/ผ่อน Admin มาเติมข้อมูลย้อนหลังได้',
+      icon: '🔀',
+      title: 'สลับได้ทุกที่',
+      desc: 'มีปุ่มเปลี่ยน theme ทั้งหน้า Login และในระบบ',
     },
   ],
 };

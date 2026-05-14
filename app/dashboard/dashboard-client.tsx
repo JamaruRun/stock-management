@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import { useState } from 'react';
 import UpdatePopup from '@/components/UpdatePopup';
 import TrialBanner from '@/components/TrialBanner';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 interface Props {
   profile: any;
@@ -99,7 +100,7 @@ export default function DashboardClient({ profile, children }: Props) {
             <span className="module-label">{moduleInfo[currentModule].label}</span>
             <span className="module-arrow">▾</span>
           </button>
-          <span className="version-badge">v1.5</span>
+          <span className="version-badge">v1.6</span>
         </div>
         <div className="header-user">
           <div className="user-info">
@@ -107,6 +108,7 @@ export default function DashboardClient({ profile, children }: Props) {
             <div className={`role ${profile.role}`}>{profile.role.toUpperCase()}</div>
             {profile.branches?.name && <div className="branch">{profile.branches.name}</div>}
           </div>
+          <ThemeSwitcher compact />
           {profile.is_super_admin && (
             <Link href="/super-admin" className="logout-btn" style={{ borderColor: '#ffa502', color: '#ffa502', marginRight: 4 }}>
               <span>👑</span>
