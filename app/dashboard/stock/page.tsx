@@ -104,6 +104,7 @@ export default function StockPage() {
         color: editing.color,
         spec: editing.spec,
         price: parseFloat(editing.price),
+        device_condition: editing.device_condition || null,
       })
       .eq('id', editing.id);
 
@@ -369,6 +370,60 @@ export default function StockPage() {
                   value={editing.price}
                   onChange={(e) => setEditing({ ...editing, price: e.target.value })}
                 />
+              </div>
+              <div className="field full">
+                <label>สภาพเครื่อง</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, device_condition: 'new' })}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: editing.device_condition === 'new' ? 'var(--success)' : 'var(--surface-2)',
+                      color: editing.device_condition === 'new' ? '#fff' : 'var(--text)',
+                      border: `1px solid ${editing.device_condition === 'new' ? 'var(--success)' : 'var(--border)'}`,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✨ มือ 1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, device_condition: 'used' })}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: editing.device_condition === 'used' ? '#3742fa' : 'var(--surface-2)',
+                      color: editing.device_condition === 'used' ? '#fff' : 'var(--text)',
+                      border: `1px solid ${editing.device_condition === 'used' ? '#3742fa' : 'var(--border)'}`,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    📱 มือ 2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, device_condition: null })}
+                    style={{
+                      padding: '10px 14px',
+                      background: !editing.device_condition ? 'var(--text-dim)' : 'var(--surface-2)',
+                      color: !editing.device_condition ? '#fff' : 'var(--text-dim)',
+                      border: `1px solid ${!editing.device_condition ? 'var(--text-dim)' : 'var(--border)'}`,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: 13,
+                    }}
+                  >
+                    -
+                  </button>
+                </div>
               </div>
             </div>
             <div className="modal-actions" style={{ marginTop: 20 }}>

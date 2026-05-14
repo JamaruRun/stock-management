@@ -68,7 +68,7 @@ export default function LoginPage() {
   return (
     <div className="login-screen">
       <div className="login-box">
-        <div className="logo-text">SYS_v1.4 // STOCK MANAGEMENT</div>
+        <div className="logo-text">SYS_v1.5 // STOCK MANAGEMENT</div>
         <h1 className="login-title">เข้าสู่ระบบ</h1>
         <p className="login-sub">ระบบจัดการสต๊อกมือถือ</p>
 

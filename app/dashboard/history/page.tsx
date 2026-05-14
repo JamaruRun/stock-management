@@ -116,6 +116,20 @@ export default function HistoryPage() {
   async function handleSaveEdit() {
     if (!editing) return;
 
+    const price = parseFloat(editing.price) || 0;
+    const discount = parseFloat(editing.discount) || 0;
+    
+    if (discount < 0) {
+      showToast('ส่วนลดผิด', 'ส่วนลดติดลบไม่ได้', 'danger');
+      return;
+    }
+    if (discount > price) {
+      showToast('ส่วนลดเกิน', 'ส่วนลดเกินราคา', 'danger');
+      return;
+    }
+
+    const final_price = price - discount;
+
     const { error } = await supabase
       .from('sales_history')
       .update({
@@ -123,7 +137,11 @@ export default function HistoryPage() {
         model: editing.model,
         color: editing.color,
         spec: editing.spec,
-        price: parseFloat(editing.price),
+        price,
+        discount,
+        final_price,
+        device_condition: editing.device_condition || null,
+        payment_type: editing.payment_type || null,
       })
       .eq('id', editing.id);
 
@@ -463,12 +481,118 @@ export default function HistoryPage() {
                 />
               </div>
               <div className="field">
-                <label>ราคา</label>
+                <label>ราคา (เดิม)</label>
                 <input
                   type="number"
                   value={editing.price}
                   onChange={(e) => setEditing({ ...editing, price: e.target.value })}
                 />
+              </div>
+              <div className="field">
+                <label>ส่วนลด</label>
+                <input
+                  type="number"
+                  value={editing.discount || 0}
+                  onChange={(e) => setEditing({ ...editing, discount: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="field full">
+                <label>ราคาขายจริง (คำนวณอัตโนมัติ)</label>
+                <input
+                  type="text"
+                  value={`฿${((parseFloat(editing.price) || 0) - (parseFloat(editing.discount) || 0)).toLocaleString()}`}
+                  disabled
+                  style={{ opacity: 0.8, fontWeight: 600, color: 'var(--success)' }}
+                />
+              </div>
+              <div className="field full">
+                <label>สภาพเครื่อง</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, device_condition: 'new' })}
+                    style={{
+                      flex: 1, padding: '10px',
+                      background: editing.device_condition === 'new' ? 'var(--success)' : 'var(--surface-2)',
+                      color: editing.device_condition === 'new' ? '#fff' : 'var(--text)',
+                      border: `1px solid ${editing.device_condition === 'new' ? 'var(--success)' : 'var(--border)'}`,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    ✨ มือ 1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, device_condition: 'used' })}
+                    style={{
+                      flex: 1, padding: '10px',
+                      background: editing.device_condition === 'used' ? '#3742fa' : 'var(--surface-2)',
+                      color: editing.device_condition === 'used' ? '#fff' : 'var(--text)',
+                      border: `1px solid ${editing.device_condition === 'used' ? '#3742fa' : 'var(--border)'}`,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    📱 มือ 2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, device_condition: null })}
+                    style={{
+                      padding: '10px 14px',
+                      background: !editing.device_condition ? 'var(--text-dim)' : 'var(--surface-2)',
+                      color: !editing.device_condition ? '#fff' : 'var(--text-dim)',
+                      border: `1px solid ${!editing.device_condition ? 'var(--text-dim)' : 'var(--border)'}`,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+                    }}
+                  >
+                    -
+                  </button>
+                </div>
+              </div>
+              <div className="field full">
+                <label>ประเภทการชำระ</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, payment_type: 'cash' })}
+                    style={{
+                      flex: 1, padding: '10px',
+                      background: editing.payment_type === 'cash' ? 'var(--success)' : 'var(--surface-2)',
+                      color: editing.payment_type === 'cash' ? '#fff' : 'var(--text)',
+                      border: `1px solid ${editing.payment_type === 'cash' ? 'var(--success)' : 'var(--border)'}`,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    💵 เงินสด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, payment_type: 'installment' })}
+                    style={{
+                      flex: 1, padding: '10px',
+                      background: editing.payment_type === 'installment' ? '#3742fa' : 'var(--surface-2)',
+                      color: editing.payment_type === 'installment' ? '#fff' : 'var(--text)',
+                      border: `1px solid ${editing.payment_type === 'installment' ? '#3742fa' : 'var(--border)'}`,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    💳 ผ่อน
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ ...editing, payment_type: null })}
+                    style={{
+                      padding: '10px 14px',
+                      background: !editing.payment_type ? 'var(--text-dim)' : 'var(--surface-2)',
+                      color: !editing.payment_type ? '#fff' : 'var(--text-dim)',
+                      border: `1px solid ${!editing.payment_type ? 'var(--text-dim)' : 'var(--border)'}`,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+                    }}
+                  >
+                    -
+                  </button>
+                </div>
               </div>
             </div>
             <div className="modal-actions" style={{ marginTop: 20 }}>
