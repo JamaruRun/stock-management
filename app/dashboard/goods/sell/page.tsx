@@ -46,26 +46,16 @@ export default function SellGoodsPage() {
     const cleaned = sku.trim().toUpperCase();
     if (!cleaned) return;
 
-    // เช็คว่ามีในตะกร้าแล้วไหม
-    const existingIdx = cart.findIndex(c => c.sku === cleaned);
-    if (existingIdx >= 0) {
-      const existing = cart[existingIdx];
-      if (existing.quantity >= existing.stock_qty) {
-        showToast('สต๊อกหมด', `${existing.name} เหลือแค่ ${existing.stock_qty}`, 'danger');
-        return;
-      }
-      const newCart = [...cart];
-      newCart[existingIdx] = { ...existing, quantity: existing.quantity + 1 };
-      setCart(newCart);
-      showToast('เพิ่มอีก 1', existing.name);
+    // ค้นหาในฐานข้อมูลก่อน (case-insensitive)
+    const { data: item, error } = await supabase
+      .from('goods').select('*').ilike('sku', cleaned).maybeSingle();
+
+    if (error) {
+      showToast('เกิดข้อผิดพลาด', error.message, 'danger');
       return;
     }
 
-    // ค้นหาในฐานข้อมูล
-    const { data: item, error } = await supabase
-      .from('goods').select('*').eq('sku', cleaned).maybeSingle();
-
-    if (error || !item) {
+    if (!item) {
       showToast('ไม่พบสินค้า', `SKU: ${cleaned}`, 'danger');
       return;
     }
@@ -75,20 +65,41 @@ export default function SellGoodsPage() {
       return;
     }
 
-    setCart([...cart, {
-      goods_id: item.id,
-      sku: item.sku,
-      name: item.name,
-      category: item.category,
-      unit_price: Number(item.sell_price),
-      quantity: 1,
-      stock_qty: item.stock_qty,
-    }]);
-    showToast('เพิ่มเข้าตะกร้า', item.name);
+    // ใช้ functional update เพื่อไม่ให้ติด closure
+    setCart(prev => {
+      const existingIdx = prev.findIndex(c => c.sku === cleaned);
+      if (existingIdx >= 0) {
+        const existing = prev[existingIdx];
+        if (existing.quantity >= item.stock_qty) {
+          showToast('สต๊อกหมด', `${item.name} เหลือ ${item.stock_qty}`, 'danger');
+          return prev;
+        }
+        const newCart = [...prev];
+        newCart[existingIdx] = { ...existing, quantity: existing.quantity + 1 };
+        showToast('เพิ่มอีก 1', `${item.name} (${existing.quantity + 1})`);
+        return newCart;
+      }
+
+      // เพิ่มใหม่
+      showToast('เพิ่มเข้าตะกร้า', item.name);
+      return [...prev, {
+        goods_id: item.id,
+        sku: item.sku,
+        name: item.name,
+        category: item.category,
+        unit_price: Number(item.sell_price),
+        quantity: 1,
+        stock_qty: item.stock_qty,
+      }];
+    });
   }
 
   function handleScan(code: string) {
     setShowScanner(false);
+    // Vibrate ถ้ารองรับ
+    try {
+      if (navigator.vibrate) navigator.vibrate(100);
+    } catch (e) {}
     addBySku(code);
   }
 
@@ -230,7 +241,27 @@ export default function SellGoodsPage() {
 
       {cart.length > 0 && (
         <div className="form-card">
-          <h3>2. ตะกร้า ({cart.length} รายการ)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>2. ตะกร้า ({cart.length} รายการ)</h3>
+            <button 
+              onClick={() => setShowScanner(true)}
+              style={{
+                padding: '8px 14px',
+                background: 'var(--success)',
+                color: '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              📷 สแกนต่อ
+            </button>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {cart.map((c, idx) => (
               <div key={idx} style={{

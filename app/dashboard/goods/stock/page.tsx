@@ -239,9 +239,11 @@ export default function GoodsStockPage() {
                     )}
                   </div>
                   <div className="actions">
-                    <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
                     {isAdmin && (
-                      <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
+                      <>
+                        <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
+                        <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
+                      </>
                     )}
                   </div>
                 </div>

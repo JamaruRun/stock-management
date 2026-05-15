@@ -71,11 +71,11 @@ export default function AddGoodsPage() {
     setShowScanner(false);
     const cleaned = code.trim().toUpperCase();
 
-    // ค้นหาในฐานข้อมูล
+    // ค้นหาในฐานข้อมูล (case-insensitive)
     const { data: existing } = await supabase
       .from('goods')
       .select('*')
-      .eq('sku', cleaned)
+      .ilike('sku', cleaned)
       .maybeSingle();
 
     if (existing) {
