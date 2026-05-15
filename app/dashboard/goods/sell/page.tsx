@@ -222,7 +222,8 @@ export default function SellGoodsPage() {
               type="text"
               value={manualSku}
               onChange={(e) => setManualSku(e.target.value)}
-              placeholder="หรือกรอก SKU แล้วกด Enter"
+              placeholder="พิมพ์ SKU หรือใช้เครื่องสแกน USB"
+              autoFocus
               style={{ 
                 flex: 1, 
                 padding: 12, 
@@ -230,11 +231,15 @@ export default function SellGoodsPage() {
                 border: '1px solid var(--border)', 
                 color: 'var(--text)',
                 fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 16,
               }}
             />
             <button type="submit" className="btn btn-sec" style={{ width: 'auto', padding: '0 20px' }}>
               เพิ่ม
             </button>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-dim)' }}>
+            💡 ถ้าสแกนกล้องไม่ติด ลองพิมพ์ SKU เองหรือใช้เครื่องสแกน USB
           </div>
         </form>
       </div>

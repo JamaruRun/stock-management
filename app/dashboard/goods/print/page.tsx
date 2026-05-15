@@ -7,10 +7,38 @@ import JsBarcode from 'jsbarcode';
 
 type LabelSize = 'small' | 'medium' | 'large';
 
+// ปรับขนาดให้ barcode ใหญ่ขึ้น เส้นหนาขึ้น margin มากขึ้น
 const LABEL_CONFIGS = {
-  small: { perRow: 4, perPage: 24, width: '50mm', height: '25mm', label: 'เล็ก (24/หน้า)' },
-  medium: { perRow: 3, perPage: 18, width: '65mm', height: '30mm', label: 'กลาง (18/หน้า)' },
-  large: { perRow: 2, perPage: 10, width: '95mm', height: '50mm', label: 'ใหญ่ (10/หน้า)' },
+  small: { 
+    perRow: 3,        // ลดจาก 4 → 3 ให้ป้ายใหญ่ขึ้น
+    perPage: 18,      // 18 ใบ/หน้า
+    width: '65mm',
+    height: '30mm',
+    barcodeWidth: 1.8,    // เพิ่มจาก 1
+    barcodeHeight: 35,    // เพิ่มจาก 25
+    fontSize: 11,
+    label: 'เล็ก (18/หน้า A4)' 
+  },
+  medium: { 
+    perRow: 2,        // ลดจาก 3 → 2
+    perPage: 10,      // 10 ใบ/หน้า
+    width: '95mm',
+    height: '40mm',
+    barcodeWidth: 2.5,    // เพิ่มจาก 1.5
+    barcodeHeight: 50,    // เพิ่มจาก 35
+    fontSize: 14,
+    label: 'กลาง (10/หน้า A4) ⭐ แนะนำ' 
+  },
+  large: { 
+    perRow: 2,
+    perPage: 6,       // 6 ใบ/หน้า
+    width: '95mm',
+    height: '60mm',
+    barcodeWidth: 3,      // เพิ่มจาก 2
+    barcodeHeight: 70,    // เพิ่มจาก 45
+    fontSize: 16,
+    label: 'ใหญ่ (6/หน้า A4) สแกนง่ายสุด' 
+  },
 };
 
 export default function PrintBarcodePage() {
@@ -52,14 +80,13 @@ export default function PrintBarcodePage() {
     
     previewRef.current.innerHTML = '';
     
-    labels.forEach((_, idx) => {
+    labels.forEach(() => {
       const label = document.createElement('div');
-      label.className = 'barcode-label';
       label.style.cssText = `
         width: ${config.width};
         height: ${config.height};
         border: 1px dashed #ccc;
-        padding: 4px;
+        padding: 6px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -72,11 +99,11 @@ export default function PrintBarcodePage() {
       
       const nameEl = document.createElement('div');
       nameEl.style.cssText = `
-        font-size: ${labelSize === 'small' ? '8px' : labelSize === 'medium' ? '10px' : '12px'};
+        font-size: ${config.fontSize - 2}px;
         font-weight: bold;
         text-align: center;
         line-height: 1.2;
-        max-height: ${labelSize === 'small' ? '20px' : '30px'};
+        max-height: 26px;
         overflow: hidden;
       `;
       nameEl.textContent = selected.name;
@@ -88,11 +115,14 @@ export default function PrintBarcodePage() {
       try {
         JsBarcode(svg, selected.sku, {
           format: 'CODE128',
-          width: labelSize === 'small' ? 1 : labelSize === 'medium' ? 1.5 : 2,
-          height: labelSize === 'small' ? 25 : labelSize === 'medium' ? 35 : 45,
-          fontSize: labelSize === 'small' ? 9 : labelSize === 'medium' ? 11 : 13,
-          margin: 2,
+          width: config.barcodeWidth,
+          height: config.barcodeHeight,
+          fontSize: config.fontSize,
+          margin: 4,
           displayValue: true,
+          background: '#ffffff',
+          lineColor: '#000000',
+          textMargin: 2,
         });
       } catch (e) {
         console.error('barcode error', e);
@@ -100,7 +130,7 @@ export default function PrintBarcodePage() {
       
       const priceEl = document.createElement('div');
       priceEl.style.cssText = `
-        font-size: ${labelSize === 'small' ? '10px' : labelSize === 'medium' ? '12px' : '14px'};
+        font-size: ${config.fontSize}px;
         font-weight: bold;
       `;
       priceEl.textContent = `฿${Number(selected.sell_price).toLocaleString()}`;
@@ -123,7 +153,6 @@ export default function PrintBarcodePage() {
       return;
     }
 
-    // สร้าง HTML สำหรับปริ้น
     let labelsHtml = '';
     for (let i = 0; i < quantity; i++) {
       labelsHtml += `
@@ -142,24 +171,26 @@ export default function PrintBarcodePage() {
         <title>Barcode - ${selected.name}</title>
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
         <style>
-          @page { size: A4; margin: 5mm; }
+          @page { size: A4; margin: 8mm; }
           * { box-sizing: border-box; }
           body { 
             margin: 0; 
             padding: 0;
             font-family: Arial, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .grid {
             display: grid;
             grid-template-columns: repeat(${config.perRow}, 1fr);
-            gap: 2mm;
+            gap: 3mm;
             padding: 2mm;
           }
           .label {
             width: ${config.width};
             height: ${config.height};
-            border: 1px solid #ddd;
-            padding: 2mm;
+            border: 1px solid #eee;
+            padding: 3mm;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -168,20 +199,26 @@ export default function PrintBarcodePage() {
             background: white;
           }
           .name {
-            font-size: ${labelSize === 'small' ? '8pt' : labelSize === 'medium' ? '10pt' : '12pt'};
+            font-size: ${config.fontSize - 2}pt;
             font-weight: bold;
             text-align: center;
             line-height: 1.2;
-            max-height: ${labelSize === 'small' ? '20px' : '30px'};
+            max-height: 30px;
             overflow: hidden;
+            margin-bottom: 2mm;
           }
-          .barcode { width: 100%; }
+          .barcode { 
+            width: 100%; 
+            display: block;
+          }
           .price {
-            font-size: ${labelSize === 'small' ? '10pt' : labelSize === 'medium' ? '12pt' : '14pt'};
+            font-size: ${config.fontSize}pt;
             font-weight: bold;
+            margin-top: 1mm;
           }
           @media print {
             .label { border: none; }
+            body { margin: 0; }
           }
         </style>
       </head>
@@ -194,15 +231,18 @@ export default function PrintBarcodePage() {
               try {
                 JsBarcode('#bc-' + i, sku, {
                   format: 'CODE128',
-                  width: ${labelSize === 'small' ? 1 : labelSize === 'medium' ? 1.5 : 2},
-                  height: ${labelSize === 'small' ? 25 : labelSize === 'medium' ? 35 : 45},
-                  fontSize: ${labelSize === 'small' ? 9 : labelSize === 'medium' ? 11 : 13},
-                  margin: 2,
+                  width: ${config.barcodeWidth},
+                  height: ${config.barcodeHeight},
+                  fontSize: ${config.fontSize},
+                  margin: 4,
                   displayValue: true,
+                  background: '#ffffff',
+                  lineColor: '#000000',
+                  textMargin: 2,
                 });
               } catch (e) { console.error(e); }
             }
-            setTimeout(() => window.print(), 500);
+            setTimeout(() => window.print(), 700);
           });
         </script>
       </body>
@@ -285,8 +325,24 @@ export default function PrintBarcodePage() {
                 </select>
               </div>
             </div>
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-dim)' }}>
-              💡 จะปริ้นบนกระดาษ A4 — เลือกขนาดป้ายตามความเหมาะสมกับสติ๊กเกอร์ที่มี
+
+            <div style={{ 
+              marginTop: 12, 
+              padding: 12, 
+              background: 'rgba(46, 213, 115, 0.08)',
+              borderLeft: '3px solid var(--success)',
+              fontSize: 12,
+              lineHeight: 1.6,
+            }}>
+              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--success)' }}>
+                💡 Tips ให้สแกนติดง่าย:
+              </div>
+              <div>• เลือก <strong>ขนาดกลางหรือใหญ่</strong> (สแกนง่ายกว่า)</div>
+              <div>• ปริ้นบนกระดาษ <strong>สีขาวสว่าง</strong></div>
+              <div>• ตั้งคุณภาพการปริ้น <strong>สูงสุด/Best</strong></div>
+              <div>• หากใช้เครื่องปริ้นเลเซอร์ <strong>ใช้โหมด ดำเข้ม</strong></div>
+              <div>• อย่าซูม/ย่อ ตอนปริ้น (Scale 100%)</div>
+              <div>• ตอนสแกน: <strong>ห่าง 15-20cm</strong> + นิ่ง 2 วินาที</div>
             </div>
           </div>
 
