@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   try {
-    // ตรวจ auth + role
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -13,12 +12,16 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, shop_id')
       .eq('id', user.id)
       .single();
 
     if (profile?.role !== 'admin') {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์' }, { status: 403 });
+    }
+
+    if (!profile.shop_id) {
+      return NextResponse.json({ error: 'ไม่พบ shop_id' }, { status: 400 });
     }
 
     const body = await request.json();
@@ -28,7 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ข้อมูลไม่ครบ' }, { status: 400 });
     }
 
-    // ใช้ service role key เพื่อสร้าง user
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!SERVICE_KEY) {
       return NextResponse.json(
@@ -43,7 +45,24 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const email = `${username}@example.com`;
+    // เช็คว่า username นี้มีในร้านนี้แล้วหรือยัง
+    const { data: existingUsername } = await adminClient
+      .from('profiles')
+      .select('id, full_name')
+      .eq('username', username)
+      .eq('shop_id', profile.shop_id)
+      .maybeSingle();
+
+    if (existingUsername) {
+      return NextResponse.json(
+        { error: `Username "${username}" มีอยู่ในร้านนี้แล้ว (${existingUsername.full_name})` },
+        { status: 400 }
+      );
+    }
+
+    // ใช้ shop_id 8 ตัวแรกเป็นส่วนหนึ่งของ email เพื่อให้ unique
+    const shopShortId = profile.shop_id.replace(/-/g, '').substring(0, 8);
+    const email = `${username}+${shopShortId}@example.com`;
 
     // สร้าง auth user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -56,17 +75,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: createError.message }, { status: 400 });
     }
 
-    // สร้าง profile
+    // สร้าง profile - username เก็บแบบไม่มี shop_id (สำหรับแสดงผล)
     const { error: profileError } = await adminClient.from('profiles').insert({
       id: newUser.user.id,
       username,
       full_name,
       role,
       branch_id,
+      shop_id: profile.shop_id,
+      is_super_admin: false,
     });
 
     if (profileError) {
-      // ถ้าสร้าง profile ไม่ได้ ให้ลบ auth user ออกด้วย
       await adminClient.auth.admin.deleteUser(newUser.user.id);
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }

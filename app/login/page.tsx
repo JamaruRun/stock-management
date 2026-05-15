@@ -18,20 +18,53 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const email = `${username.trim()}@example.com`;
+    const cleanUsername = username.trim().toLowerCase();
 
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // 1. หา emails ที่เป็นไปได้จาก API
+    let emails: string[] = [];
+    try {
+      const res = await fetch('/api/auth/find-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: cleanUsername }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        emails = data.emails || [];
+      }
+    } catch (e) {
+      // fallback - ใช้ format เดิม
+    }
 
-    if (signInError) {
+    // ถ้าไม่เจอ emails จาก API ให้ลอง format มาตรฐาน
+    if (emails.length === 0) {
+      emails = [`${cleanUsername}@example.com`];
+    }
+
+    // 2. ลอง login แต่ละ email จนเจอ
+    let authData: any = null;
+    let lastError: any = null;
+
+    for (const email of emails) {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (!signInError && data.user) {
+        authData = data;
+        break;
+      }
+      lastError = signInError;
+    }
+
+    if (!authData) {
       setError('Username หรือ Password ไม่ถูกต้อง');
       setLoading(false);
       return;
     }
 
-    // เช็คสถานะร้าน
+    // 3. เช็คสถานะร้าน
     if (authData.user) {
       const { data: profile } = await supabase
         .from('profiles')

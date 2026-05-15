@@ -84,8 +84,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: branchError.message }, { status: 400 });
     }
 
-    // 4. สร้าง auth user
-    const email_for_auth = `${adminUsername}@example.com`;
+    // 4. สร้าง auth user - ใช้ shop_id ใน email เพื่อให้ unique ข้ามร้าน
+    const shopShortId = shop.id.replace(/-/g, '').substring(0, 8);
+    const email_for_auth = `${adminUsername}+${shopShortId}@example.com`;
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: email_for_auth,
       password: adminPassword,
