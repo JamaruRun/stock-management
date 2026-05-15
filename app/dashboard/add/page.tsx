@@ -341,7 +341,7 @@ export default function AddStockPage() {
         </form>
       </div>
 
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
       {toast && <Toast {...toast} />}
     </>
   );

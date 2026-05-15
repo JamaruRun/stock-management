@@ -358,7 +358,7 @@ export default function AddInstallmentPage() {
       </div>
 
       {showScanner && (
-        <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+        <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />
       )}
 
       {toast && <Toast {...toast} />}

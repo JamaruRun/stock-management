@@ -357,7 +357,7 @@ export default function SellGoodsPage() {
       )}
 
       {/* Scanner */}
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="sku" />}
 
       {/* Confirm */}
       {showConfirm && (

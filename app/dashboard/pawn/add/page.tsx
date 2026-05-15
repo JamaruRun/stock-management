@@ -204,7 +204,7 @@ export default function AddPawnPage() {
         </div>
       </div>
 
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
       {toast && <Toast {...toast} />}
     </>
   );

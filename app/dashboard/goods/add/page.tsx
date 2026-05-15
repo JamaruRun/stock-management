@@ -378,7 +378,7 @@ export default function AddGoodsPage() {
         </div>
       )}
 
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="sku" />}
       {toast && <Toast {...toast} />}
     </>
   );
