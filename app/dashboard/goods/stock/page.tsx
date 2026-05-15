@@ -232,7 +232,11 @@ export default function GoodsStockPage() {
                 </div>
                 <div className="footer">
                   <div className="footer-info">
-                    ทุน ฿{Number(item.cost_price).toLocaleString()} → ขาย ฿{Number(item.sell_price).toLocaleString()}
+                    {isAdmin ? (
+                      <>ทุน ฿{Number(item.cost_price).toLocaleString()} → ขาย ฿{Number(item.sell_price).toLocaleString()}</>
+                    ) : (
+                      <>ราคาขาย ฿{Number(item.sell_price).toLocaleString()}</>
+                    )}
                   </div>
                   <div className="actions">
                     <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
@@ -269,11 +273,13 @@ export default function GoodsStockPage() {
                 <input type="number" value={editing.stock_qty}
                   onChange={(e) => setEditing({ ...editing, stock_qty: e.target.value })} />
               </div>
-              <div className="field">
-                <label>ราคาทุน</label>
-                <input type="number" value={editing.cost_price}
-                  onChange={(e) => setEditing({ ...editing, cost_price: e.target.value })} />
-              </div>
+              {isAdmin && (
+                <div className="field">
+                  <label>ราคาทุน <span style={{ color: 'var(--text-dim)', fontSize: 10 }}>(Admin)</span></label>
+                  <input type="number" value={editing.cost_price}
+                    onChange={(e) => setEditing({ ...editing, cost_price: e.target.value })} />
+                </div>
+              )}
               <div className="field">
                 <label>ราคาขาย</label>
                 <input type="number" value={editing.sell_price}

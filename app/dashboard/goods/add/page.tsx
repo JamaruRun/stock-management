@@ -63,6 +63,8 @@ export default function AddGoodsPage() {
     load();
   }, []);
 
+  const isAdmin = profile?.role === 'admin';
+
   function reset() {
     setForm({
       sku: generateSku(),
@@ -123,8 +125,6 @@ export default function AddGoodsPage() {
     setTimeout(() => router.push('/dashboard/goods/stock'), 1000);
   }
 
-  const isAdmin = profile?.role === 'admin';
-
   return (
     <>
       <div className="page-header">
@@ -171,13 +171,15 @@ export default function AddGoodsPage() {
               </datalist>
             </div>
 
-            <div className="field">
-              <label>ราคาทุน (บาท)</label>
-              <input type="number" inputMode="numeric" value={form.cost_price}
-                onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
-                placeholder="0" />
-            </div>
-            <div className="field">
+            {isAdmin && (
+              <div className="field">
+                <label>ราคาทุน (บาท) <span style={{ color: 'var(--text-dim)', fontSize: 10 }}>🔒 Admin</span></label>
+                <input type="number" inputMode="numeric" value={form.cost_price}
+                  onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                  placeholder="0" />
+              </div>
+            )}
+            <div className={`field ${isAdmin ? '' : 'full'}`}>
               <label>ราคาขาย (บาท) <span style={{ color: 'var(--danger)' }}>*</span></label>
               <input type="number" inputMode="numeric" value={form.sell_price}
                 onChange={(e) => setForm({ ...form, sell_price: e.target.value })}

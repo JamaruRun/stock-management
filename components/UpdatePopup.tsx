@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,7 +12,7 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '1.7.0',
+  version: '1.7.1',
   date: '2026-05-14',
   features: [
     {
@@ -29,6 +29,11 @@ const LATEST_UPDATE: UpdateInfo = {
       icon: '📷',
       title: 'ขายด้วยการสแกน',
       desc: 'สแกน barcode → เพิ่มเข้าตะกร้า → หักสต๊อกอัตโนมัติ ขายหลายชิ้นในใบเดียวกัน',
+    },
+    {
+      icon: '🔒',
+      title: 'ซ่อนราคาทุนจากพนักงาน',
+      desc: 'ราคาทุนแสดงเฉพาะ Admin เท่านั้น พนักงานเห็นแค่ราคาขาย ปลอดภัยข้อมูลธุรกิจ',
     },
   ],
 };
