@@ -15,57 +15,45 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
   const [statusMessage, setStatusMessage] = useState('กำลังเปิดกล้อง...');
   const streamRef = useRef<MediaStream | null>(null);
   const scanningRef = useRef(true);
-  const readerRef = useRef<any>(null);
+  const controlsRef = useRef<any>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadZXing(): Promise<any> {
-      if ((window as any).ZXing) return (window as any).ZXing;
-      
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
-        script.onload = () => resolve((window as any).ZXing);
-        script.onerror = () => reject(new Error('โหลด ZXing ไม่สำเร็จ'));
-        document.head.appendChild(script);
-      });
-    }
-
     async function start() {
       try {
-        setStatusMessage('กำลังโหลดตัวสแกน...');
+        setStatusMessage('กำลังโหลด scanner...');
 
-        // โหลด ZXing ก่อน
-        const ZXing = await loadZXing();
+        // import แบบ dynamic เพื่อไม่ให้ build ติดปัญหา
+        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+
         if (cancelled) return;
+
+        // ตั้งค่า hints
+        const hints = new Map();
+        const formats = [
+          BarcodeFormat.QR_CODE,        // QR Code (สำคัญที่สุด)
+          BarcodeFormat.CODE_128,       // Barcode สินค้าทั่วไป
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.EAN_13,         // สินค้าจริง
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.ITF,
+          BarcodeFormat.DATA_MATRIX,
+        ];
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+
+        const reader = new BrowserMultiFormatReader(hints);
 
         setStatusMessage('กำลังเปิดกล้อง...');
 
-        // ตั้งค่า hints สำหรับ ZXing - อ่านได้หลาย format
-        const hints = new Map();
-        const formats = [
-          ZXing.BarcodeFormat.CODE_128,
-          ZXing.BarcodeFormat.CODE_39,
-          ZXing.BarcodeFormat.EAN_13,
-          ZXing.BarcodeFormat.EAN_8,
-          ZXing.BarcodeFormat.UPC_A,
-          ZXing.BarcodeFormat.UPC_E,
-          ZXing.BarcodeFormat.ITF,
-          ZXing.BarcodeFormat.QR_CODE,
-          ZXing.BarcodeFormat.DATA_MATRIX,
-        ];
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
-        const reader = new ZXing.BrowserMultiFormatReader(hints);
-        readerRef.current = reader;
-
-        // หา device กล้อง (เลือกกล้องหลัง)
+        // หากล้องหลัง
         let deviceId: string | undefined;
         try {
-          const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-          // หากล้องหลัง
+          const devices = await BrowserMultiFormatReader.listVideoInputDevices();
           const backCamera = devices.find((d: any) => 
             /back|rear|environment/i.test(d.label)
           );
@@ -76,28 +64,30 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
 
         if (cancelled) return;
 
-        setStatusMessage('ส่อง barcode ในกรอบ...');
+        setStatusMessage('ส่อง QR Code หรือ Barcode ในกรอบ...');
 
         // เริ่มสแกน
-        await reader.decodeFromVideoDevice(
-          deviceId || null,
+        const controls = await reader.decodeFromVideoDevice(
+          deviceId,
           videoRef.current!,
           (result: any, err: any) => {
             if (cancelled || !scanningRef.current) return;
             if (result) {
               handleDetected(result.getText());
             }
-            // err ที่ปกติคือ NotFoundException (ยังไม่เจอ) - ไม่ใช่ error จริง
           }
         );
 
-        // เก็บ stream เผื่อ cleanup
+        controlsRef.current = controls;
+
+        // เก็บ stream
         if (videoRef.current?.srcObject) {
           streamRef.current = videoRef.current.srcObject as MediaStream;
         }
 
       } catch (e: any) {
         if (cancelled) return;
+        console.error('Scanner error:', e);
         setError(
           e.name === 'NotAllowedError'
             ? 'กรุณาอนุญาตการเข้าถึงกล้อง'
@@ -146,9 +136,11 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
     }
 
     function stop() {
-      if (readerRef.current) {
-        try { readerRef.current.reset(); } catch (e) {}
-        readerRef.current = null;
+      if (controlsRef.current) {
+        try { 
+          controlsRef.current.stop(); 
+        } catch (e) {}
+        controlsRef.current = null;
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
@@ -188,11 +180,11 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
     <div className="modal-overlay" style={{ alignItems: 'center' }}>
       <div className="modal" style={{ maxWidth: 480, padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '20px 20px 12px' }}>
-          <h3>📷 สแกน Barcode</h3>
+          <h3>📷 สแกน</h3>
           <p className="modal-sub" style={{ marginBottom: 0 }}>
-            {mode === 'imei' ? 'ใช้กล้องเล็งไปที่ barcode IMEI บนกล่อง' :
-             mode === 'sku' ? 'ส่อง barcode บนสินค้า' :
-             'ส่อง barcode'}
+            {mode === 'imei' ? 'เล็งไปที่ barcode IMEI บนกล่องเครื่อง' :
+             mode === 'sku' ? 'เล็งไปที่ QR Code หรือ Barcode บนป้ายสินค้า' :
+             'เล็งไปที่ QR Code หรือ Barcode'}
           </p>
         </div>
 
@@ -235,8 +227,8 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '85%',
-                height: '35%',
+                width: '80%',
+                height: '60%',
                 border: '2px solid var(--accent)',
                 borderRadius: 4,
                 pointerEvents: 'none',
