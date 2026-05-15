@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
 // สุ่ม SKU
 function generateSku() {
@@ -33,6 +34,9 @@ export default function AddGoodsPage() {
   const [branches, setBranches] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [restocking, setRestocking] = useState<any>(null);
+  const [restockQty, setRestockQty] = useState('');
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -53,7 +57,6 @@ export default function AddGoodsPage() {
         setBranches(bs || []);
       }
 
-      // ดึงหมวดที่เคยใช้
       const { data: goodsData } = await supabase.from('goods').select('category');
       const cats = Array.from(new Set((goodsData || []).map(g => g.category).filter(Boolean)));
       setCategories(cats as string[]);
@@ -63,7 +66,56 @@ export default function AddGoodsPage() {
     load();
   }, []);
 
-  const isAdmin = profile?.role === 'admin';
+  // เมื่อสแกนเสร็จ
+  async function handleScan(code: string) {
+    setShowScanner(false);
+    const cleaned = code.trim().toUpperCase();
+
+    // ค้นหาในฐานข้อมูล
+    const { data: existing } = await supabase
+      .from('goods')
+      .select('*')
+      .eq('sku', cleaned)
+      .maybeSingle();
+
+    if (existing) {
+      // เจอ! → เปิด modal เติมของ
+      setRestocking(existing);
+      setRestockQty('');
+      showToast('เจอสินค้าเดิม', `${existing.name} • คงเหลือ ${existing.stock_qty}`);
+    } else {
+      // ไม่เจอ → ใช้ SKU นี้สำหรับสินค้าใหม่
+      setForm(f => ({ ...f, sku: cleaned }));
+      showToast('รหัสใหม่', 'ใช้ SKU นี้สำหรับสินค้าใหม่');
+    }
+  }
+
+  async function handleRestock() {
+    if (!restocking) return;
+    const addQty = parseInt(restockQty) || 0;
+    if (addQty <= 0) {
+      showToast('จำนวนผิด', 'กรอกจำนวนที่จะเพิ่ม', 'danger');
+      return;
+    }
+
+    setLoading(true);
+    const newQty = (restocking.stock_qty || 0) + addQty;
+    const { error } = await supabase
+      .from('goods')
+      .update({ stock_qty: newQty })
+      .eq('id', restocking.id);
+
+    setLoading(false);
+
+    if (error) {
+      showToast('ไม่สำเร็จ', error.message, 'danger');
+      return;
+    }
+
+    showToast('เติมสต๊อกแล้ว', `${restocking.name} • ${restocking.stock_qty} → ${newQty}`);
+    setRestocking(null);
+    setRestockQty('');
+  }
 
   function reset() {
     setForm({
@@ -87,13 +139,10 @@ export default function AddGoodsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
-    // เช็ค SKU ซ้ำ
     const { data: existing } = await supabase
-      .from('goods').select('id').eq('sku', form.sku).maybeSingle();
+      .from('goods').select('id, name').eq('sku', form.sku).maybeSingle();
     if (existing) {
-      // สุ่ม SKU ใหม่
-      setForm(f => ({ ...f, sku: generateSku() }));
-      showToast('SKU ซ้ำ', 'สุ่ม SKU ใหม่ให้แล้ว ลองอีกครั้ง', 'danger');
+      showToast('SKU ซ้ำ', `รหัสนี้มีของ "${existing.name}" แล้ว - ลองสแกนเพื่อเติมสต๊อกแทน`, 'danger');
       setLoading(false);
       return;
     }
@@ -125,15 +174,31 @@ export default function AddGoodsPage() {
     setTimeout(() => router.push('/dashboard/goods/stock'), 1000);
   }
 
+  const isAdmin = profile?.role === 'admin';
+
   return (
     <>
       <div className="page-header">
         <h2>เพิ่มสินค้า</h2>
-        <div className="desc">เพิ่มสินค้าใหม่เข้าสต๊อกของ</div>
+        <div className="desc">เพิ่มของใหม่ หรือสแกน barcode เพื่อเติมของเดิม</div>
+      </div>
+
+      {/* Quick Action: Scan to Restock */}
+      <div className="form-card" style={{ background: 'var(--surface-2)', borderLeft: '3px solid var(--accent)' }}>
+        <h3>🔄 เติมสต๊อกของเดิม</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 12 }}>
+          สแกน barcode บนของเดิม → ระบบจะเปิดให้กรอกจำนวนเพิ่มทันที
+        </p>
+        <button type="button" className="btn" onClick={() => setShowScanner(true)} style={{ width: '100%' }}>
+          📷 สแกน Barcode เพื่อเติมสต๊อก
+        </button>
       </div>
 
       <div className="form-card">
-        <h3>รายละเอียดสินค้า</h3>
+        <h3>➕ เพิ่มสินค้าใหม่</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
+          กรอกรายละเอียดสินค้าที่ยังไม่เคยมีในระบบ
+        </p>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field full">
@@ -145,7 +210,7 @@ export default function AddGoodsPage() {
                 <button type="button" className="btn btn-sec"
                   onClick={() => setForm({ ...form, sku: generateSku() })}
                   style={{ width: 'auto', padding: '0 16px' }}>
-                  🎲 สุ่มใหม่
+                  🎲 สุ่ม
                 </button>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
@@ -235,6 +300,85 @@ export default function AddGoodsPage() {
         </form>
       </div>
 
+      {/* Restock Modal */}
+      {restocking && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setRestocking(null)}>
+          <div className="modal">
+            <h3>🔄 เติมสต๊อกของเดิม</h3>
+            <p className="modal-sub">{restocking.name}</p>
+
+            <div style={{
+              background: 'var(--surface-2)',
+              padding: 14,
+              marginBottom: 16,
+              fontSize: 13,
+              borderLeft: '3px solid var(--accent)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-dim)' }}>SKU:</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>{restocking.sku}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-dim)' }}>หมวด:</span>
+                <span>{restocking.category || '-'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-dim)' }}>ราคาขาย:</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                  ฿{Number(restocking.sell_price).toLocaleString()}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-dim)' }}>คงเหลือปัจจุบัน:</span>
+                <span style={{ fontWeight: 600 }}>
+                  📦 {restocking.stock_qty}
+                  {restocking.stock_qty <= (restocking.low_stock_alert || 5) && (
+                    <span style={{ color: '#ffa502', marginLeft: 4 }}>(ใกล้หมด)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="field full">
+              <label>เพิ่มจำนวน (ชิ้น) <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={restockQty}
+                onChange={(e) => setRestockQty(e.target.value)}
+                placeholder="เช่น 50"
+                autoFocus
+                style={{ fontSize: 20, fontWeight: 600, textAlign: 'center' }}
+              />
+            </div>
+
+            {restockQty && parseInt(restockQty) > 0 && (
+              <div style={{
+                marginTop: 12,
+                padding: 12,
+                background: 'rgba(46, 213, 115, 0.1)',
+                borderLeft: '3px solid var(--success)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--success)',
+              }}>
+                หลังเติม: 📦 {(restocking.stock_qty || 0) + parseInt(restockQty)} ชิ้น
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ marginTop: 20 }}>
+              <button className="btn" onClick={handleRestock} disabled={loading}>
+                {loading ? 'กำลังเติม...' : '✓ เติมสต๊อก'}
+              </button>
+              <button className="btn btn-sec" onClick={() => setRestocking(null)}>
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
       {toast && <Toast {...toast} />}
     </>
   );

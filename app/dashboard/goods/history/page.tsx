@@ -15,6 +15,16 @@ export default function GoodsHistoryPage() {
   const [search, setSearch] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
   const [viewing, setViewing] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deletingReceipt, setDeletingReceipt] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
+
+  function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
+    setToast({ title, msg, type });
+    setTimeout(() => setToast(null), 2500);
+  }
 
   async function load() {
     setLoading(true);
@@ -41,6 +51,65 @@ export default function GoodsHistoryPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function handleSaveEdit() {
+    if (!editingItem) return;
+    
+    const unit_price = parseFloat(editingItem.unit_price) || 0;
+    const quantity = parseInt(editingItem.quantity) || 1;
+    const subtotal = unit_price * quantity;
+
+    setSubmitting(true);
+    const { error } = await supabase.from('goods_sales').update({
+      name: editingItem.name,
+      sku: editingItem.sku,
+      category: editingItem.category || null,
+      unit_price,
+      quantity,
+      subtotal,
+    }).eq('id', editingItem.id);
+    setSubmitting(false);
+
+    if (error) {
+      showToast('แก้ไม่สำเร็จ', error.message, 'danger');
+      return;
+    }
+
+    showToast('แก้ไขสำเร็จ', '');
+    setEditingItem(null);
+    setViewing(null);
+    load();
+  }
+
+  async function handleDeleteItem() {
+    if (!deletingItem) return;
+    setSubmitting(true);
+    const { error } = await supabase.from('goods_sales').delete().eq('id', deletingItem.id);
+    setSubmitting(false);
+    if (error) {
+      showToast('ลบไม่สำเร็จ', error.message, 'danger');
+      return;
+    }
+    showToast('ลบรายการแล้ว', '');
+    setDeletingItem(null);
+    setViewing(null);
+    load();
+  }
+
+  async function handleDeleteReceipt() {
+    if (!deletingReceipt) return;
+    setSubmitting(true);
+    const { error } = await supabase.from('goods_sales').delete().eq('receipt_id', deletingReceipt.receipt_id);
+    setSubmitting(false);
+    if (error) {
+      showToast('ลบไม่สำเร็จ', error.message, 'danger');
+      return;
+    }
+    showToast('ลบใบเสร็จแล้ว', '');
+    setDeletingReceipt(null);
+    setViewing(null);
+    load();
+  }
 
   // Group โดย receipt_id (รวมเป็นใบเสร็จ)
   const receipts = items.reduce((acc: any, item) => {
@@ -143,25 +212,31 @@ export default function GoodsHistoryPage() {
       ) : (
         <div className="item-list">
           {filtered.map((r) => (
-            <div key={r.receipt_id} className="item-card" onClick={() => setViewing(r)} style={{ cursor: 'pointer' }}>
-              <div className="top-row">
-                <div className="model">
-                  ใบเสร็จ #{r.receipt_id.slice(0, 8).toUpperCase()}
+            <div key={r.receipt_id} className="item-card">
+              <div onClick={() => setViewing(r)} style={{ cursor: 'pointer' }}>
+                <div className="top-row">
+                  <div className="model">
+                    ใบเสร็จ #{r.receipt_id.slice(0, 8).toUpperCase()}
+                  </div>
+                  <div className="price">฿{r.total.toLocaleString()}</div>
                 </div>
-                <div className="price">฿{r.total.toLocaleString()}</div>
-              </div>
-              <div className="imei">
-                {r.items.length} รายการ • {r.qty_total} ชิ้น
-              </div>
-              <div className="meta">
-                {r.branch_name && <span className="tag">{r.branch_name}</span>}
-                <span className="tag success">
-                  ขายโดย: {r.sold_by_name || '-'}
-                </span>
+                <div className="imei">
+                  {r.items.length} รายการ • {r.qty_total} ชิ้น
+                </div>
+                <div className="meta">
+                  {r.branch_name && <span className="tag">{r.branch_name}</span>}
+                  <span className="tag success">
+                    ขายโดย: {r.sold_by_name || '-'}
+                  </span>
+                </div>
               </div>
               <div className="footer">
                 <div className="footer-info">
                   {new Date(r.created_at).toLocaleString('th-TH')}
+                </div>
+                <div className="actions">
+                  <button className="icon-btn" onClick={() => setViewing(r)} title="ดูรายละเอียด">👁</button>
+                  <button className="icon-btn danger" onClick={(e) => { e.stopPropagation(); setDeletingReceipt(r); }} title="ลบใบเสร็จ">×</button>
                 </div>
               </div>
             </div>
@@ -186,15 +261,22 @@ export default function GoodsHistoryPage() {
                   padding: 10,
                   borderBottom: '1px solid var(--border)',
                   alignItems: 'center',
+                  gap: 8,
                 }}>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{item.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
                       {item.sku} • ฿{Number(item.unit_price).toLocaleString()} × {item.quantity}
                     </div>
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--accent)' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
                     ฿{Number(item.subtotal).toLocaleString()}
+                  </div>
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    <button className="icon-btn" onClick={() => setEditingItem({ ...item })}
+                      title="แก้ไข" style={{ width: 28, height: 28, fontSize: 12 }}>✎</button>
+                    <button className="icon-btn danger" onClick={() => setDeletingItem(item)}
+                      title="ลบรายการนี้" style={{ width: 28, height: 28, fontSize: 14 }}>×</button>
                   </div>
                 </div>
               ))}
@@ -214,13 +296,96 @@ export default function GoodsHistoryPage() {
             </div>
 
             <div className="modal-actions" style={{ marginTop: 16 }}>
-              <button className="btn btn-sec" onClick={() => setViewing(null)} style={{ width: '100%' }}>
+              <button className="btn btn-danger" onClick={() => setDeletingReceipt(viewing)} style={{ flex: 1 }}>
+                ลบทั้งใบเสร็จ
+              </button>
+              <button className="btn btn-sec" onClick={() => setViewing(null)} style={{ flex: 1 }}>
                 ปิด
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Edit Item Modal */}
+      {editingItem && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditingItem(null)}>
+          <div className="modal">
+            <h3>แก้ไขรายการ</h3>
+            <p className="modal-sub" style={{ fontFamily: 'JetBrains Mono, monospace' }}>{editingItem.sku}</p>
+            <div className="form-grid">
+              <div className="field full">
+                <label>ชื่อสินค้า</label>
+                <input type="text" value={editingItem.name}
+                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })} />
+              </div>
+              <div className="field">
+                <label>ราคา/ชิ้น</label>
+                <input type="number" value={editingItem.unit_price}
+                  onChange={(e) => setEditingItem({ ...editingItem, unit_price: e.target.value })} />
+              </div>
+              <div className="field">
+                <label>จำนวน</label>
+                <input type="number" value={editingItem.quantity}
+                  onChange={(e) => setEditingItem({ ...editingItem, quantity: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label>ยอดรวม (คำนวณอัตโนมัติ)</label>
+                <input type="text" disabled
+                  value={`฿${((parseFloat(editingItem.unit_price) || 0) * (parseInt(editingItem.quantity) || 0)).toLocaleString()}`}
+                  style={{ opacity: 0.8, fontWeight: 600, color: 'var(--accent)' }} />
+              </div>
+            </div>
+            <div className="modal-actions" style={{ marginTop: 20 }}>
+              <button className="btn" onClick={handleSaveEdit} disabled={submitting}>
+                {submitting ? 'กำลังบันทึก...' : 'บันทึก ✓'}
+              </button>
+              <button className="btn btn-sec" onClick={() => setEditingItem(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Item Modal */}
+      {deletingItem && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDeletingItem(null)}>
+          <div className="modal">
+            <h3 style={{ color: 'var(--danger)' }}>ลบรายการ?</h3>
+            <p className="modal-sub">
+              ลบ <strong>{deletingItem.name}</strong> ออกจากใบเสร็จ?<br />
+              ⚠️ ลบแล้วกู้คืนไม่ได้
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-danger" onClick={handleDeleteItem} disabled={submitting}>
+                ลบ
+              </button>
+              <button className="btn btn-sec" onClick={() => setDeletingItem(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Receipt Modal */}
+      {deletingReceipt && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDeletingReceipt(null)}>
+          <div className="modal">
+            <h3 style={{ color: 'var(--danger)' }}>ลบทั้งใบเสร็จ?</h3>
+            <p className="modal-sub">
+              ใบเสร็จ #{deletingReceipt.receipt_id.slice(0, 8).toUpperCase()}<br />
+              {deletingReceipt.items.length} รายการ • รวม ฿{deletingReceipt.total.toLocaleString()}<br />
+              ⚠️ <strong>ลบแล้วกู้คืนไม่ได้</strong>
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-danger" onClick={handleDeleteReceipt} disabled={submitting}>
+                {submitting ? 'กำลังลบ...' : 'ลบใบเสร็จ'}
+              </button>
+              <button className="btn btn-sec" onClick={() => setDeletingReceipt(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <Toast {...toast} />}
     </>
   );
 }
