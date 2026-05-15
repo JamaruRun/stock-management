@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
+import ImportExcel from '@/components/ImportExcel';
 
 interface InstallmentItem {
   id: string;
@@ -36,6 +37,7 @@ export default function InstallmentStockPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
+  const [showImport, setShowImport] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -155,10 +157,43 @@ export default function InstallmentStockPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h2>สต๊อกผ่อน</h2>
-        <div className="desc">เครื่องที่ลูกค้าผ่อนอยู่</div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <h2>สต๊อกผ่อน</h2>
+          <div className="desc">เครื่องที่ลูกค้าผ่อนอยู่</div>
+        </div>
+        {isAdmin && profile?.shop_id && profile?.branch_id && (
+          <button
+            onClick={() => setShowImport(true)}
+            style={{
+              padding: '6px 12px',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              color: 'var(--text-dim)',
+              fontFamily: 'inherit',
+              fontSize: 11,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              alignSelf: 'flex-start',
+            }}
+            title="นำเข้าข้อมูลจาก Excel"
+          >
+            📥 นำเข้า Excel
+          </button>
+        )}
       </div>
+
+      {showImport && profile?.shop_id && profile?.branch_id && (
+        <ImportExcel
+          type="installment"
+          branchId={profile.branch_id}
+          shopId={profile.shop_id}
+          userId={profile.id}
+          userName={profile.full_name}
+          onClose={() => setShowImport(false)}
+          onSuccess={loadData}
+        />
+      )}
 
       <div className="stats">
         <div className="stat">

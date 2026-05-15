@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import ImportExcel from '@/components/ImportExcel';
 
 export default function PawnStockPage() {
   const supabase = createClient();
@@ -10,6 +11,7 @@ export default function PawnStockPage() {
   const [branches, setBranches] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [filterModel, setFilterModel] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
@@ -136,9 +138,30 @@ export default function PawnStockPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h2>สต๊อกจำนำ</h2>
-        <div className="desc">เครื่องที่ลูกค้าจำนำอยู่</div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <h2>สต๊อกจำนำ</h2>
+          <div className="desc">เครื่องที่ลูกค้าจำนำอยู่</div>
+        </div>
+        {isAdmin && profile?.shop_id && profile?.branch_id && (
+          <button
+            onClick={() => setShowImport(true)}
+            style={{
+              padding: '6px 12px',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              color: 'var(--text-dim)',
+              fontFamily: 'inherit',
+              fontSize: 11,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              alignSelf: 'flex-start',
+            }}
+            title="นำเข้าข้อมูลจาก Excel"
+          >
+            📥 นำเข้า Excel
+          </button>
+        )}
       </div>
 
       <div className="stats">
@@ -159,6 +182,18 @@ export default function PawnStockPage() {
           <div className="value small">{latestItem ? latestItem.model : '-'}</div>
         </div>
       </div>
+
+      {showImport && profile?.shop_id && profile?.branch_id && (
+        <ImportExcel
+          type="pawn"
+          branchId={profile.branch_id}
+          shopId={profile.shop_id}
+          userId={profile.id}
+          userName={profile.full_name}
+          onClose={() => setShowImport(false)}
+          onSuccess={loadData}
+        />
+      )}
 
       {isAdmin && branches.length > 0 && (
         <div className="branch-tabs">

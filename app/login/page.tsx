@@ -105,7 +105,7 @@ export default function LoginPage() {
         <ThemeSwitcher />
       </div>
       <div className="login-box">
-        <div className="logo-text">SYS_v1.8 // STOCK MANAGEMENT</div>
+        <div className="logo-text">SYS_v1.9 // STOCK MANAGEMENT</div>
         <h1 className="login-title">เข้าสู่ระบบ</h1>
         <p className="login-sub">ระบบจัดการสต๊อกมือถือ</p>
 
