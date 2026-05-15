@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import JsBarcode from 'jsbarcode';
+import QRCode from 'qrcode';
 
 type LabelSize = 'small' | 'medium' | 'large';
 
@@ -45,18 +46,6 @@ const LABEL_CONFIGS = {
 
 // สร้าง QR Code เป็น Data URL (base64 PNG)
 async function generateQRDataUrl(text: string, size: number): Promise<string> {
-  // โหลด qrcode lib
-  if (!(window as any).QRCode) {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('โหลด QR lib ไม่สำเร็จ'));
-      document.head.appendChild(script);
-    });
-  }
-
-  const QRCode = (window as any).QRCode;
   return await QRCode.toDataURL(text, {
     width: size * 2, // 2x สำหรับ retina
     margin: 1,
