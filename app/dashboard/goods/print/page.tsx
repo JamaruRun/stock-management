@@ -3,41 +3,36 @@
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
-import JsBarcode from 'jsbarcode';
 
 type LabelSize = 'small' | 'medium' | 'large';
 
-// ปรับขนาดให้ barcode ใหญ่ขึ้น เส้นหนาขึ้น margin มากขึ้น
 const LABEL_CONFIGS = {
   small: { 
-    perRow: 3,        // ลดจาก 4 → 3 ให้ป้ายใหญ่ขึ้น
-    perPage: 18,      // 18 ใบ/หน้า
-    width: '65mm',
+    perRow: 4,
+    perPage: 24,
+    width: '47mm',
     height: '30mm',
-    barcodeWidth: 1.8,    // เพิ่มจาก 1
-    barcodeHeight: 35,    // เพิ่มจาก 25
-    fontSize: 11,
-    label: 'เล็ก (18/หน้า A4)' 
+    qrSize: 60,
+    fontSize: 9,
+    label: 'เล็ก (24/หน้า A4)' 
   },
   medium: { 
-    perRow: 2,        // ลดจาก 3 → 2
-    perPage: 10,      // 10 ใบ/หน้า
-    width: '95mm',
+    perRow: 3,
+    perPage: 15,
+    width: '65mm',
     height: '40mm',
-    barcodeWidth: 2.5,    // เพิ่มจาก 1.5
-    barcodeHeight: 50,    // เพิ่มจาก 35
-    fontSize: 14,
-    label: 'กลาง (10/หน้า A4) ⭐ แนะนำ' 
+    qrSize: 85,
+    fontSize: 11,
+    label: 'กลาง (15/หน้า A4) ⭐ แนะนำ' 
   },
   large: { 
     perRow: 2,
-    perPage: 6,       // 6 ใบ/หน้า
+    perPage: 8,
     width: '95mm',
-    height: '60mm',
-    barcodeWidth: 3,      // เพิ่มจาก 2
-    barcodeHeight: 70,    // เพิ่มจาก 45
-    fontSize: 16,
-    label: 'ใหญ่ (6/หน้า A4) สแกนง่ายสุด' 
+    height: '50mm',
+    qrSize: 110,
+    fontSize: 14,
+    label: 'ใหญ่ (8/หน้า A4)' 
   },
 };
 
@@ -71,73 +66,81 @@ export default function PrintBarcodePage() {
 
   const selected = items.find(i => i.id === selectedId);
 
-  // Render barcode preview
+  // Render preview
   useEffect(() => {
     if (!selected || !previewRef.current) return;
-    
-    const config = LABEL_CONFIGS[labelSize];
-    const labels = Array.from({ length: Math.min(quantity, config.perPage) });
-    
-    previewRef.current.innerHTML = '';
-    
-    labels.forEach(() => {
-      const label = document.createElement('div');
-      label.style.cssText = `
-        width: ${config.width};
-        height: ${config.height};
-        border: 1px dashed #ccc;
-        padding: 6px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-between;
-        background: white;
-        color: black;
-        font-family: Arial, sans-serif;
-        box-sizing: border-box;
-      `;
-      
-      const nameEl = document.createElement('div');
-      nameEl.style.cssText = `
-        font-size: ${config.fontSize - 2}px;
-        font-weight: bold;
-        text-align: center;
-        line-height: 1.2;
-        max-height: 26px;
-        overflow: hidden;
-      `;
-      nameEl.textContent = selected.name;
-      label.appendChild(nameEl);
-      
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      label.appendChild(svg);
-      
-      try {
-        JsBarcode(svg, selected.sku, {
-          format: 'CODE128',
-          width: config.barcodeWidth,
-          height: config.barcodeHeight,
-          fontSize: config.fontSize,
-          margin: 4,
-          displayValue: true,
-          background: '#ffffff',
-          lineColor: '#000000',
-          textMargin: 2,
+
+    async function render() {
+      // โหลด qrcode library
+      if (!(window as any).QRCode) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+          document.head.appendChild(script);
         });
-      } catch (e) {
-        console.error('barcode error', e);
       }
+
+      const QRCode = (window as any).QRCode;
+      const config = LABEL_CONFIGS[labelSize];
+      const labels = Array.from({ length: Math.min(quantity, config.perPage) });
       
-      const priceEl = document.createElement('div');
-      priceEl.style.cssText = `
-        font-size: ${config.fontSize}px;
-        font-weight: bold;
-      `;
-      priceEl.textContent = `฿${Number(selected.sell_price).toLocaleString()}`;
-      label.appendChild(priceEl);
+      previewRef.current!.innerHTML = '';
       
-      previewRef.current!.appendChild(label);
-    });
+      for (const _ of labels) {
+        const label = document.createElement('div');
+        label.style.cssText = `
+          width: ${config.width};
+          height: ${config.height};
+          border: 1px dashed #ccc;
+          padding: 5px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: white;
+          color: black;
+          font-family: Arial, sans-serif;
+          box-sizing: border-box;
+        `;
+        
+        // QR Code canvas
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = `width: ${config.qrSize}px; height: ${config.qrSize}px; flex-shrink: 0;`;
+        label.appendChild(canvas);
+        
+        try {
+          await QRCode.toCanvas(canvas, selected!.sku, {
+            width: config.qrSize,
+            margin: 1,
+            errorCorrectionLevel: 'M',
+            color: { dark: '#000000', light: '#ffffff' },
+          });
+        } catch (e) {
+          console.error('QR error', e);
+        }
+        
+        // Info ขวา
+        const info = document.createElement('div');
+        info.style.cssText = `flex: 1; min-width: 0; overflow: hidden;`;
+        info.innerHTML = `
+          <div style="font-size: ${config.fontSize}px; font-weight: bold; line-height: 1.2; margin-bottom: 4px; overflow: hidden;">
+            ${selected!.name}
+          </div>
+          <div style="font-size: ${config.fontSize - 1}px; font-family: monospace; color: #666; margin-bottom: 4px;">
+            ${selected!.sku}
+          </div>
+          <div style="font-size: ${config.fontSize + 2}px; font-weight: bold;">
+            ฿${Number(selected!.sell_price).toLocaleString()}
+          </div>
+        `;
+        label.appendChild(info);
+        
+        previewRef.current!.appendChild(label);
+      }
+    }
+
+    render();
   }, [selected, quantity, labelSize]);
 
   function handlePrint() {
@@ -157,9 +160,12 @@ export default function PrintBarcodePage() {
     for (let i = 0; i < quantity; i++) {
       labelsHtml += `
         <div class="label">
-          <div class="name">${selected.name}</div>
-          <svg class="barcode" id="bc-${i}"></svg>
-          <div class="price">฿${Number(selected.sell_price).toLocaleString()}</div>
+          <canvas id="qr-${i}" class="qr"></canvas>
+          <div class="info">
+            <div class="name">${selected.name}</div>
+            <div class="sku">${selected.sku}</div>
+            <div class="price">฿${Number(selected.sell_price).toLocaleString()}</div>
+          </div>
         </div>
       `;
     }
@@ -168,8 +174,8 @@ export default function PrintBarcodePage() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Barcode - ${selected.name}</title>
-        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+        <title>QR Code - ${selected.name}</title>
+        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
         <style>
           @page { size: A4; margin: 8mm; }
           * { box-sizing: border-box; }
@@ -192,29 +198,33 @@ export default function PrintBarcodePage() {
             border: 1px solid #eee;
             padding: 3mm;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            gap: 3mm;
             page-break-inside: avoid;
             background: white;
           }
+          .qr {
+            flex-shrink: 0;
+            width: ${config.qrSize}px !important;
+            height: ${config.qrSize}px !important;
+          }
+          .info { flex: 1; min-width: 0; overflow: hidden; }
           .name {
-            font-size: ${config.fontSize - 2}pt;
-            font-weight: bold;
-            text-align: center;
-            line-height: 1.2;
-            max-height: 30px;
-            overflow: hidden;
-            margin-bottom: 2mm;
-          }
-          .barcode { 
-            width: 100%; 
-            display: block;
-          }
-          .price {
             font-size: ${config.fontSize}pt;
             font-weight: bold;
-            margin-top: 1mm;
+            line-height: 1.2;
+            margin-bottom: 2mm;
+            overflow: hidden;
+          }
+          .sku {
+            font-size: ${config.fontSize - 1}pt;
+            font-family: monospace;
+            color: #666;
+            margin-bottom: 2mm;
+          }
+          .price {
+            font-size: ${config.fontSize + 2}pt;
+            font-weight: bold;
           }
           @media print {
             .label { border: none; }
@@ -225,20 +235,15 @@ export default function PrintBarcodePage() {
       <body>
         <div class="grid">${labelsHtml}</div>
         <script>
-          window.addEventListener('load', function() {
+          window.addEventListener('load', async function() {
             const sku = ${JSON.stringify(selected.sku)};
             for (let i = 0; i < ${quantity}; i++) {
               try {
-                JsBarcode('#bc-' + i, sku, {
-                  format: 'CODE128',
-                  width: ${config.barcodeWidth},
-                  height: ${config.barcodeHeight},
-                  fontSize: ${config.fontSize},
-                  margin: 4,
-                  displayValue: true,
-                  background: '#ffffff',
-                  lineColor: '#000000',
-                  textMargin: 2,
+                await QRCode.toCanvas(document.getElementById('qr-' + i), sku, {
+                  width: ${config.qrSize},
+                  margin: 1,
+                  errorCorrectionLevel: 'M',
+                  color: { dark: '#000000', light: '#ffffff' },
                 });
               } catch (e) { console.error(e); }
             }
@@ -263,8 +268,17 @@ export default function PrintBarcodePage() {
   return (
     <>
       <div className="page-header">
-        <h2>ปริ้น Barcode 🖨️</h2>
+        <h2>ปริ้น QR Code 🖨️</h2>
         <div className="desc">เลือกสินค้า → กำหนดจำนวนใบ → ปริ้น</div>
+      </div>
+
+      <div className="form-card" style={{ background: 'rgba(46, 213, 115, 0.08)', borderLeft: '3px solid var(--success)' }}>
+        <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--success)' }}>
+            ✨ เปลี่ยนเป็น QR Code แล้ว!
+          </div>
+          <div>QR Code อ่านง่ายกว่า barcode มาก — สแกนติดทันที ไม่ต้องปริ้นคุณภาพสูง</div>
+        </div>
       </div>
 
       <div className="form-card">
@@ -325,25 +339,6 @@ export default function PrintBarcodePage() {
                 </select>
               </div>
             </div>
-
-            <div style={{ 
-              marginTop: 12, 
-              padding: 12, 
-              background: 'rgba(46, 213, 115, 0.08)',
-              borderLeft: '3px solid var(--success)',
-              fontSize: 12,
-              lineHeight: 1.6,
-            }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--success)' }}>
-                💡 Tips ให้สแกนติดง่าย:
-              </div>
-              <div>• เลือก <strong>ขนาดกลางหรือใหญ่</strong> (สแกนง่ายกว่า)</div>
-              <div>• ปริ้นบนกระดาษ <strong>สีขาวสว่าง</strong></div>
-              <div>• ตั้งคุณภาพการปริ้น <strong>สูงสุด/Best</strong></div>
-              <div>• หากใช้เครื่องปริ้นเลเซอร์ <strong>ใช้โหมด ดำเข้ม</strong></div>
-              <div>• อย่าซูม/ย่อ ตอนปริ้น (Scale 100%)</div>
-              <div>• ตอนสแกน: <strong>ห่าง 15-20cm</strong> + นิ่ง 2 วินาที</div>
-            </div>
           </div>
 
           <div className="form-card">
@@ -358,10 +353,10 @@ export default function PrintBarcodePage() {
               overflowY: 'auto',
             }}></div>
             <button className="btn" onClick={handlePrint} style={{ marginTop: 16 }}>
-              🖨️ ปริ้น Barcode ({quantity} ใบ)
+              🖨️ ปริ้น QR Code ({quantity} ใบ)
             </button>
             <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-dim)' }}>
-              💡 ระบบจะเปิดหน้าต่างใหม่ → กดปริ้น (Ctrl+P) → เลือก "Save as PDF" หรือปริ้นจริงได้
+              💡 ระบบจะเปิดหน้าต่างใหม่ → กดปริ้น (Ctrl+P)
             </div>
           </div>
         </>
