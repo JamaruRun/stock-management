@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
-import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -95,43 +94,44 @@ export default function LoginPage() {
       }
     }
 
-    router.push('/dashboard/stock');
+    router.push('/dashboard/home');
     router.refresh();
   }
 
   return (
-    <div className="login-screen">
-      <div className="login-theme-switch">
-        <ThemeSwitcher />
-      </div>
-      <div className="login-box">
-        <div className="logo-text">SYS_v1.9 // STOCK MANAGEMENT</div>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-icon">🏪</div>
+          <div className="login-logo-text">STOCK MANAGER · v2.0</div>
+        </div>
+        
         <h1 className="login-title">เข้าสู่ระบบ</h1>
-        <p className="login-sub">ระบบจัดการสต๊อกมือถือ</p>
+        <p className="login-sub">ระบบจัดการสต๊อกร้านมือถือ</p>
 
         <form onSubmit={handleLogin}>
-          {error && <div className="error-box">{error}</div>}
+          {error && <div className="login-error">{error}</div>}
 
-          <div className="field">
-            <label>USERNAME</label>
+          <div className="field" style={{ marginBottom: 14 }}>
+            <label>ชื่อผู้ใช้</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="ชื่อผู้ใช้"
+              placeholder="username"
               autoComplete="username"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="field">
-            <label>PASSWORD</label>
+          <div className="field" style={{ marginBottom: 20 }}>
+            <label>รหัสผ่าน</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="รหัสผ่าน"
+              placeholder="••••••••"
               autoComplete="current-password"
               required
               disabled={loading}
@@ -139,7 +139,7 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" className="btn" disabled={loading}>
-            {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ →'}
+            {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
       </div>

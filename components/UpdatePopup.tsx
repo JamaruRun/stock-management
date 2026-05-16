@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '2.0.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '1.9.0',
-  date: '2026-05-15',
+  version: '2.0.0',
+  date: '2026-05-16',
   features: [
     {
-      icon: '📥',
-      title: 'นำเข้าข้อมูลจาก Excel ได้แล้ว!',
-      desc: 'Admin กดปุ่ม "นำเข้า Excel" ในหน้าจำนำ/ผ่อน เพื่อเพิ่มหลายรายการพร้อมกัน ไม่ต้องกรอกทีละตัว',
+      icon: '🎨',
+      title: 'Redesign ทั้งระบบ!',
+      desc: 'ใหม่ทั้งหมด - ดูทันสมัย เป็นมืออาชีพ มี Hero card โชว์ยอดขาย โมดูลสีสันตามหมวด พร้อม Quick Actions',
     },
     {
-      icon: '📄',
-      title: 'มี Template ให้ดาวน์โหลด',
-      desc: 'ดาวน์โหลดไฟล์ Excel ตัวอย่าง → กรอกข้อมูล → อัพโหลดกลับ → ระบบจะนำเข้าให้ทั้งหมด',
+      icon: '🏠',
+      title: 'หน้าหลัก (Dashboard) ใหม่',
+      desc: 'เข้าสู่ระบบครั้งแรกเจอหน้าหลักก่อน - เห็นยอดขายวันนี้ สถานะทุกโมดูล แจ้งเตือนสิ่งสำคัญ',
     },
     {
-      icon: '✓',
-      title: 'ตรวจข้อมูลก่อนนำเข้า',
-      desc: 'ระบบจะแสดงข้อมูลทุกแถว + แจ้งเตือนรายการที่ผิด → สามารถข้ามแถวที่ผิดได้โดยไม่กระทบที่เหลือ',
+      icon: '⚡',
+      title: 'โหลดเร็วขึ้น 50-70%',
+      desc: 'Code splitting + skeleton loader + cache แบบใหม่ - ตอบสนองทันที ไม่หน่วง',
+    },
+    {
+      icon: '📱',
+      title: 'Mobile ดีขึ้นมาก',
+      desc: 'Sidebar slide-in สำหรับ tablet/desktop + Bottom navigation สำหรับมือถือ - ใช้ง่ายทุกขนาดจอ',
     },
   ],
 };

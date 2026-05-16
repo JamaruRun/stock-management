@@ -20,8 +20,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!profile) {
     return (
-      <div className="login-screen">
-        <div className="login-box">
+      <div className="login-page">
+        <div className="login-card">
           <div className="logo-text">ERROR</div>
           <h1 className="login-title">ไม่พบโปรไฟล์</h1>
           <p className="login-sub" style={{ marginBottom: 24 }}>
@@ -43,8 +43,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // ระงับ
     if (shop.status === 'suspended') {
       return (
-        <div className="login-screen">
-          <div className="login-box" style={{ maxWidth: 480, borderColor: '#ff4757' }}>
+        <div className="login-page">
+          <div className="login-card" style={{ maxWidth: 480, borderColor: '#ff4757' }}>
             <div className="logo-text" style={{ color: '#ff4757' }}>SUSPENDED</div>
             <h1 className="login-title">⛔ ระบบถูกระงับ</h1>
             <p className="login-sub" style={{ marginBottom: 24, lineHeight: 1.6 }}>
@@ -77,8 +77,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       const now = new Date();
       if (expires < now) {
         return (
-          <div className="login-screen">
-            <div className="login-box" style={{ maxWidth: 480, borderColor: '#ffa502' }}>
+          <div className="login-page">
+            <div className="login-card" style={{ maxWidth: 480, borderColor: '#ffa502' }}>
               <div className="logo-text" style={{ color: '#ffa502' }}>EXPIRED</div>
               <h1 className="login-title">⏰ หมดอายุการใช้งาน</h1>
               <p className="login-sub" style={{ marginBottom: 24, lineHeight: 1.6 }}>

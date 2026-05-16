@@ -1,0 +1,259 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase-client';
+
+interface Stats {
+  todayRevenue: number;
+  todayOrders: number;
+  stockCount: number;
+  stockValue: number;
+  pawnCount: number;
+  pawnValue: number;
+  installmentCount: number;
+  installmentValue: number;
+  installmentOverdue: number;
+  goodsCount: number;
+  goodsItems: number;
+  goodsLowStock: number;
+}
+
+export default function DashboardHomePage() {
+  const supabase = createClient();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('*, shops(name)')
+        .eq('id', user.id)
+        .single();
+      setProfile(p);
+
+      const today = new Date().toISOString().split('T')[0];
+      const isAdmin = p?.role === 'admin';
+
+      // Parallel fetches
+      const [
+        salesRes,
+        stockRes,
+        pawnRes,
+        installRes,
+        goodsRes,
+      ] = await Promise.all([
+        // Today revenue (admin only - sales)
+        isAdmin
+          ? supabase.from('sales_history').select('final_price').eq('sold_date', today)
+          : Promise.resolve({ data: [] }),
+        // Stock
+        supabase.from('stock').select('sell_price'),
+        // Pawn
+        supabase.from('pawn_stock').select('pawn_price'),
+        // Installment
+        supabase.from('installment_stock').select('full_price, down_payment, installment_amount, paid_periods, total_periods, start_date, status'),
+        // Goods
+        supabase.from('goods').select('stock_qty, sell_price, low_stock_alert'),
+      ]);
+
+      // Calculate
+      const todayRevenue = (salesRes.data || []).reduce((s: number, r: any) => s + Number(r.final_price || 0), 0);
+      const todayOrders = (salesRes.data || []).length;
+      const stockCount = (stockRes.data || []).length;
+      const stockValue = (stockRes.data || []).reduce((s: number, r: any) => s + Number(r.sell_price || 0), 0);
+      const pawnCount = (pawnRes.data || []).length;
+      const pawnValue = (pawnRes.data || []).reduce((s: number, r: any) => s + Number(r.pawn_price || 0), 0);
+      
+      const activeInstallments = (installRes.data || []).filter((i: any) => i.status !== 'closed');
+      const installmentCount = activeInstallments.length;
+      const installmentValue = activeInstallments.reduce((s: number, r: any) => {
+        const remaining = (r.total_periods - r.paid_periods) * Number(r.installment_amount || 0);
+        return s + remaining;
+      }, 0);
+      
+      // คำนวณค้างชำระ (paid_periods < (days since start / 30))
+      const installmentOverdue = activeInstallments.filter((r: any) => {
+        if (!r.start_date) return false;
+        const start = new Date(r.start_date);
+        const now = new Date();
+        const monthsSince = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        return monthsSince > (r.paid_periods || 0) && (r.paid_periods || 0) < (r.total_periods || 0);
+      }).length;
+      
+      const goodsCount = (goodsRes.data || []).length;
+      const goodsItems = (goodsRes.data || []).reduce((s: number, r: any) => s + Number(r.stock_qty || 0), 0);
+      const goodsLowStock = (goodsRes.data || []).filter((r: any) => 
+        Number(r.stock_qty || 0) <= Number(r.low_stock_alert || 5)
+      ).length;
+
+      setStats({
+        todayRevenue, todayOrders,
+        stockCount, stockValue,
+        pawnCount, pawnValue,
+        installmentCount, installmentValue, installmentOverdue,
+        goodsCount, goodsItems, goodsLowStock,
+      });
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  if (loading || !stats) {
+    return (
+      <>
+        <div className="page-header">
+          <h1>หน้าหลัก</h1>
+          <div className="desc">กำลังโหลดข้อมูล...</div>
+        </div>
+        <div className="skeleton skeleton-hero"></div>
+        <div className="skeleton-module-grid">
+          <div className="skeleton skeleton-module"></div>
+          <div className="skeleton skeleton-module"></div>
+          <div className="skeleton skeleton-module"></div>
+          <div className="skeleton skeleton-module"></div>
+        </div>
+      </>
+    );
+  }
+
+  const isAdmin = profile?.role === 'admin';
+  const today = new Date().toLocaleDateString('th-TH', { 
+    day: 'numeric', month: 'long', year: 'numeric' 
+  });
+
+  return (
+    <>
+      <div className="page-header">
+        <h1>หน้าหลัก</h1>
+        <div className="desc">วันนี้ · {today}</div>
+      </div>
+
+      {/* Hero - ยอดขายวันนี้ (Admin เท่านั้น) */}
+      {isAdmin && (
+        <div className="hero-card">
+          <div className="hero-card-header">
+            <div>
+              <div className="hero-card-label">ยอดขายวันนี้</div>
+              <div className="hero-card-value">฿{stats.todayRevenue.toLocaleString()}</div>
+            </div>
+            {stats.todayOrders > 0 && (
+              <div className="hero-card-trend">
+                {stats.todayOrders} ออเดอร์
+              </div>
+            )}
+          </div>
+          <div className="hero-card-stats">
+            <div className="hero-card-stat">
+              <span>📱</span>
+              <span>{stats.stockCount + stats.pawnCount + stats.installmentCount} เครื่อง</span>
+            </div>
+            <div className="hero-card-stat">
+              <span>🎒</span>
+              <span>{stats.goodsItems} ของ</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alert: ค้างชำระ */}
+      {stats.installmentOverdue > 0 && (
+        <Link href="/dashboard/installment/stock" className="alert-card">
+          <div className="alert-card-icon">⚠️</div>
+          <div className="alert-card-content">
+            <strong>{stats.installmentOverdue} ลูกค้าผ่อน</strong> เลยกำหนดชำระ
+          </div>
+          <div className="alert-card-action">ดู →</div>
+        </Link>
+      )}
+
+      {/* Alert: สินค้าใกล้หมด */}
+      {stats.goodsLowStock > 0 && (
+        <Link href="/dashboard/goods/stock" className="alert-card">
+          <div className="alert-card-icon">📦</div>
+          <div className="alert-card-content">
+            <strong>{stats.goodsLowStock} รายการ</strong> ใกล้หมดสต๊อก
+          </div>
+          <div className="alert-card-action">ดู →</div>
+        </Link>
+      )}
+
+      {/* Module Cards Grid */}
+      <div className="section-title">
+        <span>โมดูลหลัก</span>
+      </div>
+
+      <div className="module-grid">
+        <Link href="/dashboard/stock" className="module-card purple">
+          <div className="module-card-header">
+            <div className="module-card-icon">📱</div>
+          </div>
+          <div className="module-card-title">สต๊อกเครื่อง</div>
+          <div className="module-card-count">{stats.stockCount}</div>
+          <div className="module-card-sub">฿{(stats.stockValue / 1000).toFixed(0)}K</div>
+        </Link>
+
+        <Link href="/dashboard/pawn/stock" className="module-card amber">
+          <div className="module-card-header">
+            <div className="module-card-icon">💰</div>
+          </div>
+          <div className="module-card-title">จำนำเครื่อง</div>
+          <div className="module-card-count">{stats.pawnCount}</div>
+          <div className="module-card-sub">฿{(stats.pawnValue / 1000).toFixed(0)}K</div>
+        </Link>
+
+        <Link href="/dashboard/installment/stock" className="module-card pink">
+          <div className="module-card-header">
+            <div className="module-card-icon">💳</div>
+            {stats.installmentOverdue > 0 && (
+              <div className="module-card-badge">{stats.installmentOverdue} เลย</div>
+            )}
+          </div>
+          <div className="module-card-title">ผ่อนเครื่อง</div>
+          <div className="module-card-count">{stats.installmentCount}</div>
+          <div className="module-card-sub">฿{(stats.installmentValue / 1000).toFixed(0)}K</div>
+        </Link>
+
+        <Link href="/dashboard/goods/stock" className="module-card teal">
+          <div className="module-card-header">
+            <div className="module-card-icon">🎒</div>
+            {stats.goodsLowStock > 0 && (
+              <div className="module-card-badge warn">{stats.goodsLowStock} ใกล้หมด</div>
+            )}
+          </div>
+          <div className="module-card-title">สต๊อกของ</div>
+          <div className="module-card-count">{stats.goodsItems}</div>
+          <div className="module-card-sub">{stats.goodsCount} รายการ</div>
+        </Link>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="section-title">
+        <span>การทำงานด่วน</span>
+      </div>
+
+      <div className="quick-actions">
+        <Link href="/dashboard/goods/sell" className="quick-action">
+          <div className="quick-action-icon">📷</div>
+          <div>
+            <div className="quick-action-text">สแกนขาย</div>
+            <div className="quick-action-sub">อุปกรณ์เสริม</div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/add" className="quick-action">
+          <div className="quick-action-icon" style={{ background: 'var(--success-light)', color: 'var(--success-text)' }}>➕</div>
+          <div>
+            <div className="quick-action-text">เพิ่มเครื่อง</div>
+            <div className="quick-action-sub">รับเข้าสต๊อก</div>
+          </div>
+        </Link>
+      </div>
+    </>
+  );
+}

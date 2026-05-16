@@ -1,11 +1,9 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase-client';
 import { useState } from 'react';
-import UpdatePopup from '@/components/UpdatePopup';
-import TrialBanner from '@/components/TrialBanner';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase-client';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 interface Props {
@@ -13,304 +11,243 @@ interface Props {
   children: React.ReactNode;
 }
 
-type Module = 'stock' | 'pawn' | 'installment' | 'goods' | 'users';
-
 export default function DashboardClient({ profile, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
-  const [showModuleMenu, setShowModuleMenu] = useState(false);
+  const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
 
   const isAdmin = profile.role === 'admin';
 
-  // ตรวจว่าอยู่ใน module ไหน
-  const currentModule: Module = pathname.startsWith('/dashboard/pawn')
-    ? 'pawn'
-    : pathname.startsWith('/dashboard/installment')
-    ? 'installment'
-    : pathname.startsWith('/dashboard/goods')
-    ? 'goods'
-    : pathname.startsWith('/dashboard/users')
-    ? 'users'
-    : 'stock';
+  // Sidebar nav items
+  const navItems = [
+    { path: '/dashboard/home', icon: '🏠', label: 'หน้าหลัก' },
+    { path: '/dashboard/stock', icon: '📱', label: 'สต๊อกเครื่อง' },
+    { path: '/dashboard/pawn/stock', icon: '💰', label: 'จำนำ' },
+    { path: '/dashboard/installment/stock', icon: '💳', label: 'ผ่อน' },
+    { path: '/dashboard/goods/stock', icon: '🎒', label: 'สต๊อกของ' },
+  ];
+
+  // Bottom nav (mobile - 5 items max)
+  const bottomNavItems = [
+    { path: '/dashboard/home', icon: '🏠', label: 'หน้าหลัก' },
+    { path: '/dashboard/stock', icon: '📱', label: 'เครื่อง' },
+    { path: '/dashboard/pawn/stock', icon: '💰', label: 'จำนำ' },
+    { path: '/dashboard/installment/stock', icon: '💳', label: 'ผ่อน' },
+    { path: '/dashboard/goods/stock', icon: '🎒', label: 'ของ' },
+  ];
+
+  function isActive(path: string) {
+    if (path === '/dashboard/home') {
+      return pathname === '/dashboard/home' || pathname === '/dashboard';
+    }
+    // ดูว่าอยู่ในโมดูลเดียวกันไหม
+    const moduleRoot = path.split('/').slice(0, 3).join('/'); // /dashboard/pawn
+    return pathname.startsWith(moduleRoot);
+  }
+
+  function getInitials(name: string) {
+    if (!name) return '?';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/login');
-    router.refresh();
   }
 
-  // เมนูของแต่ละ module
-  const stockNav = [
-    { path: '/dashboard/add', icon: '+', label: 'เพิ่ม' },
-    { path: '/dashboard/sell', icon: '→', label: 'ขาย' },
-    { path: '/dashboard/stock', icon: '▦', label: 'สต๊อก' },
-    ...(isAdmin ? [{ path: '/dashboard/history', icon: '⌛', label: 'ประวัติ', adminOnly: true }] : []),
-  ];
-
-  const pawnNav = [
-    { path: '/dashboard/pawn/add', icon: '+', label: 'รับจำนำ' },
-    { path: '/dashboard/pawn/redeem', icon: '→', label: 'ไถ่คืน' },
-    { path: '/dashboard/pawn/stock', icon: '▦', label: 'สต๊อก' },
-    ...(isAdmin ? [{ path: '/dashboard/pawn/history', icon: '⌛', label: 'ประวัติ', adminOnly: true }] : []),
-  ];
-
-  const installmentNav = [
-    { path: '/dashboard/installment/add', icon: '+', label: 'เพิ่มผ่อน' },
-    { path: '/dashboard/installment/stock', icon: '▦', label: 'สต๊อก' },
-    ...(isAdmin ? [{ path: '/dashboard/installment/history', icon: '⌛', label: 'ประวัติ', adminOnly: true }] : []),
-  ];
-
-  const goodsNav = [
-    { path: '/dashboard/goods/add', icon: '+', label: 'เพิ่ม' },
-    { path: '/dashboard/goods/sell', icon: '📷', label: 'ขาย' },
-    { path: '/dashboard/goods/stock', icon: '▦', label: 'สต๊อก' },
-    { path: '/dashboard/goods/print', icon: '🖨️', label: 'ปริ้น' },
-    ...(isAdmin ? [{ path: '/dashboard/goods/history', icon: '⌛', label: 'ประวัติ', adminOnly: true }] : []),
-  ];
-
-  const usersNav = [
-    { path: '/dashboard/users', icon: '⚙', label: 'ผู้ใช้' },
-  ];
-
-  const navItems = currentModule === 'pawn' 
-    ? pawnNav 
-    : currentModule === 'installment'
-    ? installmentNav
-    : currentModule === 'goods'
-    ? goodsNav
-    : currentModule === 'users' 
-    ? usersNav 
-    : stockNav;
-
-  const moduleInfo = {
-    stock: { icon: '📦', label: 'สต๊อกเครื่อง', color: 'var(--accent)' },
-    pawn: { icon: '💰', label: 'จำนำเครื่อง', color: '#ffa502' },
-    installment: { icon: '💳', label: 'ผ่อนเครื่อง', color: '#3742fa' },
-    goods: { icon: '🎒', label: 'สต๊อกของ', color: '#2ed573' },
-    users: { icon: '👥', label: 'จัดการผู้ใช้', color: '#3742fa' },
-  };
-
-  function switchModule(m: Module) {
-    setShowModuleMenu(false);
-    if (m === 'stock') router.push('/dashboard/stock');
-    if (m === 'pawn') router.push('/dashboard/pawn/stock');
-    if (m === 'installment') router.push('/dashboard/installment/stock');
-    if (m === 'goods') router.push('/dashboard/goods/stock');
-    if (m === 'users') router.push('/dashboard/users');
+  // ชื่อหน้าจาก path
+  function getPageTitle() {
+    if (pathname.startsWith('/dashboard/home') || pathname === '/dashboard') return 'หน้าหลัก';
+    if (pathname.startsWith('/dashboard/stock')) return 'สต๊อกเครื่อง';
+    if (pathname.startsWith('/dashboard/add')) return 'เพิ่มเครื่อง';
+    if (pathname.startsWith('/dashboard/sell')) return 'ขายเครื่อง';
+    if (pathname.startsWith('/dashboard/history')) return 'ประวัติการขาย';
+    if (pathname.startsWith('/dashboard/pawn')) return 'จำนำเครื่อง';
+    if (pathname.startsWith('/dashboard/installment')) return 'ผ่อนเครื่อง';
+    if (pathname.startsWith('/dashboard/goods')) return 'สต๊อกของ';
+    if (pathname.startsWith('/dashboard/users')) return 'จัดการผู้ใช้';
+    return 'หน้าหลัก';
   }
 
   return (
-    <>
-      <header className="top-header">
-        <div className="header-brand">
-          <button
-            className="module-switcher"
-            onClick={() => setShowModuleMenu(true)}
-            title="เปลี่ยนโมดูล"
-          >
-            <span className="module-icon">{moduleInfo[currentModule].icon}</span>
-            <span className="module-label">{moduleInfo[currentModule].label}</span>
-            <span className="module-arrow">▾</span>
-          </button>
-          <span className="version-badge">v1.9</span>
-        </div>
-        <div className="header-user">
-          <div className="user-info">
-            <div className="name">{profile.full_name}</div>
-            <div className={`role ${profile.role}`}>{profile.role.toUpperCase()}</div>
-            {profile.branches?.name && <div className="branch">{profile.branches.name}</div>}
-          </div>
-          <ThemeSwitcher compact />
-          {profile.is_super_admin && (
-            <Link href="/super-admin" className="logout-btn" style={{ borderColor: '#ffa502', color: '#ffa502', marginRight: 4 }}>
-              <span>👑</span>
-              <span>SUPER</span>
-            </Link>
-          )}
-          <button className="logout-btn" onClick={() => setShowLogout(true)}>
-            <span>⏻</span>
-            <span>ออก</span>
-          </button>
-        </div>
-      </header>
+    <div className="app-layout">
+      {/* Sidebar Backdrop (mobile) */}
+      <div 
+        className={`sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      ></div>
 
-      {/* Desktop: tab to switch modules */}
-      <div className="module-tabs">
-        <div className="module-tabs-inner">
-          <button
-            className={`module-tab ${currentModule === 'stock' ? 'active' : ''}`}
-            onClick={() => switchModule('stock')}
-          >
-            <span>📦</span>
-            <span>สต๊อกเครื่อง</span>
-          </button>
-          <button
-            className={`module-tab ${currentModule === 'pawn' ? 'active' : ''}`}
-            onClick={() => switchModule('pawn')}
-          >
-            <span>💰</span>
-            <span>จำนำเครื่อง</span>
-          </button>
-          <button
-            className={`module-tab ${currentModule === 'installment' ? 'active' : ''}`}
-            onClick={() => switchModule('installment')}
-          >
-            <span>💳</span>
-            <span>ผ่อนเครื่อง</span>
-          </button>
-          <button
-            className={`module-tab ${currentModule === 'goods' ? 'active' : ''}`}
-            onClick={() => switchModule('goods')}
-          >
-            <span>🎒</span>
-            <span>สต๊อกของ</span>
-          </button>
-          {isAdmin && (
-            <button
-              className={`module-tab ${currentModule === 'users' ? 'active' : ''}`}
-              onClick={() => switchModule('users')}
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-shop">
+            <div className="sidebar-shop-icon">🏪</div>
+            <div className="sidebar-shop-info">
+              <div className="sidebar-shop-name">{profile.shops?.name || 'ร้านของคุณ'}</div>
+              <div className="sidebar-shop-sub">{profile.branches?.name || 'สาขาหลัก'}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">เมนู</div>
+          <nav className="sidebar-nav">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">{item.icon}</span>
+                <span className="sidebar-item-text">{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {isAdmin && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">Admin</div>
+            <nav className="sidebar-nav">
+              <Link
+                href="/dashboard/history"
+                className={`sidebar-item ${pathname === '/dashboard/history' ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">⏱️</span>
+                <span className="sidebar-item-text">ประวัติการขาย</span>
+              </Link>
+              <Link
+                href="/dashboard/users"
+                className={`sidebar-item ${pathname.startsWith('/dashboard/users') ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">👥</span>
+                <span className="sidebar-item-text">จัดการผู้ใช้</span>
+              </Link>
+            </nav>
+          </div>
+        )}
+
+        {profile.is_super_admin && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">Super Admin</div>
+            <nav className="sidebar-nav">
+              <Link
+                href="/super-admin"
+                className="sidebar-item"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">👑</span>
+                <span className="sidebar-item-text">จัดการระบบ</span>
+              </Link>
+            </nav>
+          </div>
+        )}
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">{getInitials(profile.full_name)}</div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{profile.full_name || 'User'}</div>
+              <div className="sidebar-user-role">{isAdmin ? 'Admin' : 'Staff'}</div>
+            </div>
+            <button 
+              className="sidebar-user-btn" 
+              onClick={() => setShowThemeSwitcher(true)}
+              title="เปลี่ยน Theme"
             >
-              <span>👥</span>
-              <span>จัดการผู้ใช้</span>
+              🎨
             </button>
-          )}
+            <button 
+              className="sidebar-user-btn" 
+              onClick={() => setShowLogout(true)}
+              title="ออกจากระบบ"
+            >
+              🚪
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="main-content">
+        {/* Top Bar */}
+        <div className="top-bar">
+          <div className="top-bar-left">
+            <button 
+              className="hamburger-btn" 
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Menu"
+            >
+              ☰
+            </button>
+            <div className="top-bar-title">{getPageTitle()}</div>
+          </div>
+          <div className="top-bar-actions">
+            <button 
+              className="top-bar-btn"
+              onClick={() => setShowThemeSwitcher(true)}
+              title="เปลี่ยน Theme"
+              style={{ display: 'flex' }}
+            >
+              🎨
+            </button>
+          </div>
+        </div>
+
+        {/* Page Content */}
+        <div className="main-inner">
+          {children}
         </div>
       </div>
 
-      {/* Bottom nav: items in current module */}
+      {/* Bottom Nav (Mobile) */}
       <nav className="bottom-nav">
-        {navItems.map((item) => {
-          const active = pathname === item.path;
-          return (
+        <div className="bottom-nav-inner">
+          {bottomNavItems.map((item) => (
             <Link
               key={item.path}
               href={item.path}
-              className={`nav-item ${active ? 'active' : ''} ${(item as any).adminOnly ? 'admin-only' : ''}`}
+              className={`bottom-nav-item ${isActive(item.path) ? 'active' : ''}`}
             >
-              {(item as any).adminOnly && <span className="admin-badge">ADMIN</span>}
-              <span className="icon">{item.icon}</span>
-              <span>{item.label}</span>
+              <div className="bottom-nav-item-icon">{item.icon}</div>
+              <div className="bottom-nav-item-text">{item.label}</div>
             </Link>
-          );
-        })}
+          ))}
+        </div>
       </nav>
 
-      <main className="main">
-        <TrialBanner />
-        {children}
-      </main>
-
-      <UpdatePopup />
-
-      {/* Module Switcher Modal (mobile) */}
-      {showModuleMenu && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModuleMenu(false)}>
-          <div className="modal">
-            <h3>เลือกโมดูล</h3>
-            <p className="modal-sub">เลือกระบบที่ต้องการใช้งาน</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-              <button
-                className="module-option"
-                onClick={() => switchModule('stock')}
-                style={{ borderColor: currentModule === 'stock' ? 'var(--accent)' : 'var(--border)' }}
-              >
-                <span style={{ fontSize: 24 }}>📦</span>
-                <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600 }}>สต๊อกเครื่อง</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                    เพิ่ม / ขาย / ดูสต๊อก / ประวัติการขาย
-                  </div>
-                </div>
-                {currentModule === 'stock' && <span style={{ color: 'var(--accent)' }}>✓</span>}
-              </button>
-
-              <button
-                className="module-option"
-                onClick={() => switchModule('pawn')}
-                style={{ borderColor: currentModule === 'pawn' ? 'var(--accent)' : 'var(--border)' }}
-              >
-                <span style={{ fontSize: 24 }}>💰</span>
-                <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600 }}>จำนำเครื่อง</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                    รับจำนำ / ไถ่คืน / สต๊อกจำนำ / ประวัติ
-                  </div>
-                </div>
-                {currentModule === 'pawn' && <span style={{ color: 'var(--accent)' }}>✓</span>}
-              </button>
-
-              <button
-                className="module-option"
-                onClick={() => switchModule('installment')}
-                style={{ borderColor: currentModule === 'installment' ? 'var(--accent)' : 'var(--border)' }}
-              >
-                <span style={{ fontSize: 24 }}>💳</span>
-                <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600 }}>ผ่อนเครื่อง</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                    เพิ่มผ่อน / สต๊อกผ่อน / ประวัติ
-                  </div>
-                </div>
-                {currentModule === 'installment' && <span style={{ color: 'var(--accent)' }}>✓</span>}
-              </button>
-
-              <button
-                className="module-option"
-                onClick={() => switchModule('goods')}
-                style={{ borderColor: currentModule === 'goods' ? 'var(--accent)' : 'var(--border)' }}
-              >
-                <span style={{ fontSize: 24 }}>🎒</span>
-                <div style={{ flex: 1, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600 }}>สต๊อกของ <span style={{ color: '#2ed573', fontSize: 10 }}>NEW!</span></div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                    อุปกรณ์เสริม / Barcode / สแกนขาย
-                  </div>
-                </div>
-                {currentModule === 'goods' && <span style={{ color: 'var(--accent)' }}>✓</span>}
-              </button>
-
-              {isAdmin && (
-                <button
-                  className="module-option"
-                  onClick={() => switchModule('users')}
-                  style={{ borderColor: currentModule === 'users' ? 'var(--accent)' : 'var(--border)' }}
-                >
-                  <span style={{ fontSize: 24 }}>👥</span>
-                  <div style={{ flex: 1, textAlign: 'left' }}>
-                    <div style={{ fontWeight: 600 }}>จัดการผู้ใช้ <span style={{ color: 'var(--accent)', fontSize: 10 }}>[ADMIN]</span></div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                      เพิ่ม/ลบ พนักงานและสาขา
-                    </div>
-                  </div>
-                  {currentModule === 'users' && <span style={{ color: 'var(--accent)' }}>✓</span>}
-                </button>
-              )}
-            </div>
-            <button className="btn btn-sec" onClick={() => setShowModuleMenu(false)}>
-              ยกเลิก
-            </button>
-          </div>
-        </div>
-      )}
-
+      {/* Logout Modal */}
       {showLogout && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowLogout(false)}>
           <div className="modal">
             <h3>ออกจากระบบ?</h3>
-            <p className="modal-sub">คุณต้องการออกจากระบบใช่หรือไม่</p>
+            <p className="modal-sub">คุณต้องการออกจากระบบใช่ไหม</p>
             <div className="modal-actions">
-              <button className="btn btn-danger" onClick={handleLogout}>
-                ออกจากระบบ
-              </button>
-              <button className="btn btn-sec" onClick={() => setShowLogout(false)}>
-                ยกเลิก
-              </button>
+              <button className="btn btn-danger" onClick={handleLogout}>ออกจากระบบ</button>
+              <button className="btn btn-sec" onClick={() => setShowLogout(false)}>ยกเลิก</button>
             </div>
           </div>
         </div>
       )}
-    </>
+
+      {/* Theme Switcher Modal */}
+      {showThemeSwitcher && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowThemeSwitcher(false)}>
+          <div className="modal">
+            <h3>เปลี่ยน Theme</h3>
+            <p className="modal-sub">เลือกธีมที่ต้องการ</p>
+            <ThemeSwitcher onClose={() => setShowThemeSwitcher(false)} />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

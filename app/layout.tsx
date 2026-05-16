@@ -3,19 +3,17 @@ import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
 export const metadata: Metadata = {
-  title: 'STOCK • ระบบจัดการสต๊อกมือถือ',
-  description: 'ระบบจัดการสต๊อกมือถือด้วยเลข IMEI',
+  title: 'Stock Manager · ระบบจัดการสต๊อกร้านมือถือ',
+  description: 'ระบบจัดการสต๊อกมือถือ จำนำ ผ่อน และอุปกรณ์เสริม',
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#0a0a0a',
+  maximumScale: 5,
+  themeColor: '#3b82f6',
 };
 
-// Inline script - รัน theme ก่อน React mount เพื่อกัน flash
 const themeScript = `
 (function() {
   try {
@@ -29,9 +27,11 @@ const themeScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="th" data-theme="dark">
+    <html lang="th" data-theme="light">
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <link rel="preconnect" href="https://husbgswmqmlfsijllfxp.supabase.co" />
+        <link rel="dns-prefetch" href="https://husbgswmqmlfsijllfxp.supabase.co" />
       </head>
       <body>
         <ThemeProvider>
