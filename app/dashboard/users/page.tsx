@@ -224,7 +224,7 @@ export default function UsersPage() {
   return (
     <>
       <div className="page-header">
-        <h2>จัดการผู้ใช้ <span className="badge-admin">ADMIN</span></h2>
+        <h1>👥 จัดการผู้ใช้ <span className="badge-admin">ADMIN</span></h1>
         <div className="desc">เพิ่ม/แก้ไข/ลบ ผู้ใช้และสาขา</div>
       </div>
 

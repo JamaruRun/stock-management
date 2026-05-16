@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
@@ -15,6 +16,7 @@ interface ModelSuggestion {
 
 export default function AddStockPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [form, setForm] = useState({
     imei: '',
     model: '',
@@ -23,7 +25,7 @@ export default function AddStockPage() {
     price: '',
     addedDate: new Date().toISOString().split('T')[0],
     branchId: '',
-    deviceCondition: 'new', // มือ 1 (new) / มือ 2 (used)
+    deviceCondition: 'new',
   });
   const [profile, setProfile] = useState<any>(null);
   const [branches, setBranches] = useState<any[]>([]);
@@ -39,7 +41,7 @@ export default function AddStockPage() {
   }
 
   useEffect(() => {
-    async function loadProfile() {
+    async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -47,16 +49,14 @@ export default function AddStockPage() {
         .from('profiles').select('*, branches(name)').eq('id', user.id).single();
       setProfile(p);
 
-      // ถ้าเป็น admin ดึงสาขาทั้งหมด
       if (p?.role === 'admin') {
         const { data: bs } = await supabase.from('branches').select('*').order('name');
         setBranches(bs || []);
       }
 
-      // default branch = สาขาตัวเอง
       setForm(f => ({ ...f, branchId: p?.branch_id || '' }));
     }
-    loadProfile();
+    load();
   }, []);
 
   async function loadSuggestions(searchModel: string) {
@@ -84,7 +84,7 @@ export default function AddStockPage() {
   function applySuggestion(s: ModelSuggestion) {
     setForm({ ...form, model: s.model, color: s.color || '', spec: s.spec || '', price: s.price.toString() });
     setShowSuggestions(false);
-    showToast('นำข้อมูลมาใช้', `${s.model}${s.color ? ' - ' + s.color : ''}`);
+    showToast('นำข้อมูลมาใช้', `${s.model}`);
   }
 
   function handleScan(imei: string) {
@@ -100,14 +100,13 @@ export default function AddStockPage() {
       branchId: profile?.branch_id || '',
       deviceCondition: 'new',
     });
-    setSuggestions([]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!form.imei || !form.model || !form.price || !form.branchId) {
-      showToast('ข้อมูลไม่ครบ', 'กรุณากรอก IMEI, รุ่น, ราคา และสาขา', 'danger');
+      showToast('ข้อมูลไม่ครบ', 'กรอก IMEI, รุ่น, ราคา และสาขา', 'danger');
       return;
     }
 
@@ -119,11 +118,7 @@ export default function AddStockPage() {
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      showToast('ไม่พบผู้ใช้', '', 'danger');
-      setLoading(false);
-      return;
-    }
+    if (!user) { setLoading(false); return; }
 
     const { data: existingStock } = await supabase
       .from('stock').select('id').eq('imei', form.imei).maybeSingle();
@@ -160,6 +155,7 @@ export default function AddStockPage() {
 
     showToast('เพิ่มสำเร็จ', `${form.model} เข้าสต๊อกแล้ว`);
     reset();
+    setTimeout(() => router.push('/dashboard/stock'), 1200);
   }
 
   const isAdmin = profile?.role === 'admin';
@@ -167,80 +163,94 @@ export default function AddStockPage() {
   return (
     <>
       <div className="page-header">
-        <h2>เพิ่มเครื่อง</h2>
+        <h1>เพิ่มเครื่อง</h1>
         <div className="desc">ลงทะเบียนเครื่องใหม่เข้าสต๊อก</div>
       </div>
 
       <div className="form-card">
-        <h3>รายละเอียดเครื่อง</h3>
+        <h3>📱 ข้อมูลเครื่อง</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field full">
-              <label>IMEI <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <label>IMEI (15 หลัก) <span style={{ color: 'var(--danger)' }}>*</span></label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
-                  type="text" inputMode="numeric" maxLength={15}
+                  type="text"
+                  inputMode="numeric"
                   value={form.imei}
-                  onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '') })}
-                  placeholder="356789012345678" required style={{ flex: 1 }}
+                  onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '').substring(0, 15) })}
+                  placeholder="356789012345678"
+                  style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
+                  maxLength={15}
+                  required
                 />
-                <button type="button" className="btn btn-sec" onClick={() => setShowScanner(true)}
-                  style={{ width: 'auto', padding: '0 16px', minWidth: 100, whiteSpace: 'nowrap' }}>
+                <button type="button" className="btn btn-sec"
+                  onClick={() => setShowScanner(true)}
+                  style={{ width: 'auto', padding: '0 16px' }}>
                   📷 สแกน
                 </button>
               </div>
+              {form.imei.length > 0 && form.imei.length < 15 && (
+                <div style={{ fontSize: 11, color: 'var(--warning)', marginTop: 4 }}>
+                  อีก {15 - form.imei.length} หลัก
+                </div>
+              )}
             </div>
 
             <div className="field full" style={{ position: 'relative' }}>
               <label>รุ่น <span style={{ color: 'var(--danger)' }}>*</span></label>
               <input
-                type="text" value={form.model}
+                type="text"
+                value={form.model}
                 onChange={(e) => {
                   setForm({ ...form, model: e.target.value });
                   loadSuggestions(e.target.value);
                   setShowSuggestions(true);
                 }}
-                onFocus={() => {
-                  if (form.model.length >= 2) {
-                    loadSuggestions(form.model);
-                    setShowSuggestions(true);
-                  }
-                }}
+                onFocus={() => form.model.length >= 2 && setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                placeholder="iPhone 15 Pro Max" required autoComplete="off"
+                placeholder="iPhone 15 Pro Max"
+                required
               />
               {showSuggestions && suggestions.length > 0 && (
                 <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0,
-                  background: 'var(--surface-2)', border: '1px solid var(--accent)', borderTop: 'none',
-                  maxHeight: 280, overflowY: 'auto', zIndex: 10,
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  marginTop: 4,
+                  zIndex: 10,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                  boxShadow: 'var(--shadow-md)',
                 }}>
-                  <div style={{
-                    padding: '8px 12px', fontSize: 10, color: 'var(--accent)',
-                    fontFamily: 'JetBrains Mono, monospace', letterSpacing: 1,
-                    borderBottom: '1px solid var(--border)',
-                  }}>
-                    // เคยเพิ่มมาก่อน - กดเพื่อกรอกอัตโนมัติ
-                  </div>
                   {suggestions.map((s, i) => (
-                    <button key={i} type="button" onMouseDown={(e) => e.preventDefault()}
+                    <button
+                      key={i}
+                      type="button"
                       onClick={() => applySuggestion(s)}
                       style={{
-                        display: 'block', width: '100%', padding: '12px',
-                        background: 'transparent', border: 'none',
+                        display: 'block',
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: 'transparent',
+                        border: 'none',
                         borderBottom: '1px solid var(--border)',
-                        color: 'var(--text)', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
-                      }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.model}</div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {s.color && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>🎨 {s.color}</span>}
-                        {s.spec && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>💾 {s.spec}</span>}
-                        <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>
-                          ฿{s.price.toLocaleString()}
-                        </span>
-                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace' }}>
-                          x{s.count}
-                        </span>
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        color: 'var(--text)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <div style={{ fontWeight: 600 }}>{s.model}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                        {s.color && `${s.color} • `}
+                        {s.spec && `${s.spec} • `}
+                        ฿{s.price.toLocaleString()} • {s.count} ครั้ง
                       </div>
                     </button>
                   ))}
@@ -248,71 +258,77 @@ export default function AddStockPage() {
               )}
             </div>
 
-            <div className="field"><label>สี</label>
+            <div className="field">
+              <label>สี</label>
               <input type="text" value={form.color}
                 onChange={(e) => setForm({ ...form, color: e.target.value })}
-                placeholder="Natural Titanium" /></div>
-            <div className="field"><label>สเปค (ROM/RAM)</label>
+                placeholder="Natural Titanium" />
+            </div>
+
+            <div className="field">
+              <label>สเปค</label>
               <input type="text" value={form.spec}
                 onChange={(e) => setForm({ ...form, spec: e.target.value })}
-                placeholder="256GB / 8GB" /></div>
-            <div className="field"><label>ราคา (บาท) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                placeholder="256GB / 8GB" />
+            </div>
+
+            <div className="field">
+              <label>ราคาขาย <span style={{ color: 'var(--danger)' }}>*</span></label>
               <input type="number" inputMode="numeric" value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
-                placeholder="45000" required /></div>
-            <div className="field"><label>วันที่ลงสต๊อก</label>
-              <input type="date" value={form.addedDate}
-                onChange={(e) => setForm({ ...form, addedDate: e.target.value })} /></div>
+                placeholder="42500" required />
+            </div>
 
-            {/* Device Condition - มือ 1 / มือ 2 */}
+            <div className="field">
+              <label>วันที่รับเข้า</label>
+              <input type="date" value={form.addedDate}
+                onChange={(e) => setForm({ ...form, addedDate: e.target.value })} />
+            </div>
+
             <div className="field full">
-              <label>สภาพเครื่อง <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <label>สภาพเครื่อง</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, deviceCondition: 'new' })}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '10px',
                     background: form.deviceCondition === 'new' ? 'var(--accent)' : 'var(--surface-2)',
-                    color: form.deviceCondition === 'new' ? 'var(--bg)' : 'var(--text)',
-                    border: `1px solid ${form.deviceCondition === 'new' ? 'var(--accent)' : 'var(--border)'}`,
+                    color: form.deviceCondition === 'new' ? 'white' : 'var(--text)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     fontSize: 14,
                     fontWeight: 600,
-                    transition: 'all 0.15s',
                   }}
                 >
-                  ✨ มือ 1 (ใหม่)
+                  ✨ มือ 1
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, deviceCondition: 'used' })}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '10px',
                     background: form.deviceCondition === 'used' ? 'var(--accent)' : 'var(--surface-2)',
-                    color: form.deviceCondition === 'used' ? 'var(--bg)' : 'var(--text)',
-                    border: `1px solid ${form.deviceCondition === 'used' ? 'var(--accent)' : 'var(--border)'}`,
+                    color: form.deviceCondition === 'used' ? 'white' : 'var(--text)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     fontSize: 14,
                     fontWeight: 600,
-                    transition: 'all 0.15s',
                   }}
                 >
-                  📱 มือ 2 (มือสอง)
+                  📱 มือ 2
                 </button>
               </div>
             </div>
 
-            {/* Branch Selector */}
             <div className="field full">
-              <label>
-                สาขา <span style={{ color: 'var(--danger)' }}>*</span>
-                {!isAdmin && <span style={{ color: 'var(--text-dim)', fontSize: 10, marginLeft: 8 }}>(สาขาของคุณ)</span>}
-              </label>
+              <label>สาขา <span style={{ color: 'var(--danger)' }}>*</span></label>
               {isAdmin ? (
                 <select value={form.branchId}
                   onChange={(e) => setForm({ ...form, branchId: e.target.value })} required>
@@ -324,15 +340,14 @@ export default function AddStockPage() {
                   ))}
                 </select>
               ) : (
-                <input type="text" value={profile?.branches?.name || '-'} disabled
-                  style={{ opacity: 0.7, cursor: 'not-allowed' }} />
+                <input type="text" value={profile?.branches?.name || '-'} disabled />
               )}
             </div>
           </div>
 
           <div className="form-actions">
             <button type="submit" className="btn" disabled={loading}>
-              {loading ? 'กำลังเพิ่ม...' : '+ เพิ่มเข้าสต๊อก'}
+              {loading ? 'กำลังเพิ่ม...' : '➕ เพิ่มเข้าสต๊อก'}
             </button>
             <button type="button" className="btn btn-sec" onClick={reset} disabled={loading}>
               ล้างฟอร์ม

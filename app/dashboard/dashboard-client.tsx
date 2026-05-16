@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
+import TrialBanner from '@/components/TrialBanner';
+import UpdatePopup from '@/components/UpdatePopup';
 
 interface Props {
   profile: any;
@@ -204,7 +206,9 @@ export default function DashboardClient({ profile, children }: Props) {
 
         {/* Page Content */}
         <div className="main-inner">
+          <TrialBanner />
           {children}
+          <UpdatePopup />
         </div>
       </div>
 

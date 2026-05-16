@@ -179,7 +179,7 @@ export default function AddGoodsPage() {
   return (
     <>
       <div className="page-header">
-        <h2>เพิ่มสินค้า</h2>
+        <h1>➕ เพิ่มสินค้า</h1>
         <div className="desc">เพิ่มของใหม่ หรือสแกน barcode เพื่อเติมของเดิม</div>
       </div>
 

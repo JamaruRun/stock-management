@@ -1018,6 +1018,18 @@ body {
   color: var(--accent);
 }
 
+.stat .value.success {
+  color: var(--success);
+}
+
+.stat .value.warning {
+  color: var(--warning);
+}
+
+.stat .value.danger {
+  color: var(--danger);
+}
+
 .stat .value.small {
   font-size: 16px;
 }

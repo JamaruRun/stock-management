@@ -311,7 +311,7 @@ export default function PrintBarcodePage() {
   return (
     <>
       <div className="page-header">
-        <h2>ปริ้นป้ายสินค้า 🖨️</h2>
+        <h1>🖨️ ปริ้นป้ายสินค้า</h1>
         <div className="desc">QR Code + Barcode บนป้ายเดียวกัน</div>
       </div>
 

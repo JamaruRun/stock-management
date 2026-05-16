@@ -247,22 +247,22 @@ function InstallmentDetailContent() {
           style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 13, marginBottom: 8, padding: 0, fontFamily: 'inherit' }}>
           ← กลับไปสต๊อก
         </button>
-        <h2>{item.model}</h2>
+        <h1>{item.model}</h1>
         <div className="desc">{item.customer_name} • {item.customer_phone}</div>
       </div>
 
       {/* Summary */}
       <div className="stats">
         <div className="stat">
-          <div className="label">// PROGRESS</div>
+          <div className="label">ความคืบหน้า</div>
           <div className="value accent">{paidPeriods}/{item.total_periods}</div>
         </div>
         <div className="stat">
-          <div className="label">// PAID</div>
+          <div className="label">จ่ายแล้ว</div>
           <div className="value small" style={{ color: 'var(--success)' }}>฿{totalPaid.toLocaleString()}</div>
         </div>
         <div className="stat">
-          <div className="label">// REMAINING</div>
+          <div className="label">ยอดคงเหลือ</div>
           <div className="value small" style={{ color: remainingAmount > 0 ? 'var(--warning)' : 'var(--success)' }}>
             ฿{remainingAmount.toLocaleString()}
           </div>

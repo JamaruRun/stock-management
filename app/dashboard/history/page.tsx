@@ -181,27 +181,27 @@ export default function HistoryPage() {
   return (
     <>
       <div className="page-header">
-        <h2>
+        <h1>
           ประวัติการขาย <span className="badge-admin">ADMIN</span>
-        </h2>
+        </h1>
         <div className="desc">รายการเครื่องที่ขายไปแล้วทั้งหมด</div>
       </div>
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// SOLD</div>
+          <div className="label">ขายแล้ว</div>
           <div className="value success">{items.length}</div>
         </div>
         <div className="stat">
-          <div className="label">// REVENUE</div>
-          <div className="value accent small">฿{totalRevenue.toLocaleString()}</div>
+          <div className="label">รายได้รวม</div>
+          <div className="value accent small">฿{(totalRevenue / 1000).toFixed(0)}K</div>
         </div>
         <div className="stat">
-          <div className="label">// TOP SELLER</div>
+          <div className="label">Top Seller</div>
           <div className="value small">{topSellerName || '-'}</div>
         </div>
         <div className="stat">
-          <div className="label">// THIS MONTH</div>
+          <div className="label">เดือนนี้</div>
           <div className="value">{thisMonth}</div>
         </div>
       </div>

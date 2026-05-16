@@ -165,7 +165,7 @@ export default function AddInstallmentPage() {
   return (
     <>
       <div className="page-header">
-        <h2>เพิ่มเครื่องผ่อน</h2>
+        <h1>💳 เพิ่มเครื่องผ่อน</h1>
         <div className="desc">บันทึกเครื่องที่ลูกค้าผ่อนเข้าระบบ</div>
       </div>
 

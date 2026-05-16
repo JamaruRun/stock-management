@@ -16,7 +16,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     .single();
 
   if (!profile?.is_super_admin) {
-    redirect('/dashboard/stock');
+    redirect('/dashboard/home');
   }
 
   return <>{children}</>;

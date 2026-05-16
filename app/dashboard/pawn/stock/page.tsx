@@ -140,7 +140,7 @@ export default function PawnStockPage() {
     <>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <h2>สต๊อกจำนำ</h2>
+          <h1>💰 สต๊อกจำนำ</h1>
           <div className="desc">เครื่องที่ลูกค้าจำนำอยู่</div>
         </div>
         {isAdmin && profile?.shop_id && profile?.branch_id && (
@@ -166,19 +166,19 @@ export default function PawnStockPage() {
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// TOTAL</div>
+          <div className="label">รวมทั้งหมด</div>
           <div className="value accent">{items.length}</div>
         </div>
         <div className="stat">
-          <div className="label">// VALUE</div>
+          <div className="label">มูลค่ารวม</div>
           <div className="value small">฿{totalValue.toLocaleString()}</div>
         </div>
         <div className="stat">
-          <div className="label">// MODELS</div>
+          <div className="label">จำนวนรุ่น</div>
           <div className="value">{models.length}</div>
         </div>
         <div className="stat">
-          <div className="label">// LATEST</div>
+          <div className="label">ล่าสุด</div>
           <div className="value small">{latestItem ? latestItem.model : '-'}</div>
         </div>
       </div>

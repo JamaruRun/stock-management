@@ -14,6 +14,7 @@ export default function SellPage() {
   const [showScanner, setShowScanner] = useState(false);
   const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
   const [discount, setDiscount] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -23,7 +24,7 @@ export default function SellPage() {
 
   async function searchByImei(searchImei: string) {
     if (!searchImei) {
-      showToast('กรุณาใส่ IMEI', '', 'danger');
+      showToast('ใส่ IMEI', '', 'danger');
       return;
     }
 
@@ -31,7 +32,7 @@ export default function SellPage() {
 
     const { data: stockItem } = await supabase
       .from('stock')
-      .select('*, added_by_profile:profiles!stock_added_by_fkey(full_name, username)')
+      .select('*, added_by_profile:profiles!stock_added_by_fkey(full_name), branch:branches(name)')
       .eq('imei', searchImei)
       .maybeSingle();
 
@@ -39,15 +40,12 @@ export default function SellPage() {
 
     if (!stockItem) {
       const { data: soldItem } = await supabase
-        .from('sales_history')
-        .select('id')
-        .eq('imei', searchImei)
-        .maybeSingle();
+        .from('sales_history').select('id').eq('imei', searchImei).maybeSingle();
 
       if (soldItem) {
         showToast('ขายไปแล้ว', 'เครื่องนี้ขายไปแล้ว', 'danger');
       } else {
-        showToast('ไม่พบเครื่อง', 'ไม่มีเครื่อง IMEI นี้ในสต๊อก', 'danger');
+        showToast('ไม่พบเครื่อง', 'IMEI นี้ไม่มีในสต๊อก', 'danger');
       }
       return;
     }
@@ -63,7 +61,6 @@ export default function SellPage() {
   async function handleScan(scannedImei: string) {
     setImei(scannedImei);
     setShowScanner(false);
-    showToast('สแกนสำเร็จ', `กำลังค้นหา ${scannedImei}`);
     await searchByImei(scannedImei);
   }
 
@@ -73,23 +70,18 @@ export default function SellPage() {
     setConfirming(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      showToast('ไม่พบผู้ใช้', '', 'danger');
-      setConfirming(false);
-      return;
-    }
+    if (!user) { setConfirming(false); return; }
 
     const discountValue = parseFloat(discount) || 0;
     const finalPrice = Number(foundItem.price) - discountValue;
 
     if (discountValue < 0) {
-      showToast('ส่วนลดต้องไม่ติดลบ', '', 'danger');
+      showToast('ส่วนลดติดลบไม่ได้', '', 'danger');
       setConfirming(false);
       return;
     }
-
     if (finalPrice < 0) {
-      showToast('ส่วนลดเกินราคา', 'ส่วนลดมากกว่าราคาขาย', 'danger');
+      showToast('ส่วนลดเกินราคา', '', 'danger');
       setConfirming(false);
       return;
     }
@@ -123,33 +115,28 @@ export default function SellPage() {
       return;
     }
 
-    const { error: deleteError } = await supabase
-      .from('stock')
-      .delete()
-      .eq('id', foundItem.id);
+    await supabase.from('stock').delete().eq('id', foundItem.id);
 
-    if (deleteError) {
-      showToast('เกิดข้อผิดพลาด', deleteError.message, 'danger');
-      setConfirming(false);
-      return;
-    }
-
-    showToast('ขายสำเร็จ', `${foundItem.model} - ฿${finalPrice.toLocaleString()}`);
+    showToast('ขายสำเร็จ', `${foundItem.model} • ฿${finalPrice.toLocaleString()}`);
     setFoundItem(null);
     setImei('');
     setDiscount('');
+    setShowConfirm(false);
     setConfirming(false);
   }
+
+  const discountValue = parseFloat(discount) || 0;
+  const finalPrice = foundItem ? Number(foundItem.price) - discountValue : 0;
 
   return (
     <>
       <div className="page-header">
-        <h2>ขายเครื่อง</h2>
+        <h1>ขายเครื่อง</h1>
         <div className="desc">ใส่ IMEI ของเครื่องที่จะขาย</div>
       </div>
 
       <div className="form-card">
-        <h3>ค้นหาเครื่อง</h3>
+        <h3>🔍 ค้นหาเครื่อง</h3>
         <form onSubmit={handleSearch}>
           <div className="field">
             <label>IMEI</label>
@@ -160,219 +147,149 @@ export default function SellPage() {
                 maxLength={15}
                 value={imei}
                 onChange={(e) => setImei(e.target.value.replace(/\D/g, ''))}
-                placeholder="ใส่เลข IMEI 15 หลัก"
-                style={{ flex: 1 }}
+                placeholder="356789012345678"
+                style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
+                autoFocus
               />
-              <button
-                type="button"
-                className="btn btn-sec"
+              <button type="button" className="btn btn-sec"
                 onClick={() => setShowScanner(true)}
-                style={{ width: 'auto', padding: '0 16px', minWidth: 100, whiteSpace: 'nowrap' }}
-              >
+                style={{ width: 'auto', padding: '0 16px', whiteSpace: 'nowrap' }}>
                 📷 สแกน
               </button>
             </div>
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn" disabled={searching}>
-              {searching ? 'กำลังค้นหา...' : 'ค้นหาเครื่อง →'}
+            <button type="submit" className="btn" disabled={searching || imei.length !== 15}>
+              {searching ? 'กำลังค้นหา...' : '🔍 ค้นหาเครื่อง'}
             </button>
           </div>
         </form>
       </div>
 
       {foundItem && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setFoundItem(null)}>
-          <div className="modal">
-            <h3>ยืนยันการขาย</h3>
-            <p className="modal-sub">ตรวจสอบข้อมูลเครื่องก่อนยืนยัน</p>
-            <div className="detail-grid">
-              <div className="detail-item full">
-                <div className="label">IMEI</div>
-                <div className="value mono">{foundItem.imei}</div>
-              </div>
-              <div className="detail-item">
-                <div className="label">รุ่น</div>
-                <div className="value">{foundItem.model}</div>
-              </div>
-              <div className="detail-item">
-                <div className="label">สี</div>
-                <div className="value">{foundItem.color || '-'}</div>
-              </div>
-              <div className="detail-item">
-                <div className="label">สเปค</div>
-                <div className="value">{foundItem.spec || '-'}</div>
-              </div>
-              <div className="detail-item">
-                <div className="label">ราคา</div>
-                <div className="value" style={{ color: 'var(--accent)' }}>
+        <>
+          <div className="form-card">
+            <h3>✅ พบเครื่อง</h3>
+            <div style={{
+              padding: 16,
+              background: 'var(--surface-2)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{foundItem.model}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>
+                    {foundItem.imei}
+                  </div>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)' }}>
                   ฿{Number(foundItem.price).toLocaleString()}
                 </div>
               </div>
-              <div className="detail-item">
-                <div className="label">วันที่ลงสต๊อก</div>
-                <div className="value">{foundItem.added_date}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                {foundItem.color && <span className="tag">🎨 {foundItem.color}</span>}
+                {foundItem.spec && <span className="tag">{foundItem.spec}</span>}
+                {foundItem.device_condition === 'new' && <span className="tag success">✨ มือ 1</span>}
+                {foundItem.device_condition === 'used' && <span className="tag">📱 มือ 2</span>}
+                {foundItem.branch?.name && <span className="tag">📍 {foundItem.branch.name}</span>}
               </div>
-              {foundItem.device_condition && (
-                <div className="detail-item">
-                  <div className="label">สภาพเครื่อง</div>
-                  <div className="value">
-                    {foundItem.device_condition === 'new' && '✨ มือ 1 (ใหม่)'}
-                    {foundItem.device_condition === 'used' && '📱 มือ 2 (มือสอง)'}
-                  </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="field full">
+                <label>วิธีการชำระเงิน</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setPaymentType('cash')}
+                    style={{
+                      flex: 1, padding: 12,
+                      background: paymentType === 'cash' ? 'var(--accent)' : 'var(--surface-2)',
+                      color: paymentType === 'cash' ? 'white' : 'var(--text)',
+                      border: 'none', borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                    }}>
+                    💵 เงินสด
+                  </button>
+                  <button type="button" onClick={() => setPaymentType('installment')}
+                    style={{
+                      flex: 1, padding: 12,
+                      background: paymentType === 'installment' ? 'var(--accent)' : 'var(--surface-2)',
+                      color: paymentType === 'installment' ? 'white' : 'var(--text)',
+                      border: 'none', borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                    }}>
+                    💳 ผ่อน
+                  </button>
+                </div>
+              </div>
+
+              <div className="field full">
+                <label>ส่วนลด (บาท)</label>
+                <input type="number" inputMode="numeric" value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="0" />
+              </div>
+            </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, var(--accent-strong) 0%, var(--accent) 100%)',
+              borderRadius: 'var(--radius)',
+              padding: 16,
+              marginTop: 16,
+              color: 'white',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, opacity: 0.9, marginBottom: 4 }}>
+                <span>ราคาเดิม:</span>
+                <span>฿{Number(foundItem.price).toLocaleString()}</span>
+              </div>
+              {discountValue > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, opacity: 0.9, marginBottom: 4 }}>
+                  <span>ส่วนลด:</span>
+                  <span>-฿{discountValue.toLocaleString()}</span>
                 </div>
               )}
-              <div className="detail-item full">
-                <div className="label">เพิ่มโดย</div>
-                <div className="value">{foundItem.added_by_profile?.full_name || '-'}</div>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between',
+                fontSize: 24, fontWeight: 700,
+                paddingTop: 10, marginTop: 8,
+                borderTop: '1px solid rgba(255,255,255,0.3)',
+              }}>
+                <span>รวมจ่าย:</span>
+                <span>฿{finalPrice.toLocaleString()}</span>
               </div>
             </div>
 
-            {/* Discount Input */}
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-              <label style={{ 
-                display: 'block', 
-                fontSize: 11, 
-                color: 'var(--text-dim)', 
-                fontFamily: 'JetBrains Mono, monospace', 
-                letterSpacing: 1, 
-                marginBottom: 8 
-              }}>
-                // ส่วนลด (ถ้ามี)
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  placeholder="0"
-                  min="0"
-                  style={{ 
-                    width: '100%',
-                    paddingRight: 50,
-                  }}
-                />
-                <span style={{ 
-                  position: 'absolute', 
-                  right: 14, 
-                  top: '50%', 
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-dim)',
-                  fontSize: 12,
-                  fontFamily: 'JetBrains Mono, monospace',
-                  pointerEvents: 'none',
-                }}>
-                  บาท
-                </span>
-              </div>
-              
-              {/* Price Summary */}
-              <div style={{ 
-                marginTop: 12,
-                padding: 12,
-                background: 'var(--surface-2)',
-                borderLeft: '3px solid var(--accent)',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text-dim)' }}>ราคาเดิม:</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                    ฿{Number(foundItem.price).toLocaleString()}
-                  </span>
-                </div>
-                {parseFloat(discount) > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                    <span style={{ color: 'var(--danger)' }}>ส่วนลด:</span>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--danger)' }}>
-                      -฿{parseFloat(discount).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  fontSize: 15, 
-                  fontWeight: 700,
-                  paddingTop: 8,
-                  borderTop: '1px solid var(--border)',
-                }}>
-                  <span>ราคาขายจริง:</span>
-                  <span style={{ 
-                    color: 'var(--accent)',
-                    fontFamily: 'JetBrains Mono, monospace',
-                  }}>
-                    ฿{(Number(foundItem.price) - (parseFloat(discount) || 0)).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Type Selector */}
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-              <label style={{ 
-                display: 'block', 
-                fontSize: 11, 
-                color: 'var(--text-dim)', 
-                fontFamily: 'JetBrains Mono, monospace', 
-                letterSpacing: 1, 
-                marginBottom: 8 
-              }}>
-                // ประเภทการชำระ
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('cash')}
-                  style={{
-                    flex: 1,
-                    padding: '14px',
-                    background: paymentType === 'cash' ? 'var(--success)' : 'var(--surface-2)',
-                    color: paymentType === 'cash' ? '#fff' : 'var(--text)',
-                    border: `1px solid ${paymentType === 'cash' ? 'var(--success)' : 'var(--border)'}`,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  💵 เงินสด
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('installment')}
-                  style={{
-                    flex: 1,
-                    padding: '14px',
-                    background: paymentType === 'installment' ? '#3742fa' : 'var(--surface-2)',
-                    color: paymentType === 'installment' ? '#fff' : 'var(--text)',
-                    border: `1px solid ${paymentType === 'installment' ? '#3742fa' : 'var(--border)'}`,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  💳 ผ่อน
-                </button>
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn" onClick={confirmSell} disabled={confirming}>
-                {confirming ? 'กำลังบันทึก...' : 'ยืนยันการขาย ✓'}
+            <div className="form-actions">
+              <button className="btn" onClick={() => setShowConfirm(true)} disabled={confirming}>
+                ✓ ยืนยันการขาย
               </button>
-              <button className="btn btn-sec" onClick={() => setFoundItem(null)} disabled={confirming}>
+              <button className="btn btn-sec" onClick={() => { setFoundItem(null); setImei(''); setDiscount(''); }}>
                 ยกเลิก
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {showScanner && (
-        <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
+
+      {showConfirm && foundItem && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowConfirm(false)}>
+          <div className="modal">
+            <h3>ยืนยันการขาย?</h3>
+            <p className="modal-sub">
+              {foundItem.model}<br />
+              <strong style={{ color: 'var(--accent)', fontSize: 20 }}>฿{finalPrice.toLocaleString()}</strong>
+              {' '}({paymentType === 'cash' ? 'เงินสด' : 'ผ่อน'})
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={confirmSell} disabled={confirming}>
+                {confirming ? 'กำลังบันทึก...' : 'ยืนยัน ✓'}
+              </button>
+              <button className="btn btn-sec" onClick={() => setShowConfirm(false)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {toast && <Toast {...toast} />}

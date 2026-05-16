@@ -100,7 +100,7 @@ export default function InstallmentHistoryPage() {
   return (
     <>
       <div className="page-header">
-        <h2>ประวัติผ่อน <span className="badge-admin">ADMIN</span></h2>
+        <h1>ประวัติผ่อน <span className="badge-admin">ADMIN</span></h1>
         <div className="desc">เครื่องที่ผ่อนหมดและปิดยอดแล้ว</div>
       </div>
 
@@ -110,15 +110,15 @@ export default function InstallmentHistoryPage() {
           <div className="value success">{items.length}</div>
         </div>
         <div className="stat">
-          <div className="label">// REVENUE</div>
+          <div className="label">รายได้รวม</div>
           <div className="value accent small">฿{totalRevenue.toLocaleString()}</div>
         </div>
         <div className="stat">
-          <div className="label">// THIS MONTH</div>
+          <div className="label">เดือนนี้</div>
           <div className="value">{thisMonth}</div>
         </div>
         <div className="stat">
-          <div className="label">// LATEST</div>
+          <div className="label">ล่าสุด</div>
           <div className="value small">{items[0]?.model || '-'}</div>
         </div>
       </div>

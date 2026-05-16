@@ -146,9 +146,9 @@ export default function PawnHistoryPage() {
   return (
     <>
       <div className="page-header">
-        <h2>
+        <h1>
           ประวัติการไถ่คืน <span className="badge-admin">ADMIN</span>
-        </h2>
+        </h1>
         <div className="desc">รายการเครื่องที่ลูกค้ามาไถ่คืนแล้ว</div>
       </div>
 
@@ -158,15 +158,15 @@ export default function PawnHistoryPage() {
           <div className="value success">{totalRedeemed}</div>
         </div>
         <div className="stat">
-          <div className="label">// TOTAL VALUE</div>
+          <div className="label">มูลค่ารวม</div>
           <div className="value accent small">฿{totalValue.toLocaleString()}</div>
         </div>
         <div className="stat">
-          <div className="label">// THIS MONTH</div>
+          <div className="label">เดือนนี้</div>
           <div className="value">{thisMonth}</div>
         </div>
         <div className="stat">
-          <div className="label">// LATEST</div>
+          <div className="label">ล่าสุด</div>
           <div className="value small">{items[0]?.model || '-'}</div>
         </div>
       </div>

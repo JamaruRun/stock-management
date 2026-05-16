@@ -115,25 +115,25 @@ export default function GoodsStockPage() {
   return (
     <>
       <div className="page-header">
-        <h2>สต๊อกของ 🎒</h2>
+        <h1>🎒 สต๊อกของ</h1>
         <div className="desc">อุปกรณ์เสริม + อะไหล่ที่ขายในร้าน</div>
       </div>
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// SKU</div>
+          <div className="label">จำนวนรายการ</div>
           <div className="value accent">{items.length}</div>
         </div>
         <div className="stat">
-          <div className="label">// TOTAL QTY</div>
+          <div className="label">จำนวนชิ้น</div>
           <div className="value">{totalQty}</div>
         </div>
         <div className="stat">
-          <div className="label">// VALUE</div>
+          <div className="label">มูลค่ารวม</div>
           <div className="value small">฿{totalValue.toLocaleString()}</div>
         </div>
         <div className="stat">
-          <div className="label">// LOW STOCK</div>
+          <div className="label">ใกล้หมด</div>
           <div className="value" style={{ color: lowStockCount > 0 ? '#ff4757' : 'var(--text-dim)' }}>
             {lowStockCount}
           </div>

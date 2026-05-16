@@ -159,7 +159,7 @@ export default function InstallmentStockPage() {
     <>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <h2>สต๊อกผ่อน</h2>
+          <h1>💳 สต๊อกผ่อน</h1>
           <div className="desc">เครื่องที่ลูกค้าผ่อนอยู่</div>
         </div>
         {isAdmin && profile?.shop_id && profile?.branch_id && (
@@ -197,11 +197,11 @@ export default function InstallmentStockPage() {
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// ACTIVE</div>
+          <div className="label">กำลังผ่อน</div>
           <div className="value accent">{stats.total}</div>
         </div>
         <div className="stat">
-          <div className="label">// OVERDUE</div>
+          <div className="label">เลยกำหนด</div>
           <div className="value" style={{ color: 'var(--danger)' }}>{stats.overdue}</div>
         </div>
         <div className="stat">
@@ -209,7 +209,7 @@ export default function InstallmentStockPage() {
           <div className="value" style={{ color: 'var(--warning)' }}>{stats.almostDone}</div>
         </div>
         <div className="stat">
-          <div className="label">// REMAINING</div>
+          <div className="label">ยอดคงเหลือ</div>
           <div className="value small">฿{stats.totalValue.toLocaleString()}</div>
         </div>
       </div>

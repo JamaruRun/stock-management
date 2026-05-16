@@ -160,17 +160,17 @@ export default function GoodsHistoryPage() {
   return (
     <>
       <div className="page-header">
-        <h2>ประวัติขายของ <span className="badge-admin">ADMIN</span></h2>
+        <h1>ประวัติขายของ <span className="badge-admin">ADMIN</span></h1>
         <div className="desc">รายการขายอุปกรณ์เสริม + อะไหล่</div>
       </div>
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// RECEIPTS</div>
+          <div className="label">จำนวนใบเสร็จ</div>
           <div className="value accent">{totalReceipts}</div>
         </div>
         <div className="stat">
-          <div className="label">// REVENUE</div>
+          <div className="label">รายได้รวม</div>
           <div className="value small">฿{totalRevenue.toLocaleString()}</div>
         </div>
       </div>

@@ -206,7 +206,7 @@ export default function SellGoodsPage() {
   return (
     <>
       <div className="page-header">
-        <h2>ขายของ 📷</h2>
+        <h1>📷 ขายของ</h1>
         <div className="desc">สแกน barcode หรือกรอก SKU เพื่อขาย</div>
       </div>
 

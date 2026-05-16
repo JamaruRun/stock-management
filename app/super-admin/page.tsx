@@ -199,24 +199,24 @@ export default function SuperAdminPage() {
             </div>
           </div>
         </div>
-        <Link href="/dashboard/stock" className="btn btn-sec" style={{ width: 'auto', padding: '8px 16px' }}>
+        <Link href="/dashboard/home" className="btn btn-sec" style={{ width: 'auto', padding: '8px 16px' }}>
           ← กลับระบบหลัก
         </Link>
       </header>
 
       <main className="main">
         <div className="page-header">
-          <h2>จัดการร้านลูกค้า</h2>
+          <h1>👑 จัดการร้านลูกค้า</h1>
           <div className="desc">ทุกร้านในระบบ • Super Admin Panel</div>
         </div>
 
         <div className="stats">
           <div className="stat">
-            <div className="label">// TOTAL</div>
+            <div className="label">รวมทั้งหมด</div>
             <div className="value accent">{shops.length}</div>
           </div>
           <div className="stat">
-            <div className="label">// ACTIVE</div>
+            <div className="label">ใช้งานปกติ</div>
             <div className="value success">
               {shops.filter(s => {
                 if (s.status !== 'active') return false;
@@ -226,7 +226,7 @@ export default function SuperAdminPage() {
             </div>
           </div>
           <div className="stat">
-            <div className="label">// TRIAL</div>
+            <div className="label">ทดลองใช้</div>
             <div className="value" style={{ color: '#ffa502' }}>
               {shops.filter(s => s.package === 'trial').length}
             </div>

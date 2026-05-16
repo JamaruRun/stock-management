@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
 
 export default function AddPawnPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [form, setForm] = useState({
     imei: '', model: '', color: '', spec: '',
     pawnPrice: '', pawnDate: new Date().toISOString().split('T')[0],
@@ -25,7 +27,7 @@ export default function AddPawnPage() {
   }
 
   useEffect(() => {
-    async function loadProfile() {
+    async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: p } = await supabase
@@ -37,7 +39,7 @@ export default function AddPawnPage() {
       }
       setForm(f => ({ ...f, branchId: p?.branch_id || '' }));
     }
-    loadProfile();
+    load();
   }, []);
 
   function handleScan(imei: string) {
@@ -59,25 +61,22 @@ export default function AddPawnPage() {
     e.preventDefault();
 
     if (!form.imei || !form.model || !form.pawnPrice || !form.customerName || !form.branchId) {
-      showToast('ข้อมูลไม่ครบ', 'กรุณากรอก IMEI, รุ่น, ราคา, ชื่อลูกค้า และสาขา', 'danger');
+      showToast('ข้อมูลไม่ครบ', 'กรอก IMEI, รุ่น, ราคา, ชื่อ, สาขา', 'danger');
       return;
     }
-
     if (form.imei.length !== 15) {
-      showToast('IMEI ไม่ถูกต้อง', 'IMEI ต้องมี 15 หลัก', 'danger');
+      showToast('IMEI ไม่ถูกต้อง', 'ต้องมี 15 หลัก', 'danger');
       return;
     }
 
     setLoading(true);
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
     const { data: existing } = await supabase
       .from('pawn_stock').select('id').eq('imei', form.imei).maybeSingle();
-
     if (existing) {
-      showToast('IMEI ซ้ำ', 'เครื่องนี้กำลังจำนำอยู่แล้ว', 'danger');
+      showToast('IMEI ซ้ำ', 'เครื่องนี้กำลังจำนำอยู่', 'danger');
       setLoading(false);
       return;
     }
@@ -98,14 +97,14 @@ export default function AddPawnPage() {
     });
 
     setLoading(false);
-
     if (error) {
       showToast('เกิดข้อผิดพลาด', error.message, 'danger');
       return;
     }
 
-    showToast('รับจำนำสำเร็จ', `${form.model} - ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
+    showToast('รับจำนำสำเร็จ', `${form.model} • ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
     reset();
+    setTimeout(() => router.push('/dashboard/pawn/stock'), 1200);
   }
 
   const isAdmin = profile?.role === 'admin';
@@ -113,12 +112,12 @@ export default function AddPawnPage() {
   return (
     <>
       <div className="page-header">
-        <h2>รับจำนำเครื่อง</h2>
-        <div className="desc">บันทึกเครื่องที่รับจำนำเข้าระบบ</div>
+        <h1>💰 รับจำนำเครื่อง</h1>
+        <div className="desc">บันทึกข้อมูลการรับจำนำใหม่</div>
       </div>
 
       <div className="form-card">
-        <h3>ข้อมูลเครื่อง</h3>
+        <h3>📱 ข้อมูลเครื่อง</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field full">
@@ -126,82 +125,103 @@ export default function AddPawnPage() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <input type="text" inputMode="numeric" maxLength={15}
                   value={form.imei}
-                  onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '') })}
-                  placeholder="356789012345678" required style={{ flex: 1 }} />
-                <button type="button" className="btn btn-sec" onClick={() => setShowScanner(true)}
-                  style={{ width: 'auto', padding: '0 16px', minWidth: 100, whiteSpace: 'nowrap' }}>
+                  onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '').substring(0, 15) })}
+                  placeholder="356789012345678"
+                  style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
+                  required />
+                <button type="button" className="btn btn-sec"
+                  onClick={() => setShowScanner(true)}
+                  style={{ width: 'auto', padding: '0 16px' }}>
                   📷 สแกน
                 </button>
               </div>
             </div>
-            <div className="field"><label>รุ่น <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <input type="text" value={form.model}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
-                placeholder="iPhone 15 Pro Max" required /></div>
-            <div className="field"><label>สี</label>
-              <input type="text" value={form.color}
-                onChange={(e) => setForm({ ...form, color: e.target.value })}
-                placeholder="Natural Titanium" /></div>
-            <div className="field"><label>สเปค (ROM/RAM)</label>
-              <input type="text" value={form.spec}
-                onChange={(e) => setForm({ ...form, spec: e.target.value })}
-                placeholder="256GB / 8GB" /></div>
-            <div className="field"><label>ราคาจำนำ (บาท) <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <input type="number" inputMode="numeric" value={form.pawnPrice}
-                onChange={(e) => setForm({ ...form, pawnPrice: e.target.value })}
-                placeholder="20000" required /></div>
-            <div className="field"><label>วันที่รับจำนำ</label>
-              <input type="date" value={form.pawnDate}
-                onChange={(e) => setForm({ ...form, pawnDate: e.target.value })} /></div>
 
             <div className="field full">
-              <label>
-                สาขา <span style={{ color: 'var(--danger)' }}>*</span>
-                {!isAdmin && <span style={{ color: 'var(--text-dim)', fontSize: 10, marginLeft: 8 }}>(สาขาของคุณ)</span>}
-              </label>
-              {isAdmin ? (
-                <select value={form.branchId}
-                  onChange={(e) => setForm({ ...form, branchId: e.target.value })} required>
-                  <option value="">-- เลือกสาขา --</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} {b.id === profile?.branch_id ? '(สาขาของคุณ)' : ''}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input type="text" value={profile?.branches?.name || '-'} disabled style={{ opacity: 0.7 }} />
-              )}
+              <label>รุ่น <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input type="text" value={form.model}
+                onChange={(e) => setForm({ ...form, model: e.target.value })}
+                placeholder="iPhone 15 Pro Max" required />
+            </div>
+
+            <div className="field">
+              <label>สี</label>
+              <input type="text" value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })} />
+            </div>
+
+            <div className="field">
+              <label>สเปค</label>
+              <input type="text" value={form.spec}
+                onChange={(e) => setForm({ ...form, spec: e.target.value })} />
+            </div>
+
+            <div className="field">
+              <label>ราคารับจำนำ <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input type="number" inputMode="numeric" value={form.pawnPrice}
+                onChange={(e) => setForm({ ...form, pawnPrice: e.target.value })}
+                placeholder="25000" required />
+            </div>
+
+            <div className="field">
+              <label>วันที่จำนำ</label>
+              <input type="date" value={form.pawnDate}
+                onChange={(e) => setForm({ ...form, pawnDate: e.target.value })} />
             </div>
           </div>
         </form>
       </div>
 
       <div className="form-card">
-        <h3>ข้อมูลลูกค้า</h3>
-        <div className="form-grid">
-          <div className="field"><label>ชื่อลูกค้า <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <input type="text" value={form.customerName}
-              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-              placeholder="ชื่อ - นามสกุล" required /></div>
-          <div className="field"><label>เบอร์โทร</label>
-            <input type="tel" inputMode="tel" value={form.customerPhone}
-              onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-              placeholder="08X-XXX-XXXX" /></div>
-          <div className="field full"><label>หมายเหตุ</label>
-            <input type="text" value={form.customerNote}
-              onChange={(e) => setForm({ ...form, customerNote: e.target.value })}
-              placeholder="ที่อยู่/บัตรประชาชน/ข้อตกลง" /></div>
-        </div>
+        <h3>👤 ข้อมูลลูกค้า</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            <div className="field full">
+              <label>ชื่อ-นามสกุล <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input type="text" value={form.customerName}
+                onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                placeholder="นายสมชาย ใจดี" required />
+            </div>
 
-        <div className="form-actions">
-          <button onClick={handleSubmit} className="btn" disabled={loading}>
-            {loading ? 'กำลังบันทึก...' : '+ รับจำนำเครื่อง'}
-          </button>
-          <button type="button" className="btn btn-sec" onClick={reset} disabled={loading}>
-            ล้างฟอร์ม
-          </button>
-        </div>
+            <div className="field">
+              <label>เบอร์โทร</label>
+              <input type="tel" value={form.customerPhone}
+                onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                placeholder="0812345678" />
+            </div>
+
+            <div className="field">
+              <label>สาขา <span style={{ color: 'var(--danger)' }}>*</span></label>
+              {isAdmin ? (
+                <select value={form.branchId}
+                  onChange={(e) => setForm({ ...form, branchId: e.target.value })} required>
+                  <option value="">-- เลือก --</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input type="text" value={profile?.branches?.name || '-'} disabled />
+              )}
+            </div>
+
+            <div className="field full">
+              <label>หมายเหตุ</label>
+              <input type="text" value={form.customerNote}
+                onChange={(e) => setForm({ ...form, customerNote: e.target.value })}
+                placeholder="เลขบัตรประชาชน, ที่อยู่..." />
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn" disabled={loading}>
+              {loading ? 'กำลังบันทึก...' : '💰 รับจำนำเครื่อง'}
+            </button>
+            <button type="button" className="btn btn-sec" onClick={reset} disabled={loading}>
+              ล้างฟอร์ม
+            </button>
+          </div>
+        </form>
       </div>
 
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
