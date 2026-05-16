@@ -18,11 +18,37 @@ export default function PawnStockPage() {
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
+  const [renewing, setRenewing] = useState<any>(null);
+  const [forfeiting, setForfeiting] = useState<any>(null);
+  const [renewForm, setRenewForm] = useState({ interestPaid: '', note: '' });
+  const [showOverdueAlert, setShowOverdueAlert] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
     setTimeout(() => setToast(null), 2500);
+  }
+
+  // คำนวณสถานะแต่ละรายการ
+  function getItemStatus(item: any) {
+    if (item.status === 'forfeited') {
+      return { type: 'forfeited', label: 'หลุดจำนำ', color: '#ef4444', days: 0 };
+    }
+    if (!item.due_date) {
+      // legacy - ใช้ pawn_date + 30
+      const due = new Date(item.pawn_date);
+      due.setDate(due.getDate() + 30);
+      const days = Math.floor((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (days < 0) return { type: 'overdue', label: `เลย ${-days} วัน`, color: '#ef4444', days };
+      if (days <= 3) return { type: 'soon', label: `เหลือ ${days} วัน`, color: '#f59e0b', days };
+      return { type: 'active', label: `เหลือ ${days} วัน`, color: '#10b981', days };
+    }
+    const due = new Date(item.due_date);
+    const days = Math.floor((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (days < 0) return { type: 'overdue', label: `เลย ${-days} วัน`, color: '#ef4444', days };
+    if (days <= 3) return { type: 'soon', label: `เหลือ ${days} วัน`, color: '#f59e0b', days };
+    return { type: 'active', label: `เหลือ ${days} วัน`, color: '#10b981', days };
   }
 
   async function loadData() {
@@ -54,6 +80,20 @@ export default function PawnStockPage() {
       setBranches(branchesData || []);
     }
 
+    // เช็คมีรายการเลยกำหนดไหม - เปิด popup เตือน (ครั้งเดียวต่อ session)
+    const sessionKey = 'pawn_overdue_alert_shown';
+    if (!sessionStorage.getItem(sessionKey)) {
+      const overdueCount = (stockData || []).filter((it: any) => {
+        if (it.status === 'forfeited') return false;
+        const due = it.due_date || new Date(new Date(it.pawn_date).getTime() + 30 * 86400000).toISOString().split('T')[0];
+        return new Date(due) < new Date();
+      }).length;
+      if (overdueCount > 0) {
+        setShowOverdueAlert(true);
+        sessionStorage.setItem(sessionKey, '1');
+      }
+    }
+
     setLoading(false);
   }
 
@@ -79,7 +119,25 @@ export default function PawnStockPage() {
       (item.customer_phone && item.customer_phone.includes(s));
     const matchModel = !filterModel || item.model === filterModel;
     const matchBranch = !filterBranch || item.branch_id === filterBranch;
-    return matchSearch && matchModel && matchBranch;
+    
+    // filter status
+    const st = getItemStatus(item);
+    const matchStatus = !filterStatus || st.type === filterStatus;
+    
+    return matchSearch && matchModel && matchBranch && matchStatus;
+  });
+
+  // นับสถานะ
+  const statusCount = items.reduce((acc: any, it) => {
+    const st = getItemStatus(it);
+    acc[st.type] = (acc[st.type] || 0) + 1;
+    return acc;
+  }, { active: 0, soon: 0, overdue: 0, forfeited: 0 });
+
+  // รายการเลยกำหนด (สำหรับ popup)
+  const overdueItems = items.filter(it => {
+    const st = getItemStatus(it);
+    return st.type === 'overdue';
   });
 
   const totalValue = items.reduce((sum, i) => sum + Number(i.pawn_price), 0);
@@ -127,6 +185,111 @@ export default function PawnStockPage() {
     loadData();
   }
 
+  async function handleRenew() {
+    if (!renewing) return;
+    const interestPaid = parseFloat(renewForm.interestPaid) || 0;
+    if (interestPaid < 0) {
+      showToast('ดอกเบี้ยติดลบไม่ได้', '', 'danger');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // คำนวณ due_date ใหม่
+    const interestDays = renewing.interest_days || 30;
+    const oldDue = renewing.due_date ? new Date(renewing.due_date) : new Date(renewing.pawn_date);
+    const newDue = new Date(Math.max(oldDue.getTime(), Date.now())); // ถ้าเลยกำหนดแล้วใช้วันนี้
+    newDue.setDate(newDue.getDate() + interestDays);
+    const newDueStr = newDue.toISOString().split('T')[0];
+
+    // 1. บันทึกประวัติการต่อ
+    const { error: renewError } = await supabase.from('pawn_renewals').insert({
+      pawn_id: renewing.id,
+      renewal_date: new Date().toISOString().split('T')[0],
+      interest_paid: interestPaid,
+      old_due_date: renewing.due_date || null,
+      new_due_date: newDueStr,
+      note: renewForm.note || null,
+      renewed_by: user.id,
+      renewed_by_name: profile.full_name,
+      branch_id: renewing.branch_id,
+      shop_id: profile.shop_id,
+    });
+
+    if (renewError) {
+      showToast('เกิดข้อผิดพลาด', renewError.message, 'danger');
+      return;
+    }
+
+    // 2. อัพเดท pawn_stock
+    const { error: updateError } = await supabase.from('pawn_stock').update({
+      due_date: newDueStr,
+      status: 'active',
+      renew_count: (renewing.renew_count || 0) + 1,
+    }).eq('id', renewing.id);
+
+    if (updateError) {
+      showToast('เกิดข้อผิดพลาด', updateError.message, 'danger');
+      return;
+    }
+
+    showToast('ต่อดอกสำเร็จ', `ครบกำหนดใหม่: ${newDueStr}`);
+    setRenewing(null);
+    setRenewForm({ interestPaid: '', note: '' });
+    loadData();
+  }
+
+  async function handleForfeit() {
+    if (!forfeiting) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // 1. นับ total interest paid
+    const { data: renewals } = await supabase
+      .from('pawn_renewals')
+      .select('interest_paid')
+      .eq('pawn_id', forfeiting.id);
+    const totalInterest = (renewals || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0);
+
+    // 2. ย้ายไป pawn_history พร้อม exit_status = 'forfeited'
+    const { error: insertError } = await supabase.from('pawn_history').insert({
+      imei: forfeiting.imei,
+      model: forfeiting.model,
+      color: forfeiting.color,
+      spec: forfeiting.spec,
+      pawn_price: forfeiting.pawn_price,
+      pawn_date: forfeiting.pawn_date,
+      customer_name: forfeiting.customer_name,
+      customer_phone: forfeiting.customer_phone,
+      customer_note: forfeiting.customer_note,
+      added_by: forfeiting.added_by,
+      added_by_name: forfeiting.added_by_name,
+      redeemed_by: user.id,
+      redeemed_by_name: profile.full_name,
+      redeem_date: new Date().toISOString().split('T')[0],
+      branch_id: forfeiting.branch_id,
+      shop_id: profile.shop_id,
+      interest_days: forfeiting.interest_days || 30,
+      renew_count: forfeiting.renew_count || 0,
+      total_interest_paid: totalInterest,
+      exit_status: 'forfeited',
+    });
+
+    if (insertError) {
+      showToast('เกิดข้อผิดพลาด', insertError.message, 'danger');
+      return;
+    }
+
+    // 3. ลบจาก pawn_stock
+    await supabase.from('pawn_stock').delete().eq('id', forfeiting.id);
+
+    showToast('บันทึกหลุดจำนำแล้ว', `${forfeiting.model} • ${forfeiting.customer_name}`);
+    setForfeiting(null);
+    loadData();
+  }
+
   if (loading) {
     return (
       <div className="loading">
@@ -170,16 +333,16 @@ export default function PawnStockPage() {
           <div className="value accent">{items.length}</div>
         </div>
         <div className="stat">
-          <div className="label">มูลค่ารวม</div>
-          <div className="value small">฿{totalValue.toLocaleString()}</div>
+          <div className="label">ปกติ</div>
+          <div className="value success">{statusCount.active}</div>
         </div>
         <div className="stat">
-          <div className="label">จำนวนรุ่น</div>
-          <div className="value">{models.length}</div>
+          <div className="label">ใกล้ครบกำหนด</div>
+          <div className="value" style={{ color: '#f59e0b' }}>{statusCount.soon}</div>
         </div>
         <div className="stat">
-          <div className="label">ล่าสุด</div>
-          <div className="value small">{latestItem ? latestItem.model : '-'}</div>
+          <div className="label">เลยกำหนด</div>
+          <div className="value danger">{statusCount.overdue}</div>
         </div>
       </div>
 
@@ -226,6 +389,12 @@ export default function PawnStockPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <option value="">ทุกสถานะ</option>
+          <option value="active">🟢 ปกติ</option>
+          <option value="soon">🟡 ใกล้ครบ</option>
+          <option value="overdue">🔴 เลยกำหนด</option>
+        </select>
         <select className="filter-select" value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="">ทุกรุ่น</option>
           {models.map((m) => (
@@ -244,7 +413,9 @@ export default function PawnStockPage() {
         </div>
       ) : (
         <div className="item-list">
-          {filtered.map((item) => (
+          {filtered.map((item) => {
+            const st = getItemStatus(item);
+            return (
             <div key={item.id} className="item-card">
               <div className="top-row">
                 <div className="model">{item.model}</div>
@@ -252,6 +423,20 @@ export default function PawnStockPage() {
               </div>
               <div className="imei">IMEI: {item.imei}</div>
               <div className="meta">
+                <span className="tag" style={{ 
+                  background: `${st.color}20`,
+                  color: st.color, 
+                  borderColor: st.color,
+                  fontWeight: 600 
+                }}>
+                  {st.type === 'overdue' ? '🔴' : st.type === 'soon' ? '🟡' : st.type === 'forfeited' ? '⚫' : '🟢'} {st.label}
+                </span>
+                {item.due_date && (
+                  <span className="tag">📅 ครบ {new Date(item.due_date).toLocaleDateString('th-TH')}</span>
+                )}
+                {item.renew_count > 0 && (
+                  <span className="tag">🔄 ต่อ {item.renew_count} ครั้ง</span>
+                )}
                 {item.color && <span className="tag">{item.color}</span>}
                 {item.spec && <span className="tag">{item.spec}</span>}
                 {isAdmin && item.branch?.name && <span className="tag">{item.branch.name}</span>}
@@ -273,9 +458,31 @@ export default function PawnStockPage() {
                   }
                 </div>
                 <div className="actions">
+                  <button 
+                    className="icon-btn" 
+                    onClick={() => { 
+                      setRenewing(item); 
+                      setRenewForm({ 
+                        interestPaid: String(item.interest_amount || ''), 
+                        note: '' 
+                      }); 
+                    }} 
+                    title="ต่อดอก"
+                    style={{ background: 'var(--accent-light)', color: 'var(--accent-text)' }}
+                  >
+                    🔄
+                  </button>
                   <button className="icon-btn" onClick={() => setViewing(item)} title="ดู">ⓘ</button>
                   {isAdmin && (
                     <>
+                      <button 
+                        className="icon-btn" 
+                        onClick={() => setForfeiting(item)} 
+                        title="บันทึกหลุดจำนำ"
+                        style={{ borderColor: 'var(--warning)', color: 'var(--warning)' }}
+                      >
+                        ⚠
+                      </button>
                       <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
                       <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
                     </>
@@ -283,7 +490,8 @@ export default function PawnStockPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -416,6 +624,168 @@ export default function PawnStockPage() {
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDelete}>ลบ</button>
               <button className="btn btn-sec" onClick={() => setDeleting(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: ต่อดอก */}
+      {renewing && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setRenewing(null)}>
+          <div className="modal">
+            <h3>🔄 ต่อดอก</h3>
+            <p className="modal-sub">{renewing.model} • {renewing.customer_name}</p>
+
+            <div style={{
+              background: 'var(--surface-2)',
+              padding: 12,
+              marginBottom: 16,
+              fontSize: 13,
+              borderLeft: '3px solid var(--accent)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-dim)' }}>ครบกำหนดเดิม:</span>
+                <span>{renewing.due_date ? new Date(renewing.due_date).toLocaleDateString('th-TH') : '-'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-dim)' }}>จำนวนวันต่อดอก:</span>
+                <span>{renewing.interest_days || 30} วัน</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-dim)' }}>ต่อมาแล้ว:</span>
+                <span>{renewing.renew_count || 0} ครั้ง</span>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="field full">
+                <label>ดอกเบี้ยที่จ่าย (บาท) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input type="number" inputMode="numeric"
+                  value={renewForm.interestPaid}
+                  onChange={(e) => setRenewForm({ ...renewForm, interestPaid: e.target.value })}
+                  placeholder="500"
+                  autoFocus />
+              </div>
+              <div className="field full">
+                <label>หมายเหตุ</label>
+                <input type="text"
+                  value={renewForm.note}
+                  onChange={(e) => setRenewForm({ ...renewForm, note: e.target.value })}
+                  placeholder="ฯลฯ" />
+              </div>
+            </div>
+
+            {renewForm.interestPaid && (
+              <div style={{
+                marginTop: 12, padding: 10,
+                background: 'rgba(46, 213, 115, 0.1)',
+                borderLeft: '3px solid var(--success)',
+                fontSize: 13,
+                color: 'var(--success)',
+                fontWeight: 600,
+              }}>
+                ✓ ครบกำหนดใหม่จะเลื่อนไปอีก {renewing.interest_days || 30} วัน
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ marginTop: 20 }}>
+              <button className="btn" onClick={handleRenew}>ยืนยันต่อดอก ✓</button>
+              <button className="btn btn-sec" onClick={() => setRenewing(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: หลุดจำนำ */}
+      {forfeiting && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setForfeiting(null)}>
+          <div className="modal">
+            <h3 style={{ color: 'var(--warning)' }}>⚠️ บันทึกหลุดจำนำ</h3>
+            <p className="modal-sub">
+              เครื่องนี้จะเข้าครอบครองร้าน (หลุดจำนำ) → ย้ายเข้าประวัติ
+            </p>
+
+            <div style={{
+              background: 'var(--surface-2)',
+              padding: 14,
+              marginTop: 14, marginBottom: 16,
+              fontSize: 13,
+            }}>
+              <div><strong>{forfeiting.model}</strong> ({forfeiting.imei})</div>
+              <div style={{ marginTop: 4 }}>ลูกค้า: {forfeiting.customer_name}</div>
+              <div style={{ marginTop: 4 }}>จำนำ: ฿{Number(forfeiting.pawn_price).toLocaleString()}</div>
+              <div style={{ marginTop: 4 }}>ต่อแล้ว {forfeiting.renew_count || 0} ครั้ง</div>
+            </div>
+
+            <div style={{
+              padding: 10,
+              background: 'rgba(245, 158, 11, 0.1)',
+              borderLeft: '3px solid var(--warning)',
+              fontSize: 12,
+              color: 'var(--warning-text)',
+            }}>
+              ⚠️ ลูกค้าไม่มาไถ่/ต่อดอกตามกำหนด เครื่องเข้าครอบครองร้าน
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: 16 }}>
+              <button className="btn" onClick={handleForfeit} style={{ background: 'var(--warning)' }}>
+                ✓ ยืนยันหลุดจำนำ
+              </button>
+              <button className="btn btn-sec" onClick={() => setForfeiting(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup: แจ้งเลยกำหนด (เปิดอัตโนมัติเมื่อเข้าหน้านี้) */}
+      {showOverdueAlert && overdueItems.length > 0 && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowOverdueAlert(false)}>
+          <div className="modal">
+            <h3 style={{ color: 'var(--danger)' }}>🔴 แจ้งเตือน: มีเครื่องเลยกำหนด</h3>
+            <p className="modal-sub">
+              พบ <strong style={{ color: 'var(--danger)' }}>{overdueItems.length} รายการ</strong> ที่เลยกำหนดต่อดอก
+            </p>
+
+            <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>
+              {overdueItems.slice(0, 10).map((item: any) => {
+                const st = getItemStatus(item);
+                return (
+                  <div key={item.id} style={{
+                    padding: 10,
+                    borderBottom: '1px solid var(--border)',
+                    fontSize: 13,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{item.customer_name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                          {item.model} • {item.customer_phone || 'ไม่มีเบอร์'}
+                        </div>
+                      </div>
+                      <div style={{ color: 'var(--danger)', fontWeight: 600, fontSize: 12 }}>
+                        {st.label}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {overdueItems.length > 10 && (
+                <div style={{ padding: 10, textAlign: 'center', fontSize: 12, color: 'var(--text-dim)' }}>
+                  ...และอีก {overdueItems.length - 10} รายการ
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn" 
+                onClick={() => { setShowOverdueAlert(false); setFilterStatus('overdue'); }}
+              >
+                ดูรายการเลยกำหนดทั้งหมด
+              </button>
+              <button className="btn btn-sec" onClick={() => setShowOverdueAlert(false)}>
+                ปิด
+              </button>
             </div>
           </div>
         </div>

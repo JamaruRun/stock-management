@@ -12,6 +12,7 @@ export default function AddPawnPage() {
   const [form, setForm] = useState({
     imei: '', model: '', color: '', spec: '',
     pawnPrice: '', pawnDate: new Date().toISOString().split('T')[0],
+    interestDays: '30', interestAmount: '',
     customerName: '', customerPhone: '', customerNote: '',
     branchId: '',
   });
@@ -52,6 +53,7 @@ export default function AddPawnPage() {
     setForm({
       imei: '', model: '', color: '', spec: '',
       pawnPrice: '', pawnDate: new Date().toISOString().split('T')[0],
+      interestDays: '30', interestAmount: '',
       customerName: '', customerPhone: '', customerNote: '',
       branchId: profile?.branch_id || '',
     });
@@ -84,10 +86,22 @@ export default function AddPawnPage() {
     const { data: profileWithShop } = await supabase
       .from('profiles').select('shop_id').eq('id', user.id).single();
 
+    // คำนวณ due_date จาก pawn_date + interest_days
+    const interestDays = parseInt(form.interestDays) || 30;
+    const pawnDate = new Date(form.pawnDate);
+    const dueDate = new Date(pawnDate);
+    dueDate.setDate(dueDate.getDate() + interestDays);
+    const dueDateStr = dueDate.toISOString().split('T')[0];
+
     const { error } = await supabase.from('pawn_stock').insert({
       imei: form.imei, model: form.model,
       color: form.color || null, spec: form.spec || null,
       pawn_price: parseFloat(form.pawnPrice), pawn_date: form.pawnDate,
+      interest_days: interestDays,
+      interest_amount: parseFloat(form.interestAmount) || 0,
+      due_date: dueDateStr,
+      status: 'active',
+      renew_count: 0,
       customer_name: form.customerName,
       customer_phone: form.customerPhone || null,
       customer_note: form.customerNote || null,
@@ -167,6 +181,23 @@ export default function AddPawnPage() {
               <label>วันที่จำนำ</label>
               <input type="date" value={form.pawnDate}
                 onChange={(e) => setForm({ ...form, pawnDate: e.target.value })} />
+            </div>
+
+            <div className="field">
+              <label>จำนวนวันต่อดอก <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input type="number" inputMode="numeric" value={form.interestDays}
+                onChange={(e) => setForm({ ...form, interestDays: e.target.value })}
+                placeholder="30" required />
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                💡 ครบกำหนดต่อทุก {form.interestDays || 30} วัน
+              </div>
+            </div>
+
+            <div className="field">
+              <label>ดอกเบี้ยต่อรอบ (บาท)</label>
+              <input type="number" inputMode="numeric" value={form.interestAmount}
+                onChange={(e) => setForm({ ...form, interestAmount: e.target.value })}
+                placeholder="500" />
             </div>
           </div>
         </form>

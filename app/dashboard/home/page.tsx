@@ -11,6 +11,7 @@ interface Stats {
   stockValue: number;
   pawnCount: number;
   pawnValue: number;
+  pawnOverdue: number;
   installmentCount: number;
   installmentValue: number;
   installmentOverdue: number;
@@ -47,43 +48,63 @@ export default function DashboardHomePage() {
         pawnRes,
         installRes,
         goodsRes,
+        paymentsRes,
       ] = await Promise.all([
         // Today revenue (admin only - sales)
         isAdmin
           ? supabase.from('sales_history').select('final_price').eq('sold_date', today)
           : Promise.resolve({ data: [] }),
-        // Stock
-        supabase.from('stock').select('sell_price'),
-        // Pawn
-        supabase.from('pawn_stock').select('pawn_price'),
-        // Installment
-        supabase.from('installment_stock').select('full_price, down_payment, installment_amount, paid_periods, total_periods, start_date, status'),
+        // Stock - ใช้ field "price" ตามตาราง stock จริง
+        supabase.from('stock').select('price'),
+        // Pawn - ดึง due_date + status ด้วย
+        supabase.from('pawn_stock').select('pawn_price, due_date, pawn_date, status'),
+        // Installment - field paid_periods ไม่มีในตาราง ต้องนับจาก installment_payments
+        supabase.from('installment_stock').select('id, full_price, down_payment, installment_amount, total_periods, start_date, status'),
         // Goods
         supabase.from('goods').select('stock_qty, sell_price, low_stock_alert'),
+        // Installment payments (สำหรับนับงวดที่จ่ายแล้ว)
+        supabase.from('installment_payments').select('installment_id'),
       ]);
 
       // Calculate
       const todayRevenue = (salesRes.data || []).reduce((s: number, r: any) => s + Number(r.final_price || 0), 0);
       const todayOrders = (salesRes.data || []).length;
       const stockCount = (stockRes.data || []).length;
-      const stockValue = (stockRes.data || []).reduce((s: number, r: any) => s + Number(r.sell_price || 0), 0);
+      const stockValue = (stockRes.data || []).reduce((s: number, r: any) => s + Number(r.price || 0), 0);
       const pawnCount = (pawnRes.data || []).length;
       const pawnValue = (pawnRes.data || []).reduce((s: number, r: any) => s + Number(r.pawn_price || 0), 0);
       
+      // คำนวณ pawn overdue
+      const pawnOverdue = (pawnRes.data || []).filter((r: any) => {
+        if (r.status === 'forfeited') return false;
+        const due = r.due_date 
+          ? new Date(r.due_date) 
+          : new Date(new Date(r.pawn_date).getTime() + 30 * 86400000);
+        return due < new Date();
+      }).length;
+      
+      // นับงวดที่จ่ายแล้วของแต่ละ installment
+      const paidPeriodsMap: { [id: string]: number } = {};
+      (paymentsRes.data || []).forEach((p: any) => {
+        paidPeriodsMap[p.installment_id] = (paidPeriodsMap[p.installment_id] || 0) + 1;
+      });
+
       const activeInstallments = (installRes.data || []).filter((i: any) => i.status !== 'closed');
       const installmentCount = activeInstallments.length;
       const installmentValue = activeInstallments.reduce((s: number, r: any) => {
-        const remaining = (r.total_periods - r.paid_periods) * Number(r.installment_amount || 0);
-        return s + remaining;
+        const paidPeriods = paidPeriodsMap[r.id] || 0;
+        const remaining = (r.total_periods - paidPeriods) * Number(r.installment_amount || 0);
+        return s + Math.max(0, remaining);
       }, 0);
       
-      // คำนวณค้างชำระ (paid_periods < (days since start / 30))
+      // คำนวณค้างชำระ
       const installmentOverdue = activeInstallments.filter((r: any) => {
         if (!r.start_date) return false;
         const start = new Date(r.start_date);
         const now = new Date();
         const monthsSince = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
-        return monthsSince > (r.paid_periods || 0) && (r.paid_periods || 0) < (r.total_periods || 0);
+        const paidPeriods = paidPeriodsMap[r.id] || 0;
+        return monthsSince > paidPeriods && paidPeriods < (r.total_periods || 0);
       }).length;
       
       const goodsCount = (goodsRes.data || []).length;
@@ -95,7 +116,7 @@ export default function DashboardHomePage() {
       setStats({
         todayRevenue, todayOrders,
         stockCount, stockValue,
-        pawnCount, pawnValue,
+        pawnCount, pawnValue, pawnOverdue,
         installmentCount, installmentValue, installmentOverdue,
         goodsCount, goodsItems, goodsLowStock,
       });
@@ -161,6 +182,17 @@ export default function DashboardHomePage() {
         </div>
       )}
 
+      {/* Alert: จำนำเลยกำหนด */}
+      {stats.pawnOverdue > 0 && (
+        <Link href="/dashboard/pawn/stock" className="alert-card">
+          <div className="alert-card-icon">💰</div>
+          <div className="alert-card-content">
+            <strong>{stats.pawnOverdue} เครื่องจำนำ</strong> เลยกำหนดต่อดอก
+          </div>
+          <div className="alert-card-action">ดู →</div>
+        </Link>
+      )}
+
       {/* Alert: ค้างชำระ */}
       {stats.installmentOverdue > 0 && (
         <Link href="/dashboard/installment/stock" className="alert-card">
@@ -201,6 +233,9 @@ export default function DashboardHomePage() {
         <Link href="/dashboard/pawn/stock" className="module-card amber">
           <div className="module-card-header">
             <div className="module-card-icon">💰</div>
+            {stats.pawnOverdue > 0 && (
+              <div className="module-card-badge">{stats.pawnOverdue} เลย</div>
+            )}
           </div>
           <div className="module-card-title">จำนำเครื่อง</div>
           <div className="module-card-count">{stats.pawnCount}</div>

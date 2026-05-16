@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.2.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,28 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '2.0.0',
+  version: '2.2.0',
   date: '2026-05-16',
   features: [
     {
-      icon: '🎨',
-      title: 'Redesign ทั้งระบบ!',
-      desc: 'ใหม่ทั้งหมด - ดูทันสมัย เป็นมืออาชีพ มี Hero card โชว์ยอดขาย โมดูลสีสันตามหมวด พร้อม Quick Actions',
+      icon: '🔄',
+      title: 'ระบบจำนำ: ต่อดอกได้!',
+      desc: 'ตอนรับจำนำ ตั้งจำนวนวันต่อดอก (เช่น 30 วัน) ได้ • ลูกค้ามาต่อ → กดปุ่ม 🔄 → บันทึกดอกที่จ่าย',
     },
     {
-      icon: '🏠',
-      title: 'หน้าหลัก (Dashboard) ใหม่',
-      desc: 'เข้าสู่ระบบครั้งแรกเจอหน้าหลักก่อน - เห็นยอดขายวันนี้ สถานะทุกโมดูล แจ้งเตือนสิ่งสำคัญ',
+      icon: '🔴',
+      title: 'แจ้งเตือนเลยกำหนด',
+      desc: 'เปิดหน้าจำนำ → ป็อปอัพแสดงรายการเลยกำหนดทันที + Dashboard มี alert card',
     },
     {
-      icon: '⚡',
-      title: 'โหลดเร็วขึ้น 50-70%',
-      desc: 'Code splitting + skeleton loader + cache แบบใหม่ - ตอบสนองทันที ไม่หน่วง',
+      icon: '⚠️',
+      title: 'บันทึก "หลุดจำนำ"',
+      desc: 'ลูกค้าไม่มาต่อ/ไถ่ → Admin กดปุ่ม ⚠ → เข้าครอบครองร้าน (ย้ายไปประวัติ)',
     },
     {
-      icon: '📱',
-      title: 'Mobile ดีขึ้นมาก',
-      desc: 'Sidebar slide-in สำหรับ tablet/desktop + Bottom navigation สำหรับมือถือ - ใช้ง่ายทุกขนาดจอ',
+      icon: '🐛',
+      title: 'แก้บั๊ก Dashboard',
+      desc: 'หน้าหลักแสดงข้อมูลถูกต้องแล้ว (ก่อนหน้านี้ field ไม่ตรง)',
     },
   ],
 };
