@@ -205,13 +205,19 @@ export default function InstallmentStockPage() {
           <div className="value" style={{ color: 'var(--danger)' }}>{stats.overdue}</div>
         </div>
         <div className="stat">
-          <div className="label">// ALMOST DONE</div>
+          <div className="label">ใกล้ครบ</div>
           <div className="value" style={{ color: 'var(--warning)' }}>{stats.almostDone}</div>
         </div>
         <div className="stat">
           <div className="label">ยอดคงเหลือ</div>
           <div className="value small">฿{stats.totalValue.toLocaleString()}</div>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <Link href="/dashboard/installment/add" className="btn" style={{ width: 'auto', flex: '1 1 200px' }}>
+          ➕ เพิ่มเครื่องผ่อน
+        </Link>
       </div>
 
       {isAdmin && branches.length > 0 && (

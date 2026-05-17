@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import ImportExcel from '@/components/ImportExcel';
@@ -146,6 +147,16 @@ export default function PawnStockPage() {
   async function handleSaveEdit() {
     if (!editing) return;
 
+    const interestDays = parseInt(editing.interest_days) || 30;
+    
+    // ถ้าวันจำนำเปลี่ยน หรือ interest_days เปลี่ยน → คำนวณ due_date ใหม่
+    let dueDate = editing.due_date;
+    if (editing.recalculate_due && editing.pawn_date) {
+      const d = new Date(editing.pawn_date);
+      d.setDate(d.getDate() + interestDays);
+      dueDate = d.toISOString().split('T')[0];
+    }
+
     const { error } = await supabase
       .from('pawn_stock')
       .update({
@@ -154,6 +165,10 @@ export default function PawnStockPage() {
         color: editing.color,
         spec: editing.spec,
         pawn_price: parseFloat(editing.pawn_price),
+        pawn_date: editing.pawn_date,
+        interest_days: interestDays,
+        interest_amount: parseFloat(editing.interest_amount) || 0,
+        due_date: dueDate,
         customer_name: editing.customer_name,
         customer_phone: editing.customer_phone,
         customer_note: editing.customer_note,
@@ -344,6 +359,15 @@ export default function PawnStockPage() {
           <div className="label">เลยกำหนด</div>
           <div className="value danger">{statusCount.overdue}</div>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <Link href="/dashboard/pawn/add" className="btn" style={{ width: 'auto', flex: '1 1 200px' }}>
+          ➕ รับจำนำใหม่
+        </Link>
+        <Link href="/dashboard/pawn/redeem" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+          🔓 ไถ่คืนเครื่อง
+        </Link>
       </div>
 
       {showImport && profile?.shop_id && profile?.branch_id && (
@@ -590,12 +614,43 @@ export default function PawnStockPage() {
                 <input type="number" value={editing.pawn_price}
                   onChange={(e) => setEditing({ ...editing, pawn_price: e.target.value })} />
               </div>
+
               <div className="field">
+                <label>วันที่จำนำ</label>
+                <input type="date" value={editing.pawn_date || ''}
+                  onChange={(e) => setEditing({ ...editing, pawn_date: e.target.value, recalculate_due: true })} />
+              </div>
+
+              <div className="field">
+                <label>จำนวนวันต่อดอก</label>
+                <input type="number" value={editing.interest_days || 30}
+                  onChange={(e) => setEditing({ ...editing, interest_days: e.target.value, recalculate_due: true })} />
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                  💡 เปลี่ยนค่า → วันครบกำหนดจะคำนวณใหม่
+                </div>
+              </div>
+
+              <div className="field">
+                <label>ดอกเบี้ยต่อรอบ (บาท)</label>
+                <input type="number" value={editing.interest_amount || ''}
+                  onChange={(e) => setEditing({ ...editing, interest_amount: e.target.value })} />
+              </div>
+
+              <div className="field full">
+                <label>วันครบกำหนดต่อดอก (ปรับเองได้)</label>
+                <input type="date" value={editing.due_date || ''}
+                  onChange={(e) => setEditing({ ...editing, due_date: e.target.value, recalculate_due: false })} />
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                  📅 ถ้าแก้วันจำนำหรือจำนวนวันด้านบน วันนี้จะคำนวณใหม่อัตโนมัติ
+                </div>
+              </div>
+
+              <div className="field full">
                 <label>ชื่อลูกค้า</label>
                 <input type="text" value={editing.customer_name}
                   onChange={(e) => setEditing({ ...editing, customer_name: e.target.value })} />
               </div>
-              <div className="field">
+              <div className="field full">
                 <label>เบอร์โทร</label>
                 <input type="tel" value={editing.customer_phone || ''}
                   onChange={(e) => setEditing({ ...editing, customer_phone: e.target.value })} />

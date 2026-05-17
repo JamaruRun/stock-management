@@ -867,6 +867,12 @@ body {
   margin-bottom: 24px;
 }
 
+@media (min-width: 768px) {
+  .quick-actions {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .quick-action {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1333,6 +1339,16 @@ input:disabled {
 
 .filter-select {
   min-width: 140px;
+  flex: 1;
+}
+
+@media (max-width: 600px) {
+  .toolbar {
+    flex-direction: column;
+  }
+  .toolbar > * {
+    width: 100%;
+  }
 }
 
 /* ============================================

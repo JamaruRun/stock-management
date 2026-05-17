@@ -60,6 +60,13 @@ export default function RedeemPage() {
     const { data: profile } = await supabase
       .from('profiles').select('full_name, shop_id').eq('id', user.id).single();
 
+    // นับ total interest paid จาก pawn_renewals
+    const { data: renewals } = await supabase
+      .from('pawn_renewals')
+      .select('interest_paid')
+      .eq('pawn_id', foundItem.id);
+    const totalInterest = (renewals || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0);
+
     const { error: insertError } = await supabase.from('pawn_history').insert({
       imei: foundItem.imei,
       model: foundItem.model,
@@ -77,6 +84,10 @@ export default function RedeemPage() {
       redeem_date: new Date().toISOString().split('T')[0],
       branch_id: foundItem.branch_id,
       shop_id: profile?.shop_id,
+      interest_days: foundItem.interest_days || 30,
+      renew_count: foundItem.renew_count || 0,
+      total_interest_paid: totalInterest,
+      exit_status: 'redeemed',
     });
 
     if (insertError) {
@@ -153,6 +164,18 @@ export default function RedeemPage() {
               {foundItem.color && <span className="tag">🎨 {foundItem.color}</span>}
               {foundItem.spec && <span className="tag">{foundItem.spec}</span>}
               {foundItem.branch?.name && <span className="tag">📍 {foundItem.branch.name}</span>}
+              {foundItem.renew_count > 0 && (
+                <span className="tag">🔄 ต่อ {foundItem.renew_count} ครั้ง</span>
+              )}
+              {foundItem.due_date && (
+                <span className="tag" style={{
+                  background: new Date(foundItem.due_date) < new Date() ? 'var(--danger-light)' : 'var(--success-light)',
+                  color: new Date(foundItem.due_date) < new Date() ? 'var(--danger-text)' : 'var(--success-text)',
+                  borderColor: new Date(foundItem.due_date) < new Date() ? 'var(--danger)' : 'var(--success)',
+                }}>
+                  📅 ครบ {new Date(foundItem.due_date).toLocaleDateString('th-TH')}
+                </span>
+              )}
             </div>
 
             <div style={{

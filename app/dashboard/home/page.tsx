@@ -273,19 +273,35 @@ export default function DashboardHomePage() {
       </div>
 
       <div className="quick-actions">
-        <Link href="/dashboard/goods/sell" className="quick-action">
-          <div className="quick-action-icon">📷</div>
-          <div>
-            <div className="quick-action-text">สแกนขาย</div>
-            <div className="quick-action-sub">อุปกรณ์เสริม</div>
-          </div>
-        </Link>
-
         <Link href="/dashboard/add" className="quick-action">
-          <div className="quick-action-icon" style={{ background: 'var(--success-light)', color: 'var(--success-text)' }}>➕</div>
+          <div className="quick-action-icon" style={{ background: 'var(--purple-light)', color: 'var(--purple-text)' }}>📱</div>
           <div>
             <div className="quick-action-text">เพิ่มเครื่อง</div>
             <div className="quick-action-sub">รับเข้าสต๊อก</div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/pawn/add" className="quick-action">
+          <div className="quick-action-icon" style={{ background: 'var(--amber-light)', color: 'var(--amber-text)' }}>💰</div>
+          <div>
+            <div className="quick-action-text">รับจำนำ</div>
+            <div className="quick-action-sub">รับเครื่องจำนำ</div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/installment/add" className="quick-action">
+          <div className="quick-action-icon" style={{ background: 'var(--pink-light)', color: 'var(--pink-text)' }}>💳</div>
+          <div>
+            <div className="quick-action-text">เพิ่มผ่อน</div>
+            <div className="quick-action-sub">ลูกค้าผ่อนใหม่</div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/goods/sell" className="quick-action">
+          <div className="quick-action-icon" style={{ background: 'var(--teal-light)', color: 'var(--teal-text)' }}>📷</div>
+          <div>
+            <div className="quick-action-text">สแกนขาย</div>
+            <div className="quick-action-sub">อุปกรณ์เสริม</div>
           </div>
         </Link>
       </div>
