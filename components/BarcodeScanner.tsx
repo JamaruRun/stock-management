@@ -102,17 +102,24 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
       const cleaned = code.trim();
       const numericOnly = cleaned.replace(/\D/g, '');
 
+      // Debug: แสดงสิ่งที่อ่านได้
+      setStatusMessage(`อ่าน: "${cleaned}" (${numericOnly.length} หลัก)`);
+      console.log('[Scanner]', { raw: code, cleaned, numericOnly, mode });
+
       if (mode === 'imei') {
-        if (numericOnly.length === 15) {
+        // ผ่อนเงื่อนไข: ยอมรับ 14-16 หลักตัวเลข
+        if (numericOnly.length >= 14 && numericOnly.length <= 16) {
           scanningRef.current = false;
           if (navigator.vibrate) navigator.vibrate(150);
-          onScan(numericOnly);
+          // ถ้ายาว 14-16 หลัก ใช้ตัวเลขล้วน (ถ้า > 15 ตัด, ถ้า < 15 ใช้ทั้งหมด)
+          const final = numericOnly.length === 15 ? numericOnly : 
+                       numericOnly.length === 16 ? numericOnly.substring(0, 15) :
+                       numericOnly; // 14 หลักก็ส่งให้ user เผื่อแก้
+          onScan(final);
           stop();
-        } else if (numericOnly.length >= 14 && numericOnly.length <= 16) {
-          scanningRef.current = false;
-          if (navigator.vibrate) navigator.vibrate(150);
-          onScan(numericOnly.substring(0, 15));
-          stop();
+        } else if (numericOnly.length >= 10) {
+          // ตัวเลขเยอะแต่ไม่ครบ - แจ้งให้ user
+          setStatusMessage(`พบ ${numericOnly.length} หลัก (ต้องการ 15) - ขยับกล้องใหม่`);
         }
       } else if (mode === 'sku') {
         if (cleaned.length >= 3) {
@@ -155,18 +162,20 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
       scanningRef.current = false;
       stop();
     };
-  }, [mode, onScan]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   function handleManualSubmit() {
     const cleaned = manualInput.trim();
     
     if (mode === 'imei') {
       const numericOnly = cleaned.replace(/\D/g, '');
-      if (numericOnly.length !== 15) {
-        setError('IMEI ต้องมี 15 หลัก');
+      if (numericOnly.length < 14 || numericOnly.length > 16) {
+        setError('IMEI ควรมี 14-16 หลัก');
         return;
       }
-      onScan(numericOnly);
+      const final = numericOnly.length === 16 ? numericOnly.substring(0, 15) : numericOnly;
+      onScan(final);
     } else {
       if (cleaned.length < 3) {
         setError('รหัสสั้นเกินไป');
@@ -248,12 +257,16 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
               <div style={{
                 position: 'absolute',
                 bottom: 12,
-                left: 0,
-                right: 0,
+                left: 12,
+                right: 12,
                 textAlign: 'center',
                 color: '#fff',
                 fontSize: 12,
                 textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                background: 'rgba(0,0,0,0.6)',
+                padding: '6px 10px',
+                borderRadius: 6,
+                fontWeight: 500,
               }}>{statusMessage}</div>
               <style>{`
                 @keyframes scanLine {
