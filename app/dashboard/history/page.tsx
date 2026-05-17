@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { redirect, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Toast from '@/components/Toast';
 
 export default function HistoryPage() {
@@ -181,6 +182,12 @@ export default function HistoryPage() {
   return (
     <>
       <div className="page-header">
+        <Link href="/dashboard/stock" style={{ 
+          fontSize: 12, color: 'var(--text-dim)', textDecoration: 'none', 
+          display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6,
+        }}>
+          ← กลับไปสต๊อก
+        </Link>
         <h1>
           ประวัติการขาย <span className="badge-admin">ADMIN</span>
         </h1>

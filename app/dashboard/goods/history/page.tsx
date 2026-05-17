@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 
@@ -160,6 +161,12 @@ export default function GoodsHistoryPage() {
   return (
     <>
       <div className="page-header">
+        <Link href="/dashboard/goods/stock" style={{ 
+          fontSize: 12, color: 'var(--text-dim)', textDecoration: 'none', 
+          display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6,
+        }}>
+          ← กลับไปสต๊อก
+        </Link>
         <h1>ประวัติขายของ <span className="badge-admin">ADMIN</span></h1>
         <div className="desc">รายการขายอุปกรณ์เสริม + อะไหล่</div>
       </div>

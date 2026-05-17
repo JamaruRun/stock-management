@@ -144,9 +144,6 @@ export default function GoodsStockPage() {
         <Link href="/dashboard/goods/add" className="btn" style={{ width: 'auto', flex: '1 1 200px' }}>
           + เพิ่มสินค้า
         </Link>
-        <Link href="/dashboard/goods/print" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
-          🖨️ ปริ้น Barcode
-        </Link>
         <Link href="/dashboard/goods/sell" className="btn btn-sec" style={{ 
           width: 'auto', 
           flex: '1 1 200px',
@@ -156,6 +153,14 @@ export default function GoodsStockPage() {
         }}>
           📷 ขายของ (สแกน)
         </Link>
+        <Link href="/dashboard/goods/print" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+          🖨️ ปริ้น Barcode
+        </Link>
+        {isAdmin && (
+          <Link href="/dashboard/goods/history" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+            ⏱️ ประวัติขายของ
+          </Link>
+        )}
       </div>
 
       {isAdmin && branches.length > 0 && (

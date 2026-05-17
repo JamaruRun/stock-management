@@ -218,6 +218,11 @@ export default function InstallmentStockPage() {
         <Link href="/dashboard/installment/add" className="btn" style={{ width: 'auto', flex: '1 1 200px' }}>
           ➕ เพิ่มเครื่องผ่อน
         </Link>
+        {isAdmin && (
+          <Link href="/dashboard/installment/history" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+            ⏱️ ประวัติผ่อน
+          </Link>
+        )}
       </div>
 
       {isAdmin && branches.length > 0 && (

@@ -368,6 +368,11 @@ export default function PawnStockPage() {
         <Link href="/dashboard/pawn/redeem" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
           🔓 ไถ่คืนเครื่อง
         </Link>
+        {isAdmin && (
+          <Link href="/dashboard/pawn/history" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+            ⏱️ ประวัติจำนำ
+          </Link>
+        )}
       </div>
 
       {showImport && profile?.shop_id && profile?.branch_id && (

@@ -158,6 +158,11 @@ export default function StockPage() {
         <Link href="/dashboard/sell" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
           💰 ขายเครื่อง
         </Link>
+        {isAdmin && (
+          <Link href="/dashboard/history" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+            ⏱️ ประวัติการขาย
+          </Link>
+        )}
       </div>
 
       {isAdmin && branches.length > 0 && (

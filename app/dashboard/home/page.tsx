@@ -305,6 +305,49 @@ export default function DashboardHomePage() {
           </div>
         </Link>
       </div>
+
+      {/* Admin: ประวัติ */}
+      {isAdmin && (
+        <>
+          <div className="section-title">
+            <span>ประวัติ (เฉพาะเจ้าของร้าน)</span>
+          </div>
+
+          <div className="quick-actions">
+            <Link href="/dashboard/history" className="quick-action">
+              <div className="quick-action-icon" style={{ background: 'var(--purple-light)', color: 'var(--purple-text)' }}>📱</div>
+              <div>
+                <div className="quick-action-text">ขายเครื่อง</div>
+                <div className="quick-action-sub">รายการที่ขายไป</div>
+              </div>
+            </Link>
+
+            <Link href="/dashboard/pawn/history" className="quick-action">
+              <div className="quick-action-icon" style={{ background: 'var(--amber-light)', color: 'var(--amber-text)' }}>💰</div>
+              <div>
+                <div className="quick-action-text">จำนำ</div>
+                <div className="quick-action-sub">ไถ่คืน/หลุดจำนำ</div>
+              </div>
+            </Link>
+
+            <Link href="/dashboard/installment/history" className="quick-action">
+              <div className="quick-action-icon" style={{ background: 'var(--pink-light)', color: 'var(--pink-text)' }}>💳</div>
+              <div>
+                <div className="quick-action-text">ผ่อน</div>
+                <div className="quick-action-sub">ปิดยอดแล้ว</div>
+              </div>
+            </Link>
+
+            <Link href="/dashboard/goods/history" className="quick-action">
+              <div className="quick-action-icon" style={{ background: 'var(--teal-light)', color: 'var(--teal-text)' }}>🎒</div>
+              <div>
+                <div className="quick-action-text">ขายของ</div>
+                <div className="quick-action-sub">ใบเสร็จที่ขาย</div>
+              </div>
+            </Link>
+          </div>
+        </>
+      )}
     </>
   );
 }

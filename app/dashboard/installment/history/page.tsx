@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Toast from '@/components/Toast';
 
 export default function InstallmentHistoryPage() {
@@ -100,13 +101,19 @@ export default function InstallmentHistoryPage() {
   return (
     <>
       <div className="page-header">
+        <Link href="/dashboard/installment/stock" style={{ 
+          fontSize: 12, color: 'var(--text-dim)', textDecoration: 'none', 
+          display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6,
+        }}>
+          ← กลับไปสต๊อก
+        </Link>
         <h1>ประวัติผ่อน <span className="badge-admin">ADMIN</span></h1>
         <div className="desc">เครื่องที่ผ่อนหมดและปิดยอดแล้ว</div>
       </div>
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// COMPLETED</div>
+          <div className="label">ปิดยอดแล้ว</div>
           <div className="value success">{items.length}</div>
         </div>
         <div className="stat">

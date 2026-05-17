@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Toast from '@/components/Toast';
 
 export default function PawnHistoryPage() {
@@ -146,6 +147,12 @@ export default function PawnHistoryPage() {
   return (
     <>
       <div className="page-header">
+        <Link href="/dashboard/pawn/stock" style={{ 
+          fontSize: 12, color: 'var(--text-dim)', textDecoration: 'none', 
+          display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 6,
+        }}>
+          ← กลับไปสต๊อก
+        </Link>
         <h1>
           ประวัติการไถ่คืน <span className="badge-admin">ADMIN</span>
         </h1>
@@ -154,7 +161,7 @@ export default function PawnHistoryPage() {
 
       <div className="stats">
         <div className="stat">
-          <div className="label">// REDEEMED</div>
+          <div className="label">ไถ่คืนแล้ว</div>
           <div className="value success">{totalRedeemed}</div>
         </div>
         <div className="stat">

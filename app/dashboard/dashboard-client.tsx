@@ -115,16 +115,48 @@ export default function DashboardClient({ profile, children }: Props) {
 
         {isAdmin && (
           <div className="sidebar-section">
-            <div className="sidebar-section-title">Admin</div>
+            <div className="sidebar-section-title">ประวัติ (Admin)</div>
             <nav className="sidebar-nav">
               <Link
                 href="/dashboard/history"
                 className={`sidebar-item ${pathname === '/dashboard/history' ? 'active' : ''}`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="sidebar-item-icon">⏱️</span>
-                <span className="sidebar-item-text">ประวัติการขาย</span>
+                <span className="sidebar-item-icon">📱</span>
+                <span className="sidebar-item-text">ขายเครื่อง</span>
               </Link>
+              <Link
+                href="/dashboard/pawn/history"
+                className={`sidebar-item ${pathname === '/dashboard/pawn/history' ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">💰</span>
+                <span className="sidebar-item-text">จำนำ</span>
+              </Link>
+              <Link
+                href="/dashboard/installment/history"
+                className={`sidebar-item ${pathname === '/dashboard/installment/history' ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">💳</span>
+                <span className="sidebar-item-text">ผ่อน</span>
+              </Link>
+              <Link
+                href="/dashboard/goods/history"
+                className={`sidebar-item ${pathname === '/dashboard/goods/history' ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">🎒</span>
+                <span className="sidebar-item-text">ขายของ</span>
+              </Link>
+            </nav>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">จัดการ (Admin)</div>
+            <nav className="sidebar-nav">
               <Link
                 href="/dashboard/users"
                 className={`sidebar-item ${pathname.startsWith('/dashboard/users') ? 'active' : ''}`}
