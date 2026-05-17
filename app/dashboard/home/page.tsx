@@ -53,18 +53,24 @@ export default function DashboardHomePage() {
         // Today revenue (admin only - sales)
         isAdmin
           ? supabase.from('sales_history').select('final_price').eq('sold_date', today)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
         // Stock - ใช้ field "price" ตามตาราง stock จริง
         supabase.from('stock').select('price'),
         // Pawn - ดึง due_date + status ด้วย
         supabase.from('pawn_stock').select('pawn_price, due_date, pawn_date, status'),
-        // Installment - field paid_periods ไม่มีในตาราง ต้องนับจาก installment_payments
-        supabase.from('installment_stock').select('id, full_price, down_payment, installment_amount, total_periods, start_date, status'),
+        // Installment - เลือกเฉพาะ field ที่ใช้
+        supabase.from('installment_stock').select('id, installment_amount, total_periods, start_date'),
         // Goods
         supabase.from('goods').select('stock_qty, sell_price, low_stock_alert'),
         // Installment payments (สำหรับนับงวดที่จ่ายแล้ว)
         supabase.from('installment_payments').select('installment_id'),
       ]);
+
+      // Log errors เพื่อ debug
+      if ((installRes as any).error) console.error('Installment query error:', (installRes as any).error);
+      if ((pawnRes as any).error) console.error('Pawn query error:', (pawnRes as any).error);
+      if ((stockRes as any).error) console.error('Stock query error:', (stockRes as any).error);
+      if ((goodsRes as any).error) console.error('Goods query error:', (goodsRes as any).error);
 
       // Calculate
       const todayRevenue = (salesRes.data || []).reduce((s: number, r: any) => s + Number(r.final_price || 0), 0);
@@ -89,7 +95,8 @@ export default function DashboardHomePage() {
         paidPeriodsMap[p.installment_id] = (paidPeriodsMap[p.installment_id] || 0) + 1;
       });
 
-      const activeInstallments = (installRes.data || []).filter((i: any) => i.status !== 'closed');
+      // installment_stock ทุก row คือกำลังผ่อนอยู่ (ปิดยอดแล้วย้ายไป installment_history)
+      const activeInstallments = (installRes.data || []);
       const installmentCount = activeInstallments.length;
       const installmentValue = activeInstallments.reduce((s: number, r: any) => {
         const paidPeriods = paidPeriodsMap[r.id] || 0;
