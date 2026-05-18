@@ -8,14 +8,19 @@ interface Props {
   mode?: 'imei' | 'sku' | 'any';
 }
 
+const SCANNER_ID = 'barcode-scanner-region';
+
 export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState('');
   const [manualInput, setManualInput] = useState('');
   const [statusMessage, setStatusMessage] = useState('กำลังเปิดกล้อง...');
-  const streamRef = useRef<MediaStream | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const scannerRef = useRef<any>(null);
   const scanningRef = useRef(true);
-  const controlsRef = useRef<any>(null);
+
+  function addDebug(msg: string) {
+    setDebugLog(prev => [...prev.slice(-2), msg]);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -24,74 +29,74 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
       try {
         setStatusMessage('กำลังโหลด scanner...');
 
-        // import แบบ dynamic เพื่อไม่ให้ build ติดปัญหา
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+        // dynamic import เพื่อไม่ให้ build error
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
 
         if (cancelled) return;
 
-        // ตั้งค่า hints
-        const hints = new Map();
-        const formats = [
-          BarcodeFormat.QR_CODE,        // QR Code (สำคัญที่สุด)
-          BarcodeFormat.CODE_128,       // Barcode สินค้าทั่วไป
-          BarcodeFormat.CODE_39,
-          BarcodeFormat.EAN_13,         // สินค้าจริง
-          BarcodeFormat.EAN_8,
-          BarcodeFormat.UPC_A,
-          BarcodeFormat.UPC_E,
-          BarcodeFormat.ITF,
-          BarcodeFormat.DATA_MATRIX,
-        ];
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
-        hints.set(DecodeHintType.TRY_HARDER, true);
+        const scanner = new Html5Qrcode(SCANNER_ID, {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.PDF_417,
+            Html5QrcodeSupportedFormats.AZTEC,
+          ] as any,
+          verbose: false,
+        } as any);
 
-        const reader = new BrowserMultiFormatReader(hints);
+        scannerRef.current = scanner;
 
         setStatusMessage('กำลังเปิดกล้อง...');
 
-        // หากล้องหลัง
-        let deviceId: string | undefined;
-        try {
-          const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-          const backCamera = devices.find((d: any) => 
-            /back|rear|environment/i.test(d.label)
-          );
-          deviceId = backCamera?.deviceId || devices[devices.length - 1]?.deviceId;
-        } catch (e) {
-          // ใช้ default
-        }
-
-        if (cancelled) return;
-
-        setStatusMessage('ส่อง QR Code หรือ Barcode ในกรอบ...');
-
-        // เริ่มสแกน
-        const controls = await reader.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current!,
-          (result: any, err: any) => {
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: (vw: number, vh: number) => {
+              const minDim = Math.min(vw, vh);
+              return {
+                width: Math.floor(minDim * 0.85),
+                height: Math.floor(minDim * 0.5),
+              };
+            },
+            aspectRatio: 1.333,
+            disableFlip: false,
+            videoConstraints: {
+              facingMode: 'environment',
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
+          } as any,
+          (decodedText: string) => {
             if (cancelled || !scanningRef.current) return;
-            if (result) {
-              handleDetected(result.getText());
-            }
+            handleDetected(decodedText);
+          },
+          (errorMessage: string) => {
+            // Error ทุก frame (ปกติ) - ไม่แสดง
           }
         );
 
-        controlsRef.current = controls;
-
-        // เก็บ stream
-        if (videoRef.current?.srcObject) {
-          streamRef.current = videoRef.current.srcObject as MediaStream;
+        if (cancelled) {
+          try { await scanner.stop(); } catch (e) {}
+          return;
         }
 
+        setStatusMessage('ส่อง barcode หรือ QR Code ในกรอบ...');
       } catch (e: any) {
         if (cancelled) return;
         console.error('Scanner error:', e);
         setError(
-          e.name === 'NotAllowedError'
+          e?.name === 'NotAllowedError'
             ? 'กรุณาอนุญาตการเข้าถึงกล้อง'
-            : 'ไม่สามารถเปิดกล้อง: ' + (e.message || 'unknown')
+            : 'ไม่สามารถเปิดกล้อง: ' + (e?.message || 'unknown')
         );
       }
     }
@@ -102,23 +107,17 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
       const cleaned = code.trim();
       const numericOnly = cleaned.replace(/\D/g, '');
 
-      // Debug: แสดงสิ่งที่อ่านได้
-      setStatusMessage(`อ่าน: "${cleaned}" (${numericOnly.length} หลัก)`);
+      addDebug(`📷 อ่าน: "${cleaned.substring(0, 30)}" (${numericOnly.length} หลัก)`);
       console.log('[Scanner]', { raw: code, cleaned, numericOnly, mode });
 
       if (mode === 'imei') {
-        // ผ่อนเงื่อนไข: ยอมรับ 14-16 หลักตัวเลข
         if (numericOnly.length >= 14 && numericOnly.length <= 16) {
           scanningRef.current = false;
           if (navigator.vibrate) navigator.vibrate(150);
-          // ถ้ายาว 14-16 หลัก ใช้ตัวเลขล้วน (ถ้า > 15 ตัด, ถ้า < 15 ใช้ทั้งหมด)
-          const final = numericOnly.length === 15 ? numericOnly : 
-                       numericOnly.length === 16 ? numericOnly.substring(0, 15) :
-                       numericOnly; // 14 หลักก็ส่งให้ user เผื่อแก้
+          const final = numericOnly.length === 16 ? numericOnly.substring(0, 15) : numericOnly;
           onScan(final);
           stop();
         } else if (numericOnly.length >= 10) {
-          // ตัวเลขเยอะแต่ไม่ครบ - แจ้งให้ user
           setStatusMessage(`พบ ${numericOnly.length} หลัก (ต้องการ 15) - ขยับกล้องใหม่`);
         }
       } else if (mode === 'sku') {
@@ -132,26 +131,21 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
         if (cleaned.length >= 3) {
           scanningRef.current = false;
           if (navigator.vibrate) navigator.vibrate(150);
-          if (numericOnly.length === 15) {
-            onScan(numericOnly);
-          } else {
-            onScan(cleaned);
-          }
+          if (numericOnly.length === 15) onScan(numericOnly);
+          else onScan(cleaned);
           stop();
         }
       }
     }
 
-    function stop() {
-      if (controlsRef.current) {
+    async function stop() {
+      if (scannerRef.current) {
         try { 
-          controlsRef.current.stop(); 
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
         } catch (e) {}
-        controlsRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
+        scannerRef.current = null;
       }
     }
 
@@ -224,36 +218,14 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
         ) : (
           <>
             <div style={{ position: 'relative', background: '#000', aspectRatio: '4/3' }}>
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                autoPlay
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              <div 
+                id={SCANNER_ID} 
+                style={{ 
+                  width: '100%', 
+                  height: '100%',
+                  overflow: 'hidden',
+                }}
               />
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '80%',
-                height: '60%',
-                border: '2px solid var(--accent)',
-                borderRadius: 4,
-                pointerEvents: 'none',
-                boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)'
-              }}>
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  background: 'var(--accent)',
-                  boxShadow: '0 0 8px var(--accent)',
-                  animation: 'scanLine 2s linear infinite'
-                }}/>
-              </div>
               <div style={{
                 position: 'absolute',
                 bottom: 12,
@@ -262,29 +234,48 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
                 textAlign: 'center',
                 color: '#fff',
                 fontSize: 12,
-                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-                background: 'rgba(0,0,0,0.6)',
-                padding: '6px 10px',
+                background: 'rgba(0,0,0,0.7)',
+                padding: '8px 12px',
                 borderRadius: 6,
                 fontWeight: 500,
+                pointerEvents: 'none',
+                zIndex: 10,
               }}>{statusMessage}</div>
-              <style>{`
-                @keyframes scanLine {
-                  0% { top: 0; }
-                  50% { top: calc(100% - 2px); }
-                  100% { top: 0; }
-                }
-              `}</style>
+
+              {/* Debug log */}
+              {debugLog.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  right: 12,
+                  background: 'rgba(0,0,0,0.8)',
+                  color: '#00ff41',
+                  fontSize: 10,
+                  padding: '6px 8px',
+                  borderRadius: 4,
+                  fontFamily: 'JetBrains Mono, monospace',
+                  maxHeight: 60,
+                  overflow: 'hidden',
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                }}>
+                  {debugLog.map((log, i) => (
+                    <div key={i} style={{ opacity: 0.7 + i * 0.15 }}>{log}</div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ padding: 16 }}>
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
-                  หรือพิมพ์เอง:
+                  💡 พิมพ์เองได้ ถ้าสแกนไม่ติด:
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     type="text"
+                    inputMode={mode === 'imei' ? 'numeric' : 'text'}
                     value={manualInput}
                     onChange={e => setManualInput(e.target.value)}
                     placeholder={mode === 'imei' ? '356789012345678' : 'ITM-A1B2C3'}
