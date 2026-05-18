@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,28 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.1.0',
+  version: '3.2.0',
   date: '2026-05-18',
   features: [
     {
-      icon: '📊',
-      title: 'หน้ารายงาน + กราฟ!',
-      desc: 'กราฟรายได้รายวัน 7/30/90 วัน • Top 10 รุ่นขายดี • เปรียบเทียบรายได้กับกำไร • แยกตามสาขา',
+      icon: '🔔',
+      title: 'LINE Notify - แจ้งเตือนเข้า LINE!',
+      desc: 'ทุกครั้งที่ขาย/รับจำนำ/ไถ่คืน → ข้อความเข้า LINE ทันที • เลือกได้ว่าจะเปิด/ปิดแบบไหน',
     },
     {
-      icon: '🏆',
-      title: 'อันดับรุ่นขายดี',
-      desc: 'ดูได้ว่ารุ่นไหนขายดีที่สุด มียอดเท่าไหร่ กำไรเท่าไหร่ - ช่วยตัดสินใจซื้อเข้าสต๊อก',
+      icon: '⚙️',
+      title: 'ตั้งค่าง่ายในหน้า Settings',
+      desc: 'ไปหน้าตั้งค่า → ใส่ LINE Notify Token → กดทดสอบ → เสร็จ! ใช้ได้ทุกอุปกรณ์',
     },
     {
-      icon: '💾',
-      title: 'Backup ข้อมูลได้แล้ว',
-      desc: 'ดาวน์โหลดข้อมูลทุกอย่างเป็น Excel หรือ JSON ได้ ป้องกันข้อมูลสูญหาย',
-    },
-    {
-      icon: '📥',
-      title: 'Export CSV รายงาน',
-      desc: 'ในหน้ารายงาน กดปุ่ม Export CSV เพื่อเอาไปวิเคราะห์ใน Excel ต่อได้',
+      icon: '✅',
+      title: 'เลือกประเภทที่อยากให้แจ้ง',
+      desc: 'แจ้งขาย/จำนำ/ผ่อน/ของ/สินค้าใกล้หมด - เปิดปิดแยกได้ตามต้องการ',
     },
   ],
 };

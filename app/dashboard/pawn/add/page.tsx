@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import { sendLineNotify } from '@/lib/line-notify';
 
 export default function AddPawnPage() {
   const supabase = createClient();
@@ -117,6 +118,11 @@ export default function AddPawnPage() {
     }
 
     showToast('รับจำนำสำเร็จ', `${form.model} • ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
+    
+    // 🔔 LINE Notify
+    const lineMsg = `\n💰 รับจำนำเครื่องใหม่\n${form.model}\nIMEI: ${form.imei}\n👤 ลูกค้า: ${form.customerName}${form.customerPhone ? `\n📞 ${form.customerPhone}` : ''}\n💵 ราคา: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}`;
+    sendLineNotify(lineMsg, 'pawn').catch(() => {});
+    
     reset();
     setTimeout(() => router.push('/dashboard/pawn/stock'), 1200);
   }

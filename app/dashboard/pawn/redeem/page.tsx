@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import { sendLineNotify } from '@/lib/line-notify';
 
 export default function RedeemPage() {
   const supabase = createClient();
@@ -99,6 +100,11 @@ export default function RedeemPage() {
     await supabase.from('pawn_stock').delete().eq('id', foundItem.id);
 
     showToast('ไถ่คืนสำเร็จ', `${foundItem.model} • ${foundItem.customer_name}`);
+    
+    // 🔔 LINE Notify
+    const lineMsg = `\n🔓 ไถ่คืนเครื่องจำนำ\n${foundItem.model}\nIMEI: ${foundItem.imei}\n👤 ลูกค้า: ${foundItem.customer_name}\n💵 รับเงิน: ฿${Number(foundItem.pawn_price).toLocaleString()}${totalInterest > 0 ? `\n💰 ดอกเบี้ยทั้งหมด: ฿${totalInterest.toLocaleString()}` : ''}`;
+    sendLineNotify(lineMsg, 'pawn').catch(() => {});
+    
     setFoundItem(null);
     setImei('');
     setShowConfirm(false);

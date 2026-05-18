@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ReceiptPDF from '@/components/ReceiptPDF';
+import { sendLineNotify } from '@/lib/line-notify';
 
 export default function SellPage() {
   const supabase = createClient();
@@ -160,6 +161,12 @@ export default function SellPage() {
       paymentType,
       issuedByName: profileWithShop?.full_name,
     });
+
+    // 🔔 ส่ง LINE Notify
+    const paymentTxt = paymentType === 'cash' ? 'เงินสด' : 'ผ่อน';
+    const profitTxt = costPrice > 0 ? `\n💰 กำไร: ฿${profit.toLocaleString()}` : '';
+    const lineMsg = `\n📱 ขายเครื่อง\n${foundItem.model}${foundItem.color ? `\nสี: ${foundItem.color}` : ''}\nIMEI: ${foundItem.imei}\n💵 ราคา: ฿${finalPrice.toLocaleString()} (${paymentTxt})${profitTxt}\n📍 ${profileWithShop?.full_name || 'พนักงาน'}`;
+    sendLineNotify(lineMsg, 'sale').catch(() => {});
 
     showToast('ขายสำเร็จ', `${foundItem.model} • ฿${finalPrice.toLocaleString()}`);
     setShowConfirm(false);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import { sendLineNotify } from '@/lib/line-notify';
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -11,6 +12,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [testingLine, setTestingLine] = useState(false);
+  const [savingLine, setSavingLine] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   const [form, setForm] = useState({
@@ -20,6 +23,15 @@ export default function SettingsPage() {
     receipt_footer: '',
     receipt_logo_url: '',
     receipt_prefix: 'INV',
+  });
+
+  const [lineForm, setLineForm] = useState({
+    line_token: '',
+    line_notify_sale: true,
+    line_notify_pawn: true,
+    line_notify_goods: false,
+    line_notify_installment: true,
+    line_notify_low_stock: true,
   });
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -49,12 +61,75 @@ export default function SettingsPage() {
             receipt_logo_url: s.receipt_logo_url || '',
             receipt_prefix: s.receipt_prefix || 'INV',
           });
+          setLineForm({
+            line_token: s.line_token || '',
+            line_notify_sale: s.line_notify_sale !== false,
+            line_notify_pawn: s.line_notify_pawn !== false,
+            line_notify_goods: s.line_notify_goods === true,
+            line_notify_installment: s.line_notify_installment !== false,
+            line_notify_low_stock: s.line_notify_low_stock !== false,
+          });
         }
       }
       setLoading(false);
     }
     load();
   }, []);
+
+  async function handleSaveLine() {
+    if (!shop) return;
+    setSavingLine(true);
+
+    const { error } = await supabase.from('shops').update({
+      line_token: lineForm.line_token || null,
+      line_notify_sale: lineForm.line_notify_sale,
+      line_notify_pawn: lineForm.line_notify_pawn,
+      line_notify_goods: lineForm.line_notify_goods,
+      line_notify_installment: lineForm.line_notify_installment,
+      line_notify_low_stock: lineForm.line_notify_low_stock,
+    }).eq('id', shop.id);
+
+    setSavingLine(false);
+    if (error) {
+      showToast('บันทึกไม่สำเร็จ', error.message, 'danger');
+      return;
+    }
+    showToast('บันทึกสำเร็จ', 'ตั้งค่า LINE Notify อัพเดทแล้ว');
+    
+    // Reload shop data
+    const { data: s } = await supabase
+      .from('shops').select('*').eq('id', shop.id).single();
+    setShop(s);
+  }
+
+  async function handleTestLine() {
+    if (!lineForm.line_token) {
+      showToast('กรุณาใส่ Token ก่อน', '', 'danger');
+      return;
+    }
+    
+    // บันทึก token ก่อนเทส
+    setTestingLine(true);
+    
+    await supabase.from('shops').update({
+      line_token: lineForm.line_token,
+    }).eq('id', shop.id);
+
+    const result = await sendLineNotify(
+      `\n🎉 ทดสอบ LINE Notify\n\nร้าน: ${shop?.name || 'ของคุณ'}\nเวลา: ${new Date().toLocaleString('th-TH')}\n\n✅ การเชื่อมต่อสำเร็จ`,
+      'test'
+    );
+
+    setTestingLine(false);
+
+    if (result.success) {
+      showToast('ส่งสำเร็จ ✓', 'เช็คใน LINE ดู');
+    } else if (result.skipped) {
+      showToast('ข้าม - Token ว่าง', '', 'danger');
+    } else {
+      showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'Token ไม่ถูก', 'danger');
+    }
+  }
 
   async function handleSave() {
     if (!shop) return;
@@ -257,6 +332,153 @@ export default function SettingsPage() {
         <div className="form-actions" style={{ marginTop: 20 }}>
           <button className="btn" onClick={handleSave} disabled={saving || uploadingLogo}>
             {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+          </button>
+        </div>
+      </div>
+
+      {/* LINE Notify Section */}
+      <div className="form-card">
+        <h3>🔔 LINE Notify</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
+          แจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของเจ้าของแบบเรียลไทม์
+        </p>
+
+        <div style={{
+          padding: 12,
+          background: 'rgba(0, 195, 0, 0.08)',
+          borderLeft: '3px solid #00C300',
+          marginBottom: 16,
+          fontSize: 12,
+          lineHeight: 1.6,
+        }}>
+          <strong style={{ color: '#00C300' }}>📌 วิธีเอา Token:</strong>
+          <ol style={{ marginLeft: 18, marginTop: 4 }}>
+            <li>ไป <a href="https://notify-bot.line.me/my/" target="_blank" rel="noopener" style={{ color: '#00C300', textDecoration: 'underline' }}>notify-bot.line.me/my/</a></li>
+            <li>Login ด้วย LINE ของเจ้าของร้าน</li>
+            <li>กด "Generate token" → ตั้งชื่อ → เลือกกลุ่ม/ส่วนตัว</li>
+            <li>Copy token → วางในช่องด้านล่าง</li>
+          </ol>
+        </div>
+
+        <div className="form-grid">
+          <div className="field full">
+            <label>LINE Notify Token</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input 
+                type="text" 
+                value={lineForm.line_token}
+                onChange={(e) => setLineForm({ ...lineForm, line_token: e.target.value })}
+                placeholder="วาง Token ที่ Copy มาจาก LINE Notify"
+                style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
+              />
+              <button 
+                type="button" 
+                onClick={handleTestLine} 
+                disabled={testingLine || !lineForm.line_token}
+                className="btn btn-sec"
+                style={{ width: 'auto', padding: '0 16px', whiteSpace: 'nowrap' }}
+              >
+                {testingLine ? 'กำลังส่ง...' : '🧪 ทดสอบ'}
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+              💡 ใส่ token แล้วกด "ทดสอบ" จะส่งข้อความเข้า LINE
+            </div>
+          </div>
+
+          <div className="field full">
+            <label style={{ marginBottom: 10 }}>เลือกการแจ้งเตือน</label>
+            
+            <label style={{ 
+              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
+              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
+              background: lineForm.line_notify_sale ? 'var(--accent-light)' : 'var(--surface-2)',
+            }}>
+              <input 
+                type="checkbox" 
+                checked={lineForm.line_notify_sale}
+                onChange={(e) => setLineForm({ ...lineForm, line_notify_sale: e.target.checked })}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>📱 ขายเครื่อง</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>แจ้งทุกครั้งที่ขายเครื่อง</div>
+              </div>
+            </label>
+
+            <label style={{ 
+              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
+              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
+              background: lineForm.line_notify_pawn ? 'var(--accent-light)' : 'var(--surface-2)',
+            }}>
+              <input 
+                type="checkbox" 
+                checked={lineForm.line_notify_pawn}
+                onChange={(e) => setLineForm({ ...lineForm, line_notify_pawn: e.target.checked })}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>💰 จำนำ</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>รับจำนำ / ไถ่คืน / หลุดจำนำ</div>
+              </div>
+            </label>
+
+            <label style={{ 
+              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
+              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
+              background: lineForm.line_notify_installment ? 'var(--accent-light)' : 'var(--surface-2)',
+            }}>
+              <input 
+                type="checkbox" 
+                checked={lineForm.line_notify_installment}
+                onChange={(e) => setLineForm({ ...lineForm, line_notify_installment: e.target.checked })}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>💳 ผ่อน</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>รับชำระงวด / ปิดยอด</div>
+              </div>
+            </label>
+
+            <label style={{ 
+              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
+              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
+              background: lineForm.line_notify_goods ? 'var(--accent-light)' : 'var(--surface-2)',
+            }}>
+              <input 
+                type="checkbox" 
+                checked={lineForm.line_notify_goods}
+                onChange={(e) => setLineForm({ ...lineForm, line_notify_goods: e.target.checked })}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>🎒 ขายของ (อุปกรณ์เสริม)</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>อาจรกถ้าขายเยอะ - ปิดได้</div>
+              </div>
+            </label>
+
+            <label style={{ 
+              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
+              cursor: 'pointer', borderRadius: 6,
+              background: lineForm.line_notify_low_stock ? 'var(--accent-light)' : 'var(--surface-2)',
+            }}>
+              <input 
+                type="checkbox" 
+                checked={lineForm.line_notify_low_stock}
+                onChange={(e) => setLineForm({ ...lineForm, line_notify_low_stock: e.target.checked })}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>📦 สินค้าใกล้หมด</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>แจ้งเมื่อขายของแล้วเหลือน้อย</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="form-actions" style={{ marginTop: 16 }}>
+          <button className="btn" onClick={handleSaveLine} disabled={savingLine}>
+            {savingLine ? 'กำลังบันทึก...' : '💾 บันทึกตั้งค่า LINE'}
           </button>
         </div>
       </div>
