@@ -226,6 +226,94 @@ export default function BarcodeScanner({ onScan, onClose, mode = 'any' }: Props)
                   overflow: 'hidden',
                 }}
               />
+
+              {/* ✨ กรอบสแกนสวยๆ */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                zIndex: 5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <div style={{
+                  position: 'relative',
+                  width: '80%',
+                  maxWidth: 320,
+                  aspectRatio: '1.6 / 1',
+                  borderRadius: 16,
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)',
+                }}>
+                  {/* 4 มุม สีฟ้า */}
+                  {/* มุมบนซ้าย */}
+                  <div style={{
+                    position: 'absolute',
+                    top: -3, left: -3,
+                    width: 32, height: 32,
+                    borderTop: '4px solid var(--accent)',
+                    borderLeft: '4px solid var(--accent)',
+                    borderTopLeftRadius: 16,
+                  }}/>
+                  {/* มุมบนขวา */}
+                  <div style={{
+                    position: 'absolute',
+                    top: -3, right: -3,
+                    width: 32, height: 32,
+                    borderTop: '4px solid var(--accent)',
+                    borderRight: '4px solid var(--accent)',
+                    borderTopRightRadius: 16,
+                  }}/>
+                  {/* มุมล่างซ้าย */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: -3, left: -3,
+                    width: 32, height: 32,
+                    borderBottom: '4px solid var(--accent)',
+                    borderLeft: '4px solid var(--accent)',
+                    borderBottomLeftRadius: 16,
+                  }}/>
+                  {/* มุมล่างขวา */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: -3, right: -3,
+                    width: 32, height: 32,
+                    borderBottom: '4px solid var(--accent)',
+                    borderRight: '4px solid var(--accent)',
+                    borderBottomRightRadius: 16,
+                  }}/>
+
+                  {/* เส้น Laser สแกนเคลื่อนไหว */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 8,
+                    right: 8,
+                    height: 2,
+                    background: 'linear-gradient(90deg, transparent 0%, #ff3344 20%, #ff3344 80%, transparent 100%)',
+                    boxShadow: '0 0 12px #ff3344, 0 0 24px #ff3344',
+                    animation: 'scanLaser 2.4s ease-in-out infinite',
+                    borderRadius: 2,
+                  }}/>
+
+                  {/* Glow effect ภายใน */}
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    borderRadius: 16,
+                    boxShadow: 'inset 0 0 20px rgba(59, 130, 246, 0.15)',
+                  }}/>
+                </div>
+              </div>
+
+              <style>{`
+                @keyframes scanLaser {
+                  0%, 100% { top: 6%; opacity: 1; }
+                  50% { top: calc(94% - 2px); opacity: 1; }
+                  45%, 55% { opacity: 0.6; }
+                }
+              `}</style>
               <div style={{
                 position: 'absolute',
                 bottom: 12,
