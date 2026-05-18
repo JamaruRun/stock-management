@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import ReceiptPDF from '@/components/ReceiptPDF';
 
 export default function SellPage() {
   const supabase = createClient();
@@ -15,6 +16,8 @@ export default function SellPage() {
   const [paymentType, setPaymentType] = useState<'cash' | 'installment'>('cash');
   const [discount, setDiscount] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [lastSale, setLastSale] = useState<any>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -74,6 +77,8 @@ export default function SellPage() {
 
     const discountValue = parseFloat(discount) || 0;
     const finalPrice = Number(foundItem.price) - discountValue;
+    const costPrice = Number(foundItem.cost_price) || 0;
+    const profit = finalPrice - costPrice;
 
     if (discountValue < 0) {
       showToast('ส่วนลดติดลบไม่ได้', '', 'danger');
@@ -95,6 +100,9 @@ export default function SellPage() {
       color: foundItem.color,
       spec: foundItem.spec,
       price: foundItem.price,
+      cost_price: costPrice,
+      profit: profit,
+      supplier_id: foundItem.supplier_id,
       discount: discountValue,
       final_price: finalPrice,
       added_date: foundItem.added_date,
@@ -117,12 +125,46 @@ export default function SellPage() {
 
     await supabase.from('stock').delete().eq('id', foundItem.id);
 
+    // สร้างเลขใบเสร็จ + บันทึก receipts
+    const { data: receiptNoData } = await supabase
+      .rpc('generate_receipt_no', { p_shop_id: profileWithShop?.shop_id });
+    
+    const receiptNo = receiptNoData || `INV-${Date.now()}`;
+
+    await supabase.from('receipts').insert({
+      receipt_no: receiptNo,
+      type: 'stock_sale',
+      shop_name: '',
+      items: [{
+        name: foundItem.model,
+        detail: `IMEI: ${foundItem.imei}${foundItem.color ? ` • ${foundItem.color}` : ''}${foundItem.spec ? ` • ${foundItem.spec}` : ''}`,
+        price: finalPrice,
+        qty: 1,
+      }],
+      subtotal: Number(foundItem.price),
+      discount: discountValue,
+      total: finalPrice,
+      payment_type: paymentType,
+      issued_by: user.id,
+      issued_by_name: profileWithShop?.full_name,
+      branch_id: foundItem.branch_id,
+      shop_id: profileWithShop?.shop_id,
+    });
+
+    // เก็บข้อมูลสำหรับใบเสร็จ
+    setLastSale({
+      receiptNo,
+      item: foundItem,
+      finalPrice,
+      discount: discountValue,
+      paymentType,
+      issuedByName: profileWithShop?.full_name,
+    });
+
     showToast('ขายสำเร็จ', `${foundItem.model} • ฿${finalPrice.toLocaleString()}`);
-    setFoundItem(null);
-    setImei('');
-    setDiscount('');
     setShowConfirm(false);
     setConfirming(false);
+    setShowReceipt(true);
   }
 
   const discountValue = parseFloat(discount) || 0;
@@ -257,6 +299,17 @@ export default function SellPage() {
                 <span>รวมจ่าย:</span>
                 <span>฿{finalPrice.toLocaleString()}</span>
               </div>
+              {foundItem.cost_price && Number(foundItem.cost_price) > 0 && (
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: 12, opacity: 0.9,
+                  paddingTop: 8, marginTop: 8,
+                  borderTop: '1px dashed rgba(255,255,255,0.3)',
+                }}>
+                  <span>💰 กำไร:</span>
+                  <span style={{ fontWeight: 700 }}>฿{(finalPrice - Number(foundItem.cost_price)).toLocaleString()}</span>
+                </div>
+              )}
             </div>
 
             <div className="form-actions">
@@ -290,6 +343,31 @@ export default function SellPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showReceipt && lastSale && (
+        <ReceiptPDF
+          receiptNo={lastSale.receiptNo}
+          type="stock_sale"
+          items={[{
+            name: lastSale.item.model,
+            detail: `IMEI: ${lastSale.item.imei}${lastSale.item.color ? ` • ${lastSale.item.color}` : ''}${lastSale.item.spec ? ` • ${lastSale.item.spec}` : ''}`,
+            price: lastSale.finalPrice,
+            qty: 1,
+          }]}
+          subtotal={Number(lastSale.item.price)}
+          discount={lastSale.discount}
+          total={lastSale.finalPrice}
+          paymentType={lastSale.paymentType}
+          issuedByName={lastSale.issuedByName}
+          onClose={() => {
+            setShowReceipt(false);
+            setLastSale(null);
+            setFoundItem(null);
+            setImei('');
+            setDiscount('');
+          }}
+        />
       )}
 
       {toast && <Toast {...toast} />}

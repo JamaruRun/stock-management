@@ -163,7 +163,23 @@ export default function DashboardClient({ profile, children }: Props) {
                 onClick={() => setSidebarOpen(false)}
               >
                 <span className="sidebar-item-icon">👥</span>
-                <span className="sidebar-item-text">จัดการผู้ใช้</span>
+                <span className="sidebar-item-text">ผู้ใช้</span>
+              </Link>
+              <Link
+                href="/dashboard/suppliers"
+                className={`sidebar-item ${pathname.startsWith('/dashboard/suppliers') ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">📋</span>
+                <span className="sidebar-item-text">Supplier</span>
+              </Link>
+              <Link
+                href="/dashboard/settings"
+                className={`sidebar-item ${pathname.startsWith('/dashboard/settings') ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">⚙️</span>
+                <span className="sidebar-item-text">ตั้งค่า</span>
               </Link>
             </nav>
           </div>

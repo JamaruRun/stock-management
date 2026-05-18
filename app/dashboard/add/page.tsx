@@ -23,12 +23,15 @@ export default function AddStockPage() {
     color: '',
     spec: '',
     price: '',
+    costPrice: '',
+    supplierId: '',
     addedDate: new Date().toISOString().split('T')[0],
     branchId: '',
     deviceCondition: 'new',
   });
   const [profile, setProfile] = useState<any>(null);
   const [branches, setBranches] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [suggestions, setSuggestions] = useState<ModelSuggestion[]>([]);
@@ -53,6 +56,10 @@ export default function AddStockPage() {
         const { data: bs } = await supabase.from('branches').select('*').order('name');
         setBranches(bs || []);
       }
+
+      // โหลด suppliers
+      const { data: ss } = await supabase.from('suppliers').select('id, name').order('name');
+      setSuppliers(ss || []);
 
       setForm(f => ({ ...f, branchId: p?.branch_id || '' }));
     }
@@ -96,6 +103,7 @@ export default function AddStockPage() {
   function reset() {
     setForm({
       imei: '', model: '', color: '', spec: '', price: '',
+      costPrice: '', supplierId: '',
       addedDate: new Date().toISOString().split('T')[0],
       branchId: profile?.branch_id || '',
       deviceCondition: 'new',
@@ -132,12 +140,16 @@ export default function AddStockPage() {
     const { data: profileWithShop } = await supabase
       .from('profiles').select('shop_id').eq('id', user.id).single();
 
+    const costPrice = parseFloat(form.costPrice) || 0;
+
     const { error } = await supabase.from('stock').insert({
       imei: form.imei,
       model: form.model,
       color: form.color || null,
       spec: form.spec || null,
       price: parseFloat(form.price),
+      cost_price: costPrice,
+      supplier_id: form.supplierId || null,
       added_date: form.addedDate,
       added_by: user.id,
       added_by_name: profile.full_name,
@@ -145,6 +157,31 @@ export default function AddStockPage() {
       device_condition: form.deviceCondition,
       shop_id: profileWithShop?.shop_id,
     });
+
+    // ถ้ามี supplier + cost > 0 → บันทึก transaction (เพิ่มยอดค้างจ่าย)
+    if (!error && form.supplierId && costPrice > 0) {
+      await supabase.from('supplier_transactions').insert({
+        supplier_id: form.supplierId,
+        type: 'purchase',
+        amount: costPrice,
+        description: `รับ ${form.model} (${form.imei})`,
+        reference_type: 'stock',
+        transaction_date: form.addedDate,
+        created_by: user.id,
+        created_by_name: profile.full_name,
+        branch_id: form.branchId,
+        shop_id: profileWithShop?.shop_id,
+      });
+
+      // อัพเดท balance ของ supplier (-)
+      const { data: sup } = await supabase
+        .from('suppliers').select('balance').eq('id', form.supplierId).single();
+      if (sup) {
+        await supabase.from('suppliers').update({
+          balance: Number(sup.balance || 0) - costPrice,
+        }).eq('id', form.supplierId);
+      }
+    }
 
     setLoading(false);
 
@@ -280,9 +317,50 @@ export default function AddStockPage() {
             </div>
 
             <div className="field">
+              <label>ราคาทุน 
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 6, fontWeight: 400 }}>
+                  (ใส่หรือไม่ใส่ก็ได้)
+                </span>
+              </label>
+              <input type="number" inputMode="numeric" value={form.costPrice}
+                onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                placeholder="35000" />
+              {form.price && form.costPrice && (
+                <div style={{ 
+                  fontSize: 11, 
+                  color: 'var(--success)', 
+                  marginTop: 4,
+                  fontWeight: 600,
+                }}>
+                  💰 กำไรคาดการณ์: ฿{(parseFloat(form.price) - parseFloat(form.costPrice)).toLocaleString()}
+                </div>
+              )}
+            </div>
+
+            <div className="field">
               <label>วันที่รับเข้า</label>
               <input type="date" value={form.addedDate}
                 onChange={(e) => setForm({ ...form, addedDate: e.target.value })} />
+            </div>
+
+            <div className="field">
+              <label>Supplier (ผู้ส่งของ)
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 6, fontWeight: 400 }}>
+                  (ไม่บังคับ)
+                </span>
+              </label>
+              <select value={form.supplierId}
+                onChange={(e) => setForm({ ...form, supplierId: e.target.value })}>
+                <option value="">-- ไม่ระบุ --</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {suppliers.length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                  💡 ยังไม่มี supplier - ไปเพิ่มที่หน้าจัดการ Supplier
+                </div>
+              )}
             </div>
 
             <div className="field full">

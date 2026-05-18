@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 
 interface Stats {
   todayRevenue: number;
+  todayProfit: number;
   todayOrders: number;
   stockCount: number;
   stockValue: number;
@@ -50,9 +51,9 @@ export default function DashboardHomePage() {
         goodsRes,
         paymentsRes,
       ] = await Promise.all([
-        // Today revenue (admin only - sales)
+        // Today revenue + profit (admin only - sales)
         isAdmin
-          ? supabase.from('sales_history').select('final_price').eq('sold_date', today)
+          ? supabase.from('sales_history').select('final_price, profit').eq('sold_date', today)
           : Promise.resolve({ data: [], error: null }),
         // Stock - ใช้ field "price" ตามตาราง stock จริง
         supabase.from('stock').select('price'),
@@ -74,6 +75,7 @@ export default function DashboardHomePage() {
 
       // Calculate
       const todayRevenue = (salesRes.data || []).reduce((s: number, r: any) => s + Number(r.final_price || 0), 0);
+      const todayProfit = (salesRes.data || []).reduce((s: number, r: any) => s + Number(r.profit || 0), 0);
       const todayOrders = (salesRes.data || []).length;
       const stockCount = (stockRes.data || []).length;
       const stockValue = (stockRes.data || []).reduce((s: number, r: any) => s + Number(r.price || 0), 0);
@@ -121,7 +123,7 @@ export default function DashboardHomePage() {
       ).length;
 
       setStats({
-        todayRevenue, todayOrders,
+        todayRevenue, todayProfit, todayOrders,
         stockCount, stockValue,
         pawnCount, pawnValue, pawnOverdue,
         installmentCount, installmentValue, installmentOverdue,
@@ -177,6 +179,12 @@ export default function DashboardHomePage() {
             )}
           </div>
           <div className="hero-card-stats">
+            {stats.todayProfit > 0 && (
+              <div className="hero-card-stat">
+                <span>💰</span>
+                <span>กำไร ฿{stats.todayProfit.toLocaleString()}</span>
+              </div>
+            )}
             <div className="hero-card-stat">
               <span>📱</span>
               <span>{stats.stockCount + stats.pawnCount + stats.installmentCount} เครื่อง</span>
