@@ -230,6 +230,31 @@ export default function DashboardHomePage() {
         </Link>
       )}
 
+      {/* Quick: ดูรายงาน (Admin) */}
+      {isAdmin && (
+        <Link href="/dashboard/reports" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '14px 16px',
+          background: 'linear-gradient(135deg, var(--purple-light) 0%, var(--accent-light) 100%)',
+          borderRadius: 'var(--radius)',
+          marginBottom: 20,
+          textDecoration: 'none',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ fontSize: 22 }}>📊</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>ดูรายงานยอดขาย</div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+              กราฟ • รุ่นขายดี • วิเคราะห์ผลประกอบการ
+            </div>
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--accent)' }}>→</div>
+        </Link>
+      )}
+
       {/* Module Cards Grid */}
       <div className="section-title">
         <span>โมดูลหลัก</span>

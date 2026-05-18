@@ -155,6 +155,30 @@ export default function DashboardClient({ profile, children }: Props) {
 
         {isAdmin && (
           <div className="sidebar-section">
+            <div className="sidebar-section-title">วิเคราะห์ (Admin)</div>
+            <nav className="sidebar-nav">
+              <Link
+                href="/dashboard/reports"
+                className={`sidebar-item ${pathname.startsWith('/dashboard/reports') ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">📊</span>
+                <span className="sidebar-item-text">รายงาน</span>
+              </Link>
+              <Link
+                href="/dashboard/backup"
+                className={`sidebar-item ${pathname.startsWith('/dashboard/backup') ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <span className="sidebar-item-icon">💾</span>
+                <span className="sidebar-item-text">Backup</span>
+              </Link>
+            </nav>
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="sidebar-section">
             <div className="sidebar-section-title">จัดการ (Admin)</div>
             <nav className="sidebar-nav">
               <Link
