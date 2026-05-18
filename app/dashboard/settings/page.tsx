@@ -26,7 +26,8 @@ export default function SettingsPage() {
   });
 
   const [lineForm, setLineForm] = useState({
-    line_token: '',
+    line_channel_access_token: '',
+    line_user_id: '',
     line_notify_sale: true,
     line_notify_pawn: true,
     line_notify_goods: false,
@@ -62,7 +63,8 @@ export default function SettingsPage() {
             receipt_prefix: s.receipt_prefix || 'INV',
           });
           setLineForm({
-            line_token: s.line_token || '',
+            line_channel_access_token: s.line_channel_access_token || '',
+            line_user_id: s.line_user_id || '',
             line_notify_sale: s.line_notify_sale !== false,
             line_notify_pawn: s.line_notify_pawn !== false,
             line_notify_goods: s.line_notify_goods === true,
@@ -81,7 +83,8 @@ export default function SettingsPage() {
     setSavingLine(true);
 
     const { error } = await supabase.from('shops').update({
-      line_token: lineForm.line_token || null,
+      line_channel_access_token: lineForm.line_channel_access_token || null,
+      line_user_id: lineForm.line_user_id || null,
       line_notify_sale: lineForm.line_notify_sale,
       line_notify_pawn: lineForm.line_notify_pawn,
       line_notify_goods: lineForm.line_notify_goods,
@@ -94,29 +97,30 @@ export default function SettingsPage() {
       showToast('บันทึกไม่สำเร็จ', error.message, 'danger');
       return;
     }
-    showToast('บันทึกสำเร็จ', 'ตั้งค่า LINE Notify อัพเดทแล้ว');
+    showToast('บันทึกสำเร็จ', 'ตั้งค่า LINE อัพเดทแล้ว');
     
-    // Reload shop data
     const { data: s } = await supabase
       .from('shops').select('*').eq('id', shop.id).single();
     setShop(s);
   }
 
   async function handleTestLine() {
-    if (!lineForm.line_token) {
-      showToast('กรุณาใส่ Token ก่อน', '', 'danger');
+    if (!lineForm.line_channel_access_token || !lineForm.line_user_id) {
+      showToast('ใส่ Token + User ID ก่อน', '', 'danger');
       return;
     }
     
-    // บันทึก token ก่อนเทส
     setTestingLine(true);
     
+    // บันทึกก่อนเทส
     await supabase.from('shops').update({
-      line_token: lineForm.line_token,
+      line_channel_access_token: lineForm.line_channel_access_token,
+      line_user_id: lineForm.line_user_id,
     }).eq('id', shop.id);
 
-    const result = await sendLineNotify(
-      `\n🎉 ทดสอบ LINE Notify\n\nร้าน: ${shop?.name || 'ของคุณ'}\nเวลา: ${new Date().toLocaleString('th-TH')}\n\n✅ การเชื่อมต่อสำเร็จ`,
+    const { sendLinePush } = await import('@/lib/line-notify');
+    const result = await sendLinePush(
+      `🎉 ทดสอบ LINE Messaging API\n\nร้าน: ${shop?.name || 'ของคุณ'}\nเวลา: ${new Date().toLocaleString('th-TH')}\n\n✅ การเชื่อมต่อสำเร็จ`,
       'test'
     );
 
@@ -124,10 +128,8 @@ export default function SettingsPage() {
 
     if (result.success) {
       showToast('ส่งสำเร็จ ✓', 'เช็คใน LINE ดู');
-    } else if (result.skipped) {
-      showToast('ข้าม - Token ว่าง', '', 'danger');
     } else {
-      showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'Token ไม่ถูก', 'danger');
+      showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'Token/User ID ไม่ถูก', 'danger');
     }
   }
 
@@ -336,12 +338,26 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* LINE Notify Section */}
+      {/* LINE Messaging API Section */}
       <div className="form-card">
-        <h3>🔔 LINE Notify</h3>
+        <h3>🔔 LINE Messaging API</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
           แจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของเจ้าของแบบเรียลไทม์
         </p>
+
+        <div style={{
+          padding: 12,
+          background: 'rgba(255, 158, 11, 0.08)',
+          borderLeft: '3px solid var(--warning)',
+          marginBottom: 12,
+          fontSize: 12,
+          lineHeight: 1.6,
+        }}>
+          <strong style={{ color: 'var(--warning-text)' }}>⚠️ LINE Notify ปิดบริการแล้ว</strong>
+          <div style={{ marginTop: 4 }}>
+            ตอนนี้ใช้ <strong>LINE Messaging API</strong> แทน — ฟรี 200 ข้อความ/เดือน
+          </div>
+        </div>
 
         <div style={{
           padding: 12,
@@ -349,32 +365,45 @@ export default function SettingsPage() {
           borderLeft: '3px solid #00C300',
           marginBottom: 16,
           fontSize: 12,
-          lineHeight: 1.6,
+          lineHeight: 1.7,
         }}>
-          <strong style={{ color: '#00C300' }}>📌 วิธีเอา Token:</strong>
-          <ol style={{ marginLeft: 18, marginTop: 4 }}>
-            <li>ไป <a href="https://notify-bot.line.me/my/" target="_blank" rel="noopener" style={{ color: '#00C300', textDecoration: 'underline' }}>notify-bot.line.me/my/</a></li>
-            <li>Login ด้วย LINE ของเจ้าของร้าน</li>
-            <li>กด "Generate token" → ตั้งชื่อ → เลือกกลุ่ม/ส่วนตัว</li>
-            <li>Copy token → วางในช่องด้านล่าง</li>
+          <strong style={{ color: '#00C300' }}>📌 วิธีตั้งค่า (5 นาที):</strong>
+          <ol style={{ marginLeft: 18, marginTop: 6 }}>
+            <li>ไป <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" style={{ color: '#00C300', textDecoration: 'underline' }}>LINE Developers Console</a></li>
+            <li>สร้าง <strong>Provider</strong> (ถ้ายังไม่มี) → สร้าง <strong>Messaging API channel</strong></li>
+            <li>ในช่อง <strong>Messaging API</strong> → copy <strong>Channel access token</strong></li>
+            <li>เพิ่มบอท LINE เป็นเพื่อนใน LINE ของคุณ (สแกน QR ใน Console)</li>
+            <li>ไป <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" style={{ color: '#00C300', textDecoration: 'underline' }}>หน้า Basic settings</a> → copy <strong>Your user ID</strong></li>
+            <li>วาง 2 ค่าด้านล่าง → กดทดสอบ</li>
           </ol>
         </div>
 
         <div className="form-grid">
           <div className="field full">
-            <label>LINE Notify Token</label>
+            <label>Channel Access Token</label>
+            <input 
+              type="text" 
+              value={lineForm.line_channel_access_token}
+              onChange={(e) => setLineForm({ ...lineForm, line_channel_access_token: e.target.value })}
+              placeholder="วาง Channel Access Token จาก LINE Developers"
+              style={{ fontFamily: 'JetBrains Mono, monospace' }}
+            />
+          </div>
+
+          <div className="field full">
+            <label>Your User ID</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input 
                 type="text" 
-                value={lineForm.line_token}
-                onChange={(e) => setLineForm({ ...lineForm, line_token: e.target.value })}
-                placeholder="วาง Token ที่ Copy มาจาก LINE Notify"
+                value={lineForm.line_user_id}
+                onChange={(e) => setLineForm({ ...lineForm, line_user_id: e.target.value })}
+                placeholder="U1234567890abcdef..."
                 style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
               />
               <button 
                 type="button" 
                 onClick={handleTestLine} 
-                disabled={testingLine || !lineForm.line_token}
+                disabled={testingLine || !lineForm.line_channel_access_token || !lineForm.line_user_id}
                 className="btn btn-sec"
                 style={{ width: 'auto', padding: '0 16px', whiteSpace: 'nowrap' }}
               >
@@ -382,7 +411,7 @@ export default function SettingsPage() {
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-              💡 ใส่ token แล้วกด "ทดสอบ" จะส่งข้อความเข้า LINE
+              💡 หา User ID ของคุณได้ที่หน้า Basic settings ของ Channel
             </div>
           </div>
 
@@ -478,7 +507,7 @@ export default function SettingsPage() {
 
         <div className="form-actions" style={{ marginTop: 16 }}>
           <button className="btn" onClick={handleSaveLine} disabled={savingLine}>
-            {savingLine ? 'กำลังบันทึก...' : '💾 บันทึกตั้งค่า LINE'}
+            {savingLine ? 'กำลังบันทึก...' : '💾 บันทึก'}
           </button>
         </div>
       </div>

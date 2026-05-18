@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 
 type Period = '7days' | '30days' | '90days' | 'thismonth' | 'lastmonth';
+type Tab = 'overview' | 'models' | 'branches';
 
 interface DailySale {
   date: string;
@@ -35,6 +36,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>('30days');
   const [filterBranch, setFilterBranch] = useState('');
   const [branches, setBranches] = useState<any[]>([]);
+  const [tab, setTab] = useState<Tab>('overview');
   
   const [dailySales, setDailySales] = useState<DailySale[]>([]);
   const [topModels, setTopModels] = useState<ModelSale[]>([]);
@@ -45,7 +47,6 @@ export default function ReportsPage() {
     totalOrders: 0,
     avgPerDay: 0,
     profitMargin: 0,
-    goodsRevenue: 0,
   });
 
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
@@ -61,18 +62,9 @@ export default function ReportsPage() {
     let days = 30;
 
     switch (p) {
-      case '7days':
-        start.setDate(end.getDate() - 7);
-        days = 7;
-        break;
-      case '30days':
-        start.setDate(end.getDate() - 30);
-        days = 30;
-        break;
-      case '90days':
-        start.setDate(end.getDate() - 90);
-        days = 90;
-        break;
+      case '7days': start.setDate(end.getDate() - 7); days = 7; break;
+      case '30days': start.setDate(end.getDate() - 30); days = 30; break;
+      case '90days': start.setDate(end.getDate() - 90); days = 90; break;
       case 'thismonth':
         start = new Date(end.getFullYear(), end.getMonth(), 1);
         days = end.getDate();
@@ -108,7 +100,6 @@ export default function ReportsPage() {
 
     const range = getDateRange(period);
 
-    // Build query
     let salesQuery = supabase
       .from('sales_history')
       .select('sold_date, final_price, profit, model, branch_id, branch:branches(name)')
@@ -131,7 +122,7 @@ export default function ReportsPage() {
     const sales = salesRes.data || [];
     const goods = goodsRes.data || [];
 
-    // === Daily Sales (7-30 วัน) ===
+    // Daily Sales
     const dailyMap = new Map<string, DailySale>();
     const showDays = Math.min(range.days, 30);
     
@@ -162,7 +153,7 @@ export default function ReportsPage() {
 
     setDailySales(Array.from(dailyMap.values()));
 
-    // === Top Models ===
+    // Top Models
     const modelMap = new Map<string, ModelSale>();
     sales.forEach((s: any) => {
       const key = s.model;
@@ -175,12 +166,9 @@ export default function ReportsPage() {
       m.profit += Number(s.profit || 0);
     });
 
-    const topList = Array.from(modelMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-    setTopModels(topList);
+    setTopModels(Array.from(modelMap.values()).sort((a, b) => b.count - a.count).slice(0, 10));
 
-    // === Branch Sales ===
+    // Branch
     if (p?.role === 'admin' && !filterBranch) {
       const branchMap = new Map<string, BranchSale>();
       sales.forEach((s: any) => {
@@ -198,22 +186,20 @@ export default function ReportsPage() {
       setBranchSales([]);
     }
 
-    // === Summary ===
+    // Summary
     const totalSalesRevenue = sales.reduce((s, r: any) => s + Number(r.final_price || 0), 0);
     const totalSalesProfit = sales.reduce((s, r: any) => s + Number(r.profit || 0), 0);
     const totalGoodsRevenue = goods.reduce((s, r: any) => s + Number(r.total_price || 0), 0);
     const totalGoodsProfit = goods.reduce((s, r: any) => s + Number(r.profit || 0), 0);
     const totalRevenue = totalSalesRevenue + totalGoodsRevenue;
     const totalProfit = totalSalesProfit + totalGoodsProfit;
-    const totalOrders = sales.length;
 
     setSummary({
       totalRevenue,
       totalProfit,
-      totalOrders,
+      totalOrders: sales.length,
       avgPerDay: range.days > 0 ? totalRevenue / range.days : 0,
       profitMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
-      goodsRevenue: totalGoodsRevenue,
     });
 
     setLoading(false);
@@ -222,8 +208,6 @@ export default function ReportsPage() {
   useEffect(() => { loadReport(); }, [period, filterBranch]);
 
   const isAdmin = profile?.role === 'admin';
-
-  // Max value สำหรับ scale กราฟ
   const maxDailyRevenue = Math.max(...dailySales.map(d => d.revenue), 1);
 
   function exportCSV() {
@@ -239,18 +223,18 @@ export default function ReportsPage() {
     a.download = `รายงาน-${period}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Export สำเร็จ', 'ดาวน์โหลด CSV แล้ว');
+    showToast('Export สำเร็จ', '');
   }
 
   if (loading) {
     return (
       <>
         <div className="page-header">
-          <h1>📊 รายงาน</h1>
+          <h1>รายงาน</h1>
           <div className="desc">กำลังโหลด...</div>
         </div>
-        <div className="skeleton skeleton-card" style={{ height: 100 }}></div>
-        <div className="skeleton skeleton-card" style={{ height: 200 }}></div>
+        <div className="skeleton" style={{ height: 100, marginBottom: 16 }}></div>
+        <div className="skeleton" style={{ height: 240 }}></div>
       </>
     );
   }
@@ -258,14 +242,11 @@ export default function ReportsPage() {
   if (!isAdmin) {
     return (
       <>
-        <div className="page-header">
-          <h1>📊 รายงาน</h1>
-        </div>
+        <div className="page-header"><h1>รายงาน</h1></div>
         <div className="form-card">
           <div className="empty">
             <div className="empty-icon">🔒</div>
             <div className="empty-title">เฉพาะเจ้าของร้าน</div>
-            <div className="empty-sub">หน้ารายงานสำหรับ Admin เท่านั้น</div>
           </div>
         </div>
       </>
@@ -275,259 +256,347 @@ export default function ReportsPage() {
   return (
     <>
       <div className="page-header">
-        <h1>📊 รายงาน <span className="badge-admin">ADMIN</span></h1>
-        <div className="desc">รายได้ • กำไร • รุ่นขายดี • วิเคราะห์ยอดขาย</div>
+        <h1>รายงาน</h1>
+        <div className="desc">วิเคราะห์ยอดขายและผลประกอบการ</div>
       </div>
 
-      {/* Period Selector */}
-      <div className="toolbar" style={{ marginBottom: 20 }}>
-        <select className="filter-select" value={period} onChange={(e) => setPeriod(e.target.value as Period)} 
-          style={{ flex: '1 1 200px' }}>
-          <option value="7days">7 วันล่าสุด</option>
-          <option value="30days">30 วันล่าสุด</option>
-          <option value="90days">90 วันล่าสุด</option>
-          <option value="thismonth">เดือนนี้</option>
-          <option value="lastmonth">เดือนที่แล้ว</option>
+      {/* Filter Bar - บางเรียบ */}
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        marginBottom: 20,
+        flexWrap: 'wrap',
+        alignItems: 'center',
+      }}>
+        <select 
+          value={period} 
+          onChange={(e) => setPeriod(e.target.value as Period)}
+          style={{ 
+            flex: '1 1 160px', 
+            minHeight: 40,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <option value="7days">📅 7 วันล่าสุด</option>
+          <option value="30days">📅 30 วันล่าสุด</option>
+          <option value="90days">📅 90 วันล่าสุด</option>
+          <option value="thismonth">📅 เดือนนี้</option>
+          <option value="lastmonth">📅 เดือนที่แล้ว</option>
         </select>
         {branches.length > 0 && (
-          <select className="filter-select" value={filterBranch} onChange={(e) => setFilterBranch(e.target.value)}
-            style={{ flex: '1 1 200px' }}>
-            <option value="">ทุกสาขา</option>
+          <select 
+            value={filterBranch} 
+            onChange={(e) => setFilterBranch(e.target.value)}
+            style={{ flex: '1 1 160px', minHeight: 40 }}
+          >
+            <option value="">🏪 ทุกสาขา</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
         )}
-        <button onClick={exportCSV} className="btn btn-sec" style={{ width: 'auto', flex: '1 1 140px' }}>
-          📥 Export CSV
+        <button 
+          onClick={exportCSV} 
+          className="btn btn-sec" 
+          style={{ width: 'auto', flex: '0 0 auto', minHeight: 40 }}
+        >
+          📥 Export
         </button>
       </div>
 
-      {/* Hero Summary */}
-      <div className="hero-card">
-        <div className="hero-card-header">
-          <div>
-            <div className="hero-card-label">รายได้รวม</div>
-            <div className="hero-card-value">฿{summary.totalRevenue.toLocaleString()}</div>
+      {/* Hero Summary - สีเขียวอ่อน สบายตา */}
+      <div style={{
+        background: 'linear-gradient(135deg, var(--success) 0%, var(--accent) 100%)',
+        borderRadius: 'var(--radius)',
+        padding: 24,
+        marginBottom: 24,
+        color: 'white',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 6 }}>รายได้รวม</div>
+          <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: -1, lineHeight: 1 }}>
+            ฿{summary.totalRevenue.toLocaleString()}
           </div>
-          {summary.totalOrders > 0 && (
-            <div className="hero-card-trend">
-              {summary.totalOrders} ออเดอร์
+          <div style={{ 
+            display: 'flex', 
+            gap: 20, 
+            marginTop: 16, 
+            paddingTop: 16,
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            flexWrap: 'wrap',
+          }}>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.85 }}>กำไร</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>฿{summary.totalProfit.toLocaleString()}</div>
             </div>
-          )}
-        </div>
-        <div className="hero-card-stats">
-          <div className="hero-card-stat">
-            <span>💰</span>
-            <span>กำไร ฿{summary.totalProfit.toLocaleString()}</span>
-          </div>
-          <div className="hero-card-stat">
-            <span>📈</span>
-            <span>มาร์จิ้น {summary.profitMargin.toFixed(1)}%</span>
-          </div>
-          <div className="hero-card-stat">
-            <span>📅</span>
-            <span>เฉลี่ย ฿{Math.round(summary.avgPerDay).toLocaleString()}/วัน</span>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.85 }}>มาร์จิ้น</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{summary.profitMargin.toFixed(1)}%</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.85 }}>เฉลี่ย/วัน</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>฿{Math.round(summary.avgPerDay).toLocaleString()}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.85 }}>ออเดอร์</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{summary.totalOrders}</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Daily Sales Chart */}
-      <div className="form-card">
-        <h3>📈 รายได้รายวัน ({dailySales.length} วัน)</h3>
-        
-        {dailySales.every(d => d.revenue === 0) ? (
-          <div className="empty">
-            <div className="empty-icon">📊</div>
-            <div className="empty-title">ยังไม่มียอดขายในช่วงนี้</div>
-            <div className="empty-sub">ลองเลือกช่วงอื่น</div>
+      {/* Tabs - แทนการแสดงทุก section พร้อมกัน */}
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        marginBottom: 20,
+        background: 'var(--surface-2)',
+        padding: 4,
+        borderRadius: 'var(--radius-sm)',
+      }}>
+        {([
+          { id: 'overview', label: '📈 ยอดขาย', count: dailySales.length },
+          { id: 'models', label: '🏆 รุ่นขายดี', count: topModels.length },
+          ...(branchSales.length > 0 ? [{ id: 'branches', label: '🏪 สาขา', count: branchSales.length }] : []),
+        ] as { id: Tab; label: string; count: number }[]).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              background: tab === t.id ? 'var(--surface)' : 'transparent',
+              color: tab === t.id ? 'var(--accent)' : 'var(--text-dim)',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: tab === t.id ? 600 : 500,
+              boxShadow: tab === t.id ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 0.15s',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {tab === 'overview' && (
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: 20,
+        }}>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>ยอดขายรายวัน</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                {dailySales.length} วันล่าสุด
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--text-dim)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 10, height: 10, background: 'var(--accent)', borderRadius: 2 }}/>
+                <span>รายได้</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 10, height: 10, background: 'var(--success)', borderRadius: 2, opacity: 0.7 }}/>
+                <span>กำไร</span>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ 
-              display: 'grid',
-              gridTemplateColumns: `repeat(${dailySales.length}, 1fr)`,
-              gap: 2,
-              height: 200,
-              alignItems: 'end',
-              padding: '0 4px',
-            }}>
-              {dailySales.map((d, i) => {
-                const heightPct = (d.revenue / maxDailyRevenue) * 100;
-                const profitPct = d.revenue > 0 ? (d.profit / d.revenue) * 100 : 0;
-                return (
-                  <div key={i} 
-                    style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center', 
-                      height: '100%',
-                      justifyContent: 'flex-end',
-                      position: 'relative',
-                    }}
-                    title={`${d.label}\nรายได้: ฿${d.revenue.toLocaleString()}\nกำไร: ฿${d.profit.toLocaleString()}\nออเดอร์: ${d.count}`}
-                  >
-                    {d.revenue > 0 && (
+
+          {dailySales.every(d => d.revenue === 0) ? (
+            <div className="empty" style={{ padding: '40px 20px' }}>
+              <div className="empty-icon" style={{ opacity: 0.3 }}>📊</div>
+              <div className="empty-title">ยังไม่มียอดขายในช่วงนี้</div>
+              <div className="empty-sub">ลองเลือกช่วงเวลาอื่น</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: `repeat(${dailySales.length}, 1fr)`,
+                gap: 3,
+                height: 180,
+                alignItems: 'end',
+                padding: '0 2px',
+              }}>
+                {dailySales.map((d, i) => {
+                  const heightPct = (d.revenue / maxDailyRevenue) * 100;
+                  const profitPct = d.revenue > 0 ? (d.profit / d.revenue) * 100 : 0;
+                  return (
+                    <div key={i} 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        height: '100%',
+                        justifyContent: 'flex-end',
+                        cursor: d.revenue > 0 ? 'pointer' : 'default',
+                      }}
+                      title={`${d.label}\nรายได้: ฿${d.revenue.toLocaleString()}\nกำไร: ฿${d.profit.toLocaleString()}\nออเดอร์: ${d.count}`}
+                    >
                       <div style={{ 
-                        fontSize: 9, 
-                        color: 'var(--text-dim)', 
-                        marginBottom: 2,
-                        whiteSpace: 'nowrap',
+                        width: '100%',
+                        height: `${Math.max(heightPct, d.revenue > 0 ? 2 : 0)}%`,
+                        background: 'var(--accent)',
+                        borderRadius: '3px 3px 0 0',
+                        position: 'relative',
+                        opacity: 0.85,
+                        transition: 'all 0.3s ease',
                       }}>
-                        ฿{d.revenue >= 1000 ? Math.round(d.revenue / 1000) + 'K' : d.revenue}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: `${profitPct}%`,
+                          background: 'var(--success)',
+                          opacity: 0.65,
+                          borderRadius: profitPct >= 99 ? '3px 3px 0 0' : 0,
+                        }}/>
                       </div>
-                    )}
-                    <div style={{ 
-                      width: '100%',
-                      height: `${Math.max(heightPct, d.revenue > 0 ? 2 : 0)}%`,
-                      background: 'linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%)',
-                      borderRadius: '4px 4px 0 0',
-                      position: 'relative',
-                      transition: 'all 0.3s ease',
-                    }}>
-                      {/* Profit overlay */}
-                      <div style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: `${profitPct}%`,
-                        background: 'linear-gradient(180deg, var(--success) 0%, var(--success) 100%)',
-                        opacity: 0.7,
-                        borderRadius: profitPct >= 99 ? '4px 4px 0 0' : 0,
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* แสดง label เฉพาะวันเริ่ม-กลาง-ปลาย */}
+              <div style={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: 10,
+                fontSize: 10,
+                color: 'var(--text-dim)',
+                padding: '0 2px',
+              }}>
+                <span>{dailySales[0]?.label}</span>
+                {dailySales.length > 6 && <span>{dailySales[Math.floor(dailySales.length / 2)]?.label}</span>}
+                <span>{dailySales[dailySales.length - 1]?.label}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === 'models' && (
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: 20,
+        }}>
+          <div style={{ marginBottom: 16, fontSize: 14, fontWeight: 600 }}>Top 10 รุ่นขายดี</div>
+
+          {topModels.length === 0 ? (
+            <div className="empty" style={{ padding: '40px 20px' }}>
+              <div className="empty-icon" style={{ opacity: 0.3 }}>🏆</div>
+              <div className="empty-title">ยังไม่มียอดขาย</div>
+            </div>
+          ) : (
+            <div>
+              {topModels.map((m, i) => {
+                const maxCount = topModels[0].count;
+                const pct = (m.count / maxCount) * 100;
+                const isTop3 = i < 3;
+                const rankColors = ['#fbbf24', '#9ca3af', '#cd7f32'];
+                return (
+                  <div key={i} style={{ 
+                    padding: '14px 0',
+                    borderBottom: i < topModels.length - 1 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                      <div style={{ 
+                        width: 32, height: 32,
+                        borderRadius: 8,
+                        background: isTop3 ? rankColors[i] : 'var(--surface-2)',
+                        color: isTop3 ? '#fff' : 'var(--text-dim)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                          fontSize: 14, 
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {m.model}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                          {m.count} เครื่อง • รายได้ ฿{m.revenue.toLocaleString()} • กำไร ฿{m.profit.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2, marginLeft: 44 }}>
+                      <div style={{ 
+                        height: '100%', 
+                        width: `${pct}%`, 
+                        background: isTop3 ? rankColors[i] : 'var(--accent)',
+                        borderRadius: 2,
+                        transition: 'width 0.3s',
                       }}/>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div style={{ 
-              display: 'grid',
-              gridTemplateColumns: `repeat(${dailySales.length}, 1fr)`,
-              gap: 2,
-              marginTop: 8,
-              padding: '0 4px',
-            }}>
-              {dailySales.map((d, i) => (
-                <div key={i} style={{ 
-                  fontSize: 9, 
-                  color: 'var(--text-dim)',
-                  textAlign: 'center',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  {i % Math.max(1, Math.floor(dailySales.length / 8)) === 0 ? d.label : ''}
-                </div>
-              ))}
-            </div>
+          )}
+        </div>
+      )}
 
-            {/* Legend */}
-            <div style={{ 
-              display: 'flex', 
-              gap: 16, 
-              marginTop: 16, 
-              justifyContent: 'center',
-              fontSize: 11,
-              color: 'var(--text-dim)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 12, height: 12, background: 'var(--accent)', borderRadius: 2 }}/>
-                <span>รายได้</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 12, height: 12, background: 'var(--success)', borderRadius: 2, opacity: 0.7 }}/>
-                <span>กำไร</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {tab === 'branches' && branchSales.length > 0 && (
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: 20,
+        }}>
+          <div style={{ marginBottom: 16, fontSize: 14, fontWeight: 600 }}>เปรียบเทียบยอดขายแต่ละสาขา</div>
 
-      {/* Top Models */}
-      <div className="form-card">
-        <h3>🏆 Top รุ่นขายดี</h3>
-        {topModels.length === 0 ? (
-          <div className="empty">
-            <div className="empty-sub">ยังไม่มียอดขาย</div>
-          </div>
-        ) : (
-          <div style={{ marginTop: 12 }}>
-            {topModels.map((m, i) => {
-              const maxCount = topModels[0].count;
-              const pct = (m.count / maxCount) * 100;
-              const colors = ['#fbbf24', '#9ca3af', '#cd7f32', 'var(--accent)', 'var(--accent)'];
-              return (
-                <div key={i} style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                      <span style={{ 
-                        fontWeight: 700, 
-                        color: colors[i] || 'var(--text)',
-                        fontSize: 14,
-                        width: 24,
-                        textAlign: 'center',
-                      }}>
-                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                      </span>
-                      <span style={{ 
-                        fontSize: 13, 
-                        fontWeight: 600,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {m.model}
-                      </span>
-                    </div>
-                    <div style={{ textAlign: 'right', fontSize: 12 }}>
-                      <span style={{ fontWeight: 700 }}>{m.count} เครื่อง</span>
-                      <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                        ฿{m.revenue.toLocaleString()} • กำไร ฿{m.profit.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 3 }}>
-                    <div style={{ 
-                      height: '100%', 
-                      width: `${pct}%`, 
-                      background: colors[i] || 'var(--accent)',
-                      borderRadius: 3,
-                      transition: 'width 0.3s',
-                    }}/>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Branch Sales (Admin + ดูทุกสาขา) */}
-      {branchSales.length > 0 && (
-        <div className="form-card">
-          <h3>🏪 ยอดขายแยกสาขา</h3>
-          <div style={{ marginTop: 12 }}>
+          <div>
             {branchSales.map((b, i) => {
               const maxRev = branchSales[0].revenue;
               const pct = maxRev > 0 ? (b.revenue / maxRev) * 100 : 0;
               return (
-                <div key={i} style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>📍 {b.branch_name}</span>
-                    <div style={{ textAlign: 'right', fontSize: 12 }}>
-                      <span style={{ fontWeight: 700 }}>฿{b.revenue.toLocaleString()}</span>
-                      <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                        {b.count} ออเดอร์ • กำไร ฿{b.profit.toLocaleString()}
+                <div key={i} style={{ 
+                  padding: '14px 0',
+                  borderBottom: i < branchSales.length - 1 ? '1px solid var(--border)' : 'none',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ fontSize: 20 }}>🏪</div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{b.branch_name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                          {b.count} ออเดอร์ • กำไร ฿{b.profit.toLocaleString()}
+                        </div>
                       </div>
                     </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>
+                      ฿{b.revenue.toLocaleString()}
+                    </div>
                   </div>
-                  <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 3 }}>
+                  <div style={{ height: 4, background: 'var(--surface-2)', borderRadius: 2 }}>
                     <div style={{ 
                       height: '100%', 
                       width: `${pct}%`, 
                       background: 'var(--accent)',
-                      borderRadius: 3,
+                      borderRadius: 2,
                     }}/>
                   </div>
                 </div>

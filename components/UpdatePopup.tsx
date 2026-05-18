@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '3.3.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.2.0',
+  version: '3.3.0',
   date: '2026-05-18',
   features: [
     {
       icon: '🔔',
-      title: 'LINE Notify - แจ้งเตือนเข้า LINE!',
-      desc: 'ทุกครั้งที่ขาย/รับจำนำ/ไถ่คืน → ข้อความเข้า LINE ทันที • เลือกได้ว่าจะเปิด/ปิดแบบไหน',
+      title: 'เปลี่ยนเป็น LINE Messaging API',
+      desc: 'LINE Notify ปิดบริการแล้ว ระบบเปลี่ยนเป็น Messaging API (ฟรี 200 ข้อความ/เดือน) - ต้องตั้งค่าใหม่',
     },
     {
-      icon: '⚙️',
-      title: 'ตั้งค่าง่ายในหน้า Settings',
-      desc: 'ไปหน้าตั้งค่า → ใส่ LINE Notify Token → กดทดสอบ → เสร็จ! ใช้ได้ทุกอุปกรณ์',
+      icon: '📊',
+      title: 'หน้ารายงาน Redesign ใหม่',
+      desc: 'แยก tab ยอดขาย/รุ่นขายดี/สาขา - ดูทีละอย่าง สบายตา ไม่รก',
     },
     {
-      icon: '✅',
-      title: 'เลือกประเภทที่อยากให้แจ้ง',
-      desc: 'แจ้งขาย/จำนำ/ผ่อน/ของ/สินค้าใกล้หมด - เปิดปิดแยกได้ตามต้องการ',
+      icon: '💾',
+      title: 'หน้า Backup สะอาดขึ้น',
+      desc: 'ออกแบบใหม่ minimal - ปุ่ม Excel/JSON เด่นชัด อ่านง่าย',
     },
   ],
 };
