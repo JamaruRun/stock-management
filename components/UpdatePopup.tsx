@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.3.1';
+const APP_VERSION = '3.4.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,28 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.3.1',
+  version: '3.4.0',
   date: '2026-05-19',
   features: [
     {
-      icon: '📖',
-      title: 'คู่มือ LINE OA ใหม่ครบ',
-      desc: 'อัพเดทขั้นตอนสร้าง LINE OA → เปิด Messaging API ที่ถูกต้อง (LINE เปลี่ยนวิธีใหม่)',
+      icon: '🟢',
+      title: 'LINE Login ครั้งเดียวจบ!',
+      desc: 'ไม่ต้อง copy token, ไม่ต้องสร้าง LINE OA, ไม่ต้อง user ID • กดปุ่ม "เชื่อม LINE" → Login → จบ!',
     },
     {
-      icon: '🕐',
-      title: 'มีวัน-เวลาทุกข้อความ LINE',
-      desc: 'ทุกข้อความที่ส่งมีวันเวลาท้ายข้อความอัตโนมัติ ไม่ต้องเดาเอง',
+      icon: '👤',
+      title: 'เห็นโปรไฟล์ LINE ที่เชื่อม',
+      desc: 'หลังเชื่อมแล้ว เห็นรูป + ชื่อ LINE ที่ใช้ - มั่นใจว่าผูกถูกบัญชี',
     },
     {
-      icon: '🎨',
-      title: 'ข้อความ LINE สวยขึ้น',
-      desc: 'แบ่งหัวข้อชัดเจน • มีเส้นแบ่ง • อ่านง่าย เป็นมืออาชีพ',
-    },
-    {
-      icon: '🔔',
-      title: 'แจ้งครบทุก action',
-      desc: 'ขายเครื่อง/ขายของ/รับจำนำ/ต่อดอก/ไถ่/หลุดจำนำ/เพิ่มผ่อน/ชำระงวด/ปิดยอด ครบหมด',
+      icon: '🛡️',
+      title: 'แยกร้านชัดเจน',
+      desc: 'แต่ละร้านมี LINE user ID ของตัวเอง - ส่งข้อความเฉพาะเจ้าของร้านนั้นๆ',
     },
   ],
 };

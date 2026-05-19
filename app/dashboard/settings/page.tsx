@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import { sendLineNotify } from '@/lib/line-notify';
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [shop, setShop] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -26,14 +29,13 @@ export default function SettingsPage() {
   });
 
   const [lineForm, setLineForm] = useState({
-    line_channel_access_token: '',
-    line_user_id: '',
     line_notify_sale: true,
     line_notify_pawn: true,
     line_notify_goods: false,
     line_notify_installment: true,
     line_notify_low_stock: true,
   });
+  const [disconnecting, setDisconnecting] = useState(false);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -63,8 +65,6 @@ export default function SettingsPage() {
             receipt_prefix: s.receipt_prefix || 'INV',
           });
           setLineForm({
-            line_channel_access_token: s.line_channel_access_token || '',
-            line_user_id: s.line_user_id || '',
             line_notify_sale: s.line_notify_sale !== false,
             line_notify_pawn: s.line_notify_pawn !== false,
             line_notify_goods: s.line_notify_goods === true,
@@ -78,13 +78,30 @@ export default function SettingsPage() {
     load();
   }, []);
 
+  // จัดการผลลัพธ์หลังกลับจาก LINE OAuth
+  useEffect(() => {
+    const lineParam = searchParams.get('line');
+    if (!lineParam) return;
+
+    if (lineParam === 'connected') {
+      showToast('เชื่อม LINE สำเร็จ ✓', 'ระบบพร้อมส่งแจ้งเตือนแล้ว');
+    } else if (lineParam === 'cancelled') {
+      showToast('ยกเลิกการเชื่อม', '', 'danger');
+    } else if (lineParam === 'error') {
+      const reason = searchParams.get('reason');
+      showToast('เชื่อม LINE ไม่สำเร็จ', reason || 'ลองใหม่อีกครั้ง', 'danger');
+    }
+
+    // ล้าง URL params
+    router.replace('/dashboard/settings');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   async function handleSaveLine() {
     if (!shop) return;
     setSavingLine(true);
 
     const { error } = await supabase.from('shops').update({
-      line_channel_access_token: lineForm.line_channel_access_token || null,
-      line_user_id: lineForm.line_user_id || null,
       line_notify_sale: lineForm.line_notify_sale,
       line_notify_pawn: lineForm.line_notify_pawn,
       line_notify_goods: lineForm.line_notify_goods,
@@ -97,7 +114,7 @@ export default function SettingsPage() {
       showToast('บันทึกไม่สำเร็จ', error.message, 'danger');
       return;
     }
-    showToast('บันทึกสำเร็จ', 'ตั้งค่า LINE อัพเดทแล้ว');
+    showToast('บันทึกสำเร็จ', 'การแจ้งเตือนอัพเดทแล้ว');
     
     const { data: s } = await supabase
       .from('shops').select('*').eq('id', shop.id).single();
@@ -105,25 +122,18 @@ export default function SettingsPage() {
   }
 
   async function handleTestLine() {
-    if (!lineForm.line_channel_access_token || !lineForm.line_user_id) {
-      showToast('ใส่ Token + User ID ก่อน', '', 'danger');
+    if (!shop?.line_user_id) {
+      showToast('ยังไม่ได้เชื่อม LINE', 'กดเชื่อม LINE ก่อน', 'danger');
       return;
     }
     
     setTestingLine(true);
     
-    // บันทึกก่อนเทส
-    await supabase.from('shops').update({
-      line_channel_access_token: lineForm.line_channel_access_token,
-      line_user_id: lineForm.line_user_id,
-    }).eq('id', shop.id);
-
-    const { sendLinePush } = await import('@/lib/line-notify');
     const now = new Date();
     const dateStr = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    const result = await sendLinePush(
-      `🎉 ทดสอบ LINE Messaging API\n\n🏪 ร้าน: ${shop?.name || 'ของคุณ'}\n📅 วันที่: ${dateStr}\n🕐 เวลา: ${timeStr} น.\n\n✅ การเชื่อมต่อสำเร็จ\nระบบจะแจ้งเตือนคุณตามที่ตั้งค่าไว้`,
+    const result = await sendLineNotify(
+      `🎉 ทดสอบการแจ้งเตือน\n\n🏪 ร้าน: ${shop?.name || 'ของคุณ'}\n📅 ${dateStr}\n🕐 ${timeStr} น.\n\n✅ การเชื่อมต่อสำเร็จ\nระบบจะแจ้งเตือนคุณตามที่ตั้งค่าไว้`,
       'test'
     );
 
@@ -132,7 +142,35 @@ export default function SettingsPage() {
     if (result.success) {
       showToast('ส่งสำเร็จ ✓', 'เช็คใน LINE ดู');
     } else {
-      showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'Token/User ID ไม่ถูก', 'danger');
+      showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'ลองเชื่อม LINE ใหม่', 'danger');
+    }
+  }
+
+  function handleConnectLine() {
+    // Redirect ไป LINE OAuth
+    window.location.href = '/api/line/login';
+  }
+
+  async function handleDisconnectLine() {
+    if (!confirm('ยืนยันยกเลิกการเชื่อม LINE?\n\nร้านนี้จะไม่ได้รับแจ้งเตือนอีก')) return;
+    
+    setDisconnecting(true);
+    try {
+      const res = await fetch('/api/line/disconnect', { method: 'POST' });
+      const data = await res.json();
+      
+      if (data.success) {
+        showToast('ยกเลิกการเชื่อมแล้ว', '');
+        const { data: s } = await supabase
+          .from('shops').select('*').eq('id', shop.id).single();
+        setShop(s);
+      } else {
+        showToast('ยกเลิกไม่สำเร็จ', data.error || '', 'danger');
+      }
+    } catch (e: any) {
+      showToast('เกิดข้อผิดพลาด', e.message, 'danger');
+    } finally {
+      setDisconnecting(false);
     }
   }
 
@@ -341,265 +379,248 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* LINE Messaging API Section */}
+      {/* LINE Notification - OAuth */}
       <div className="form-card">
-        <h3>🔔 LINE Messaging API</h3>
+        <h3>🔔 แจ้งเตือนผ่าน LINE</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
-          แจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของเจ้าของแบบเรียลไทม์
+          รับแจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของคุณแบบเรียลไทม์
         </p>
 
-        <div style={{
-          padding: 12,
-          background: 'rgba(255, 158, 11, 0.08)',
-          borderLeft: '3px solid var(--warning)',
-          marginBottom: 12,
-          fontSize: 12,
-          lineHeight: 1.6,
-        }}>
-          <strong style={{ color: 'var(--warning-text)' }}>⚠️ LINE Notify ปิดบริการแล้ว</strong>
-          <div style={{ marginTop: 4 }}>
-            ตอนนี้ใช้ <strong>LINE Messaging API</strong> ผ่าน LINE Official Account แทน — ฟรี 200 ข้อความ/เดือน
-          </div>
-        </div>
-
-        <div style={{
-          padding: 14,
-          background: 'rgba(0, 195, 0, 0.06)',
-          border: '1px solid rgba(0, 195, 0, 0.3)',
-          borderRadius: 'var(--radius-sm)',
-          marginBottom: 16,
-          fontSize: 12,
-          lineHeight: 1.7,
-        }}>
-          <div style={{ fontWeight: 700, color: '#00B900', fontSize: 13, marginBottom: 10 }}>
-            📌 วิธีตั้งค่า (10 นาที)
-          </div>
-
-          {/* ส่วนที่ 1 - สร้าง LINE OA */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
-              ขั้นที่ 1: สร้าง LINE Official Account (LINE OA)
-            </div>
-            <ol style={{ marginLeft: 18, marginTop: 4 }}>
-              <li>ไปที่ <a href="https://www.linebiz.com/th/entry/" target="_blank" rel="noopener" style={{ color: '#00B900', textDecoration: 'underline', fontWeight: 600 }}>linebiz.com/th/entry/</a></li>
-              <li>กด <strong>"เริ่มต้นใช้งานฟรี"</strong> → Login ด้วย LINE ของเจ้าของร้าน</li>
-              <li>กรอกข้อมูล:
-                <ul style={{ marginLeft: 16, marginTop: 2 }}>
-                  <li>ชื่อบัญชี: "ร้านของคุณ" (เปลี่ยนทีหลังได้)</li>
-                  <li>ประเภทธุรกิจ: <strong>ร้านค้าปลีก</strong></li>
-                  <li>หมวดหมู่: <strong>โทรศัพท์/อุปกรณ์อิเล็กทรอนิกส์</strong></li>
-                </ul>
-              </li>
-              <li>กดสร้าง → ได้ LINE OA ใหม่ (ฟรี)</li>
-            </ol>
-          </div>
-
-          {/* ส่วนที่ 2 - เปิด Messaging API */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
-              ขั้นที่ 2: เปิด Messaging API
-            </div>
-            <ol style={{ marginLeft: 18, marginTop: 4 }}>
-              <li>เข้า <a href="https://manager.line.biz/" target="_blank" rel="noopener" style={{ color: '#00B900', textDecoration: 'underline', fontWeight: 600 }}>LINE Official Account Manager</a></li>
-              <li>เลือก LINE OA ที่เพิ่งสร้าง → ไปที่ <strong>"การตั้งค่า"</strong> (มุมขวาบน)</li>
-              <li>เมนูซ้าย → <strong>"Messaging API"</strong></li>
-              <li>กด <strong>"ใช้ Messaging API"</strong> → ยอมรับเงื่อนไข</li>
-              <li>เลือก Provider (ถ้ายังไม่มี ให้สร้างใหม่ ชื่อร้านของคุณก็ได้)</li>
-              <li>กดยืนยัน → ระบบเชื่อม OA กับ Messaging API แล้ว</li>
-            </ol>
-          </div>
-
-          {/* ส่วนที่ 3 - เอา Token */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
-              ขั้นที่ 3: Copy Channel Access Token
-            </div>
-            <ol style={{ marginLeft: 18, marginTop: 4 }}>
-              <li>หลังเปิด Messaging API แล้ว → จะมีลิงก์ไป <strong>LINE Developers Console</strong> ให้กดเข้า</li>
-              <li>หรือเข้าตรงๆ ที่ <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" style={{ color: '#00B900', textDecoration: 'underline', fontWeight: 600 }}>developers.line.biz/console/</a></li>
-              <li>เลือก Provider → เลือก Channel ของ OA คุณ</li>
-              <li>เข้า tab <strong>"Messaging API"</strong> → scroll ลงสุด</li>
-              <li>หา <strong>"Channel access token (long-lived)"</strong> → กด <strong>"Issue"</strong></li>
-              <li>Copy token ที่ได้</li>
-            </ol>
-          </div>
-
-          {/* ส่วนที่ 4 - Add บอทเป็นเพื่อน */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
-              ขั้นที่ 4: เพิ่ม LINE OA เป็นเพื่อน
-            </div>
-            <ol style={{ marginLeft: 18, marginTop: 4 }}>
-              <li>ใน LINE Developers → tab <strong>"Messaging API"</strong></li>
-              <li>หา <strong>QR code</strong> ของ Bot (อยู่ใต้ Bot information)</li>
-              <li>เปิดแอป LINE มือถือ → สแกน QR Code → <strong>เพิ่มเพื่อน</strong></li>
-              <li>⚠️ <strong style={{ color: 'var(--danger)' }}>สำคัญ!</strong> ถ้าไม่เพิ่มเป็นเพื่อน บอทส่งข้อความหาคุณไม่ได้</li>
-            </ol>
-          </div>
-
-          {/* ส่วนที่ 5 - เอา User ID */}
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
-              ขั้นที่ 5: Copy User ID ของคุณ
-            </div>
-            <ol style={{ marginLeft: 18, marginTop: 4 }}>
-              <li>ใน LINE Developers → tab <strong>"Basic settings"</strong></li>
-              <li>Scroll ลงสุด → หา <strong>"Your user ID"</strong></li>
-              <li>Copy User ID (ขึ้นต้นด้วย U เช่น <code style={{ fontSize: 11 }}>U1234567890abcdef...</code>)</li>
-              <li>กลับมาที่หน้านี้ → วาง Token + User ID → กด <strong>🧪 ทดสอบ</strong></li>
-            </ol>
-          </div>
-        </div>
-
-        <div style={{
-          padding: 10,
-          background: 'rgba(59, 130, 246, 0.08)',
-          borderLeft: '3px solid var(--accent)',
-          marginBottom: 16,
-          fontSize: 11,
-          lineHeight: 1.6,
-        }}>
-          💡 <strong>หมายเหตุ:</strong> ทำครั้งเดียวจบ ใช้ได้ตลอด • ฟรี 200 ข้อความ/เดือน (พอสำหรับร้านเล็ก-กลาง)
-        </div>
-
-        <div className="form-grid">
-          <div className="field full">
-            <label>Channel Access Token (Long-lived)</label>
-            <input 
-              type="text" 
-              value={lineForm.line_channel_access_token}
-              onChange={(e) => setLineForm({ ...lineForm, line_channel_access_token: e.target.value })}
-              placeholder="วาง Token ยาวๆ จาก LINE Developers"
-              style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}
-            />
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-              จากขั้นที่ 3 • Token จะยาวมากๆ (ประมาณ 170 ตัวอักษร)
-            </div>
-          </div>
-
-          <div className="field full">
-            <label>Your User ID</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input 
-                type="text" 
-                value={lineForm.line_user_id}
-                onChange={(e) => setLineForm({ ...lineForm, line_user_id: e.target.value })}
-                placeholder="U1234567890abcdef..."
-                style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
+        {/* สถานะการเชื่อมต่อ */}
+        {shop?.line_user_id ? (
+          // กรณีเชื่อมแล้ว
+          <div style={{
+            padding: 16,
+            background: 'rgba(0, 195, 0, 0.06)',
+            border: '1px solid rgba(0, 195, 0, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+          }}>
+            {shop.line_picture_url ? (
+              <img 
+                src={shop.line_picture_url} 
+                alt="LINE profile" 
+                style={{ 
+                  width: 56, 
+                  height: 56, 
+                  borderRadius: '50%',
+                  border: '2px solid #00C300',
+                }}
               />
-              <button 
-                type="button" 
-                onClick={handleTestLine} 
-                disabled={testingLine || !lineForm.line_channel_access_token || !lineForm.line_user_id}
+            ) : (
+              <div style={{
+                width: 56, height: 56,
+                borderRadius: '50%',
+                background: '#00C300',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 28,
+              }}>💬</div>
+            )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: '#00B900', fontWeight: 600, letterSpacing: 0.5 }}>
+                ✓ เชื่อมต่อแล้ว
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>
+                {shop.line_display_name || 'LINE User'}
+              </div>
+              {shop.line_connected_at && (
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                  เชื่อมเมื่อ {new Date(shop.line_connected_at).toLocaleDateString('th-TH', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                  })}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleDisconnectLine}
+              disabled={disconnecting}
+              className="btn btn-sec"
+              style={{ 
+                width: 'auto', 
+                padding: '8px 14px', 
+                fontSize: 12,
+                color: 'var(--danger)',
+                borderColor: 'var(--danger)',
+              }}
+            >
+              {disconnecting ? 'กำลังยกเลิก...' : 'ยกเลิก'}
+            </button>
+          </div>
+        ) : (
+          // กรณียังไม่ได้เชื่อม - ปุ่มเขียวเด่นๆ
+          <div style={{ marginBottom: 16 }}>
+            <button
+              onClick={handleConnectLine}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                background: '#00C300',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 15,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                boxShadow: '0 2px 8px rgba(0, 195, 0, 0.3)',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              <span style={{ fontSize: 18 }}>💬</span>
+              <span>เชื่อม LINE (Login ครั้งเดียวจบ)</span>
+            </button>
+            <div style={{ 
+              fontSize: 11, 
+              color: 'var(--text-dim)', 
+              marginTop: 8, 
+              textAlign: 'center',
+            }}>
+              🔒 ปลอดภัย • ใช้ LINE Login • ใช้เวลา 10 วินาที
+            </div>
+          </div>
+        )}
+
+        {/* ปุ่มทดสอบ + Settings - แสดงเมื่อเชื่อมแล้ว */}
+        {shop?.line_user_id && (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <button
+                onClick={handleTestLine}
+                disabled={testingLine}
                 className="btn btn-sec"
-                style={{ width: 'auto', padding: '0 16px', whiteSpace: 'nowrap' }}
+                style={{ width: 'auto', flex: 1 }}
               >
-                {testingLine ? 'กำลังส่ง...' : '🧪 ทดสอบ'}
+                {testingLine ? 'กำลังส่ง...' : '🧪 ส่งข้อความทดสอบ'}
               </button>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-              จากขั้นที่ 5 • ขึ้นต้นด้วย U
+
+            <div className="form-grid">
+              <div className="field full">
+                <label style={{ marginBottom: 10 }}>เลือกประเภทการแจ้งเตือน</label>
+
+                <NotifyCheckbox
+                  checked={lineForm.line_notify_sale}
+                  onChange={(v) => setLineForm({ ...lineForm, line_notify_sale: v })}
+                  icon="📱"
+                  title="ขายเครื่อง"
+                  desc="แจ้งทุกครั้งที่ขายเครื่อง"
+                />
+                <NotifyCheckbox
+                  checked={lineForm.line_notify_pawn}
+                  onChange={(v) => setLineForm({ ...lineForm, line_notify_pawn: v })}
+                  icon="💰"
+                  title="จำนำ"
+                  desc="รับจำนำ / ต่อดอก / ไถ่คืน / หลุดจำนำ"
+                />
+                <NotifyCheckbox
+                  checked={lineForm.line_notify_installment}
+                  onChange={(v) => setLineForm({ ...lineForm, line_notify_installment: v })}
+                  icon="💳"
+                  title="ผ่อน"
+                  desc="เพิ่มผ่อน / รับชำระงวด / ปิดยอด"
+                />
+                <NotifyCheckbox
+                  checked={lineForm.line_notify_goods}
+                  onChange={(v) => setLineForm({ ...lineForm, line_notify_goods: v })}
+                  icon="🎒"
+                  title="ขายอุปกรณ์เสริม"
+                  desc="อาจรกถ้าขายเยอะ - ปิดได้"
+                />
+                <NotifyCheckbox
+                  checked={lineForm.line_notify_low_stock}
+                  onChange={(v) => setLineForm({ ...lineForm, line_notify_low_stock: v })}
+                  icon="📦"
+                  title="สินค้าใกล้หมด"
+                  desc="แจ้งเมื่อขายของแล้วเหลือน้อย"
+                />
+              </div>
+            </div>
+
+            <div className="form-actions" style={{ marginTop: 16 }}>
+              <button className="btn" onClick={handleSaveLine} disabled={savingLine}>
+                {savingLine ? 'กำลังบันทึก...' : '💾 บันทึก'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* คำอธิบายสั้นๆ - เฉพาะตอนยังไม่เชื่อม */}
+        {!shop?.line_user_id && (
+          <div style={{
+            padding: 12,
+            background: 'var(--surface-2)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 12,
+            color: 'var(--text-dim)',
+            lineHeight: 1.6,
+          }}>
+            💡 <strong style={{ color: 'var(--text)' }}>วิธีใช้:</strong> กดปุ่ม "เชื่อม LINE" → Login ด้วย LINE ของคุณ → อนุญาต → เสร็จ!
+            <div style={{ marginTop: 8 }}>
+              ✓ ปลอดภัย ใช้ LINE Login Official
+            </div>
+            <div>
+              ✓ ระบบไม่เก็บรหัสผ่าน LINE ของคุณ
+            </div>
+            <div>
+              ✓ เลิกเชื่อมเมื่อไหร่ก็ได้
             </div>
           </div>
-
-          <div className="field full">
-            <label style={{ marginBottom: 10 }}>เลือกการแจ้งเตือน</label>
-            
-            <label style={{ 
-              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
-              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
-              background: lineForm.line_notify_sale ? 'var(--accent-light)' : 'var(--surface-2)',
-            }}>
-              <input 
-                type="checkbox" 
-                checked={lineForm.line_notify_sale}
-                onChange={(e) => setLineForm({ ...lineForm, line_notify_sale: e.target.checked })}
-                style={{ width: 18, height: 18, cursor: 'pointer' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>📱 ขายเครื่อง</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>แจ้งทุกครั้งที่ขายเครื่อง</div>
-              </div>
-            </label>
-
-            <label style={{ 
-              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
-              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
-              background: lineForm.line_notify_pawn ? 'var(--accent-light)' : 'var(--surface-2)',
-            }}>
-              <input 
-                type="checkbox" 
-                checked={lineForm.line_notify_pawn}
-                onChange={(e) => setLineForm({ ...lineForm, line_notify_pawn: e.target.checked })}
-                style={{ width: 18, height: 18, cursor: 'pointer' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>💰 จำนำ</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>รับจำนำ / ไถ่คืน / หลุดจำนำ</div>
-              </div>
-            </label>
-
-            <label style={{ 
-              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
-              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
-              background: lineForm.line_notify_installment ? 'var(--accent-light)' : 'var(--surface-2)',
-            }}>
-              <input 
-                type="checkbox" 
-                checked={lineForm.line_notify_installment}
-                onChange={(e) => setLineForm({ ...lineForm, line_notify_installment: e.target.checked })}
-                style={{ width: 18, height: 18, cursor: 'pointer' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>💳 ผ่อน</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>รับชำระงวด / ปิดยอด</div>
-              </div>
-            </label>
-
-            <label style={{ 
-              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
-              cursor: 'pointer', borderRadius: 6, marginBottom: 6,
-              background: lineForm.line_notify_goods ? 'var(--accent-light)' : 'var(--surface-2)',
-            }}>
-              <input 
-                type="checkbox" 
-                checked={lineForm.line_notify_goods}
-                onChange={(e) => setLineForm({ ...lineForm, line_notify_goods: e.target.checked })}
-                style={{ width: 18, height: 18, cursor: 'pointer' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>🎒 ขายของ (อุปกรณ์เสริม)</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>อาจรกถ้าขายเยอะ - ปิดได้</div>
-              </div>
-            </label>
-
-            <label style={{ 
-              display: 'flex', alignItems: 'center', gap: 10, padding: 10,
-              cursor: 'pointer', borderRadius: 6,
-              background: lineForm.line_notify_low_stock ? 'var(--accent-light)' : 'var(--surface-2)',
-            }}>
-              <input 
-                type="checkbox" 
-                checked={lineForm.line_notify_low_stock}
-                onChange={(e) => setLineForm({ ...lineForm, line_notify_low_stock: e.target.checked })}
-                style={{ width: 18, height: 18, cursor: 'pointer' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>📦 สินค้าใกล้หมด</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>แจ้งเมื่อขายของแล้วเหลือน้อย</div>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="form-actions" style={{ marginTop: 16 }}>
-          <button className="btn" onClick={handleSaveLine} disabled={savingLine}>
-            {savingLine ? 'กำลังบันทึก...' : '💾 บันทึก'}
-          </button>
-        </div>
+        )}
       </div>
 
       {toast && <Toast {...toast} />}
     </>
+  );
+}
+
+function NotifyCheckbox({ 
+  checked, 
+  onChange, 
+  icon, 
+  title, 
+  desc 
+}: { 
+  checked: boolean; 
+  onChange: (v: boolean) => void; 
+  icon: string; 
+  title: string; 
+  desc: string;
+}) {
+  return (
+    <label style={{ 
+      display: 'flex', alignItems: 'center', gap: 10, padding: 10,
+      cursor: 'pointer', borderRadius: 6, marginBottom: 6,
+      background: checked ? 'var(--accent-light)' : 'var(--surface-2)',
+    }}>
+      <input 
+        type="checkbox" 
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ width: 18, height: 18, cursor: 'pointer' }}
+      />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{icon} {title}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{desc}</div>
+      </div>
+    </label>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="loading"><div className="spinner"></div></div>}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }
