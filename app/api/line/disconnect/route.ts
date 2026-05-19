@@ -16,16 +16,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not admin' }, { status: 403 });
   }
 
-  // ลบ LINE info ของร้านนี้เท่านั้น
+  // ลบ LINE info ของ admin คนนี้เท่านั้น (ไม่กระทบ admin คนอื่น)
   const { error } = await supabase
-    .from('shops')
+    .from('profiles')
     .update({
       line_user_id: null,
       line_display_name: null,
       line_picture_url: null,
       line_connected_at: null,
     })
-    .eq('id', profile.shop_id);
+    .eq('id', user.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

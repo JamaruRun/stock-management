@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.4.0';
+const APP_VERSION = '3.4.1';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,18 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.4.0',
+  version: '3.4.1',
   date: '2026-05-19',
   features: [
     {
-      icon: '🟢',
-      title: 'LINE Login ครั้งเดียวจบ!',
-      desc: 'ไม่ต้อง copy token, ไม่ต้องสร้าง LINE OA, ไม่ต้อง user ID • กดปุ่ม "เชื่อม LINE" → Login → จบ!',
+      icon: '👥',
+      title: 'แต่ละ Admin ผูก LINE แยกกันได้!',
+      desc: 'admin หลายคนในร้านเดียวสามารถผูก LINE ของตัวเอง • ทุกคนได้รับแจ้งเตือนพร้อมกัน',
     },
     {
-      icon: '👤',
-      title: 'เห็นโปรไฟล์ LINE ที่เชื่อม',
-      desc: 'หลังเชื่อมแล้ว เห็นรูป + ชื่อ LINE ที่ใช้ - มั่นใจว่าผูกถูกบัญชี',
-    },
-    {
-      icon: '🛡️',
-      title: 'แยกร้านชัดเจน',
-      desc: 'แต่ละร้านมี LINE user ID ของตัวเอง - ส่งข้อความเฉพาะเจ้าของร้านนั้นๆ',
+      icon: '👁️',
+      title: 'เห็น Admin อื่นที่เชื่อมแล้ว',
+      desc: 'ในหน้า Settings เห็นรายชื่อ admin คนอื่นในร้านที่ผูก LINE แล้ว - รู้ว่าใครจะได้รับแจ้งเตือน',
     },
   ],
 };

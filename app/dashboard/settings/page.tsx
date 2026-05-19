@@ -36,6 +36,7 @@ function SettingsPageContent() {
     line_notify_low_stock: true,
   });
   const [disconnecting, setDisconnecting] = useState(false);
+  const [otherAdmins, setOtherAdmins] = useState<any[]>([]);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -72,6 +73,16 @@ function SettingsPageContent() {
             line_notify_low_stock: s.line_notify_low_stock !== false,
           });
         }
+
+        // โหลด admin อื่นในร้านที่ผูก LINE แล้ว (ไม่นับตัวเอง)
+        const { data: others } = await supabase
+          .from('profiles')
+          .select('id, full_name, line_display_name, line_picture_url, line_connected_at')
+          .eq('shop_id', p.shop_id)
+          .eq('role', 'admin')
+          .neq('id', user.id)
+          .not('line_user_id', 'is', null);
+        setOtherAdmins(others || []);
       }
       setLoading(false);
     }
@@ -122,7 +133,7 @@ function SettingsPageContent() {
   }
 
   async function handleTestLine() {
-    if (!shop?.line_user_id) {
+    if (!profile?.line_user_id) {
       showToast('ยังไม่ได้เชื่อม LINE', 'กดเชื่อม LINE ก่อน', 'danger');
       return;
     }
@@ -133,26 +144,25 @@ function SettingsPageContent() {
     const dateStr = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     const result = await sendLineNotify(
-      `🎉 ทดสอบการแจ้งเตือน\n\n🏪 ร้าน: ${shop?.name || 'ของคุณ'}\n📅 ${dateStr}\n🕐 ${timeStr} น.\n\n✅ การเชื่อมต่อสำเร็จ\nระบบจะแจ้งเตือนคุณตามที่ตั้งค่าไว้`,
+      `🎉 ทดสอบการแจ้งเตือน\n\n🏪 ร้าน: ${shop?.name || 'ของคุณ'}\n👤 ผู้รับ: ${profile?.full_name}\n📅 ${dateStr}\n🕐 ${timeStr} น.\n\n✅ การเชื่อมต่อสำเร็จ`,
       'test'
     );
 
     setTestingLine(false);
 
     if (result.success) {
-      showToast('ส่งสำเร็จ ✓', 'เช็คใน LINE ดู');
+      showToast('ส่งสำเร็จ ✓', `ส่งให้ ${profile.line_display_name}`);
     } else {
       showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'ลองเชื่อม LINE ใหม่', 'danger');
     }
   }
 
   function handleConnectLine() {
-    // Redirect ไป LINE OAuth
     window.location.href = '/api/line/login';
   }
 
   async function handleDisconnectLine() {
-    if (!confirm('ยืนยันยกเลิกการเชื่อม LINE?\n\nร้านนี้จะไม่ได้รับแจ้งเตือนอีก')) return;
+    if (!confirm('ยืนยันยกเลิกการเชื่อม LINE?\n\nคุณจะไม่ได้รับแจ้งเตือนอีก\n(admin คนอื่นในร้านยังได้รับอยู่)')) return;
     
     setDisconnecting(true);
     try {
@@ -161,9 +171,13 @@ function SettingsPageContent() {
       
       if (data.success) {
         showToast('ยกเลิกการเชื่อมแล้ว', '');
-        const { data: s } = await supabase
-          .from('shops').select('*').eq('id', shop.id).single();
-        setShop(s);
+        // reload profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: p } = await supabase
+            .from('profiles').select('*').eq('id', user.id).single();
+          setProfile(p);
+        }
       } else {
         showToast('ยกเลิกไม่สำเร็จ', data.error || '', 'danger');
       }
@@ -379,16 +393,19 @@ function SettingsPageContent() {
         </div>
       </div>
 
-      {/* LINE Notification - OAuth */}
+      {/* LINE Notification - OAuth per admin */}
       <div className="form-card">
         <h3>🔔 แจ้งเตือนผ่าน LINE</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
-          รับแจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของคุณแบบเรียลไทม์
+          รับแจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของคุณ
+          <br/>
+          <span style={{ fontSize: 11 }}>
+            💡 แต่ละ admin ผูก LINE แยกกัน - ทุกคนจะได้รับแจ้งเตือนพร้อมกัน
+          </span>
         </p>
 
-        {/* สถานะการเชื่อมต่อ */}
-        {shop?.line_user_id ? (
-          // กรณีเชื่อมแล้ว
+        {/* สถานะ LINE ของฉัน */}
+        {profile?.line_user_id ? (
           <div style={{
             padding: 16,
             background: 'rgba(0, 195, 0, 0.06)',
@@ -399,9 +416,9 @@ function SettingsPageContent() {
             alignItems: 'center',
             gap: 14,
           }}>
-            {shop.line_picture_url ? (
+            {profile.line_picture_url ? (
               <img 
-                src={shop.line_picture_url} 
+                src={profile.line_picture_url} 
                 alt="LINE profile" 
                 style={{ 
                   width: 56, 
@@ -423,14 +440,14 @@ function SettingsPageContent() {
             )}
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 11, color: '#00B900', fontWeight: 600, letterSpacing: 0.5 }}>
-                ✓ เชื่อมต่อแล้ว
+                ✓ คุณเชื่อมต่อ LINE แล้ว
               </div>
               <div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>
-                {shop.line_display_name || 'LINE User'}
+                {profile.line_display_name || 'LINE User'}
               </div>
-              {shop.line_connected_at && (
+              {profile.line_connected_at && (
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                  เชื่อมเมื่อ {new Date(shop.line_connected_at).toLocaleDateString('th-TH', {
+                  เชื่อมเมื่อ {new Date(profile.line_connected_at).toLocaleDateString('th-TH', {
                     day: 'numeric', month: 'short', year: 'numeric',
                   })}
                 </div>
@@ -452,7 +469,6 @@ function SettingsPageContent() {
             </button>
           </div>
         ) : (
-          // กรณียังไม่ได้เชื่อม - ปุ่มเขียวเด่นๆ
           <div style={{ marginBottom: 16 }}>
             <button
               onClick={handleConnectLine}
@@ -472,13 +488,12 @@ function SettingsPageContent() {
                 justifyContent: 'center',
                 gap: 10,
                 boxShadow: '0 2px 8px rgba(0, 195, 0, 0.3)',
-                transition: 'transform 0.15s, box-shadow 0.15s',
               }}
               onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)'; }}
               onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
               <span style={{ fontSize: 18 }}>💬</span>
-              <span>เชื่อม LINE (Login ครั้งเดียวจบ)</span>
+              <span>เชื่อม LINE ของคุณ (Login ครั้งเดียวจบ)</span>
             </button>
             <div style={{ 
               fontSize: 11, 
@@ -491,8 +506,76 @@ function SettingsPageContent() {
           </div>
         )}
 
-        {/* ปุ่มทดสอบ + Settings - แสดงเมื่อเชื่อมแล้ว */}
-        {shop?.line_user_id && (
+        {/* แสดง admin คนอื่นในร้านที่ผูก LINE แล้ว */}
+        {otherAdmins.length > 0 && (
+          <div style={{
+            padding: 12,
+            background: 'var(--surface-2)',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: 16,
+          }}>
+            <div style={{ 
+              fontSize: 11, 
+              color: 'var(--text-dim)', 
+              fontWeight: 600, 
+              letterSpacing: 0.5, 
+              marginBottom: 8,
+              textTransform: 'uppercase',
+            }}>
+              👥 Admin คนอื่นในร้าน ({otherAdmins.length} คน)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {otherAdmins.map((a) => (
+                <div key={a.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 10px',
+                  background: 'var(--surface)',
+                  borderRadius: 6,
+                  fontSize: 12,
+                }}>
+                  {a.line_picture_url ? (
+                    <img 
+                      src={a.line_picture_url} 
+                      alt="" 
+                      style={{ width: 32, height: 32, borderRadius: '50%' }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 32, height: 32,
+                      borderRadius: '50%',
+                      background: '#00C300',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 14,
+                    }}>💬</div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{a.full_name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                      LINE: {a.line_display_name}
+                    </div>
+                  </div>
+                  <div style={{ 
+                    fontSize: 10, 
+                    color: '#00B900', 
+                    fontWeight: 600,
+                  }}>
+                    ✓
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8 }}>
+              💡 ทุกคนข้างต้นจะได้รับแจ้งเตือนพร้อมกันเมื่อมีกิจกรรม
+            </div>
+          </div>
+        )}
+
+        {/* ปุ่มทดสอบ + Settings */}
+        {profile?.line_user_id && (
           <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
               <button
@@ -501,13 +584,18 @@ function SettingsPageContent() {
                 className="btn btn-sec"
                 style={{ width: 'auto', flex: 1 }}
               >
-                {testingLine ? 'กำลังส่ง...' : '🧪 ส่งข้อความทดสอบ'}
+                {testingLine ? 'กำลังส่ง...' : '🧪 ส่งทดสอบให้ตัวเอง'}
               </button>
             </div>
 
             <div className="form-grid">
               <div className="field full">
-                <label style={{ marginBottom: 10 }}>เลือกประเภทการแจ้งเตือน</label>
+                <label style={{ marginBottom: 10 }}>
+                  เลือกประเภทการแจ้งเตือน
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 6 }}>
+                    (มีผลกับทุก admin ในร้าน)
+                  </span>
+                </label>
 
                 <NotifyCheckbox
                   checked={lineForm.line_notify_sale}
@@ -555,8 +643,8 @@ function SettingsPageContent() {
           </>
         )}
 
-        {/* คำอธิบายสั้นๆ - เฉพาะตอนยังไม่เชื่อม */}
-        {!shop?.line_user_id && (
+        {/* คำอธิบายตอนยังไม่เชื่อม */}
+        {!profile?.line_user_id && otherAdmins.length === 0 && (
           <div style={{
             padding: 12,
             background: 'var(--surface-2)',
@@ -566,15 +654,9 @@ function SettingsPageContent() {
             lineHeight: 1.6,
           }}>
             💡 <strong style={{ color: 'var(--text)' }}>วิธีใช้:</strong> กดปุ่ม "เชื่อม LINE" → Login ด้วย LINE ของคุณ → อนุญาต → เสร็จ!
-            <div style={{ marginTop: 8 }}>
-              ✓ ปลอดภัย ใช้ LINE Login Official
-            </div>
-            <div>
-              ✓ ระบบไม่เก็บรหัสผ่าน LINE ของคุณ
-            </div>
-            <div>
-              ✓ เลิกเชื่อมเมื่อไหร่ก็ได้
-            </div>
+            <div style={{ marginTop: 8 }}>✓ ปลอดภัย ใช้ LINE Login Official</div>
+            <div>✓ ไม่เก็บรหัสผ่าน LINE</div>
+            <div>✓ แต่ละ admin ผูก LINE แยกกันได้</div>
           </div>
         )}
       </div>

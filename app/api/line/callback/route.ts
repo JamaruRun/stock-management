@@ -89,20 +89,20 @@ export async function GET(req: NextRequest) {
     const lineProfile = await profileRes.json();
     // lineProfile = { userId, displayName, pictureUrl, statusMessage }
 
-    // ⭐ บันทึก line_user_id ของ "ร้านนี้เท่านั้น" 
-    // (line_user_id เก็บใน shops table โดยอ้างอิงจาก shop_id - ไม่กระทบร้านอื่น)
+    // ⭐ บันทึก line_user_id ใน profile ของ admin คนนี้
+    // (แต่ละ admin มี LINE ของตัวเองแยกกัน)
     const { error: updateError } = await supabase
-      .from('shops')
+      .from('profiles')
       .update({
         line_user_id: lineProfile.userId,
         line_display_name: lineProfile.displayName,
         line_picture_url: lineProfile.pictureUrl || null,
         line_connected_at: new Date().toISOString(),
       })
-      .eq('id', profile.shop_id);
+      .eq('id', user.id);
 
     if (updateError) {
-      console.error('Update shop failed:', updateError);
+      console.error('Update profile failed:', updateError);
       return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=save_failed', req.url));
     }
 
