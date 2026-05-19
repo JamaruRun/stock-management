@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import { sendLineNotify } from '@/lib/line-notify';
 
 interface CartItem {
   goods_id: string;
@@ -199,6 +200,12 @@ export default function SellGoodsPage() {
     setSubmitting(false);
     setShowConfirm(false);
     showToast('ขายสำเร็จ', `${cart.length} รายการ • ฿${total.toLocaleString()}`);
+    
+    // 🔔 LINE Notify
+    const itemLines = cart.map(c => `• ${c.name} x${c.quantity} = ฿${(c.unit_price * c.quantity).toLocaleString()}`).join('\n');
+    const lineMsg = `🎒 ขายอุปกรณ์เสริม\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━\n💵 รวม: ฿${total.toLocaleString()}`;
+    sendLineNotify(lineMsg, 'goods').catch(() => {});
+    
     setCart([]);
     setDiscount('');
   }

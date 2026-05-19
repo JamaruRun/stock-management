@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import ImportExcel from '@/components/ImportExcel';
+import { sendLineNotify } from '@/lib/line-notify';
 
 export default function PawnStockPage() {
   const supabase = createClient();
@@ -250,6 +251,11 @@ export default function PawnStockPage() {
     }
 
     showToast('ต่อดอกสำเร็จ', `ครบกำหนดใหม่: ${newDueStr}`);
+    
+    // 🔔 LINE Notify
+    const lineMsg = `🔄 ต่อดอกจำนำ\n━━━━━━━━━━━━━\n📦 ${renewing.model}\n🔢 IMEI: ${renewing.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${renewing.customer_name}\n💰 ดอกเบี้ยที่จ่าย: ฿${interestPaid.toLocaleString()}\n📅 ครบกำหนดใหม่: ${newDueStr}\n🔢 ต่อมาแล้ว: ${(renewing.renew_count || 0) + 1} ครั้ง`;
+    sendLineNotify(lineMsg, 'pawn').catch(() => {});
+    
     setRenewing(null);
     setRenewForm({ interestPaid: '', note: '' });
     loadData();
@@ -301,6 +307,11 @@ export default function PawnStockPage() {
     await supabase.from('pawn_stock').delete().eq('id', forfeiting.id);
 
     showToast('บันทึกหลุดจำนำแล้ว', `${forfeiting.model} • ${forfeiting.customer_name}`);
+    
+    // 🔔 LINE Notify
+    const lineMsg = `⚠️ บันทึกหลุดจำนำ\n━━━━━━━━━━━━━\n📦 ${forfeiting.model}\n🔢 IMEI: ${forfeiting.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${forfeiting.customer_name}\n💵 ราคาจำนำเดิม: ฿${Number(forfeiting.pawn_price).toLocaleString()}\n💰 ดอกเบี้ยที่ได้รับ: ฿${totalInterest.toLocaleString()}\n🔢 ต่อมาแล้ว: ${forfeiting.renew_count || 0} ครั้ง\n\n📌 เครื่องเข้าครอบครองร้านแล้ว`;
+    sendLineNotify(lineMsg, 'pawn').catch(() => {});
+    
     setForfeiting(null);
     loadData();
   }

@@ -165,7 +165,8 @@ export default function SellPage() {
     // 🔔 ส่ง LINE Notify
     const paymentTxt = paymentType === 'cash' ? 'เงินสด' : 'ผ่อน';
     const profitTxt = costPrice > 0 ? `\n💰 กำไร: ฿${profit.toLocaleString()}` : '';
-    const lineMsg = `\n📱 ขายเครื่อง\n${foundItem.model}${foundItem.color ? `\nสี: ${foundItem.color}` : ''}\nIMEI: ${foundItem.imei}\n💵 ราคา: ฿${finalPrice.toLocaleString()} (${paymentTxt})${profitTxt}\n📍 ${profileWithShop?.full_name || 'พนักงาน'}`;
+    const colorTxt = foundItem.color ? `\n🎨 สี: ${foundItem.color}` : '';
+    const lineMsg = `📱 ขายเครื่องสำเร็จ\n━━━━━━━━━━━━━\n📦 ${foundItem.model}${colorTxt}\n🔢 IMEI: ${foundItem.imei}\n━━━━━━━━━━━━━\n💵 ราคา: ฿${finalPrice.toLocaleString()}\n💳 ชำระ: ${paymentTxt}${profitTxt}\n👤 พนักงาน: ${profileWithShop?.full_name || '-'}`;
     sendLineNotify(lineMsg, 'sale').catch(() => {});
 
     showToast('ขายสำเร็จ', `${foundItem.model} • ฿${finalPrice.toLocaleString()}`);

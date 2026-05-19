@@ -102,7 +102,8 @@ export default function RedeemPage() {
     showToast('ไถ่คืนสำเร็จ', `${foundItem.model} • ${foundItem.customer_name}`);
     
     // 🔔 LINE Notify
-    const lineMsg = `\n🔓 ไถ่คืนเครื่องจำนำ\n${foundItem.model}\nIMEI: ${foundItem.imei}\n👤 ลูกค้า: ${foundItem.customer_name}\n💵 รับเงิน: ฿${Number(foundItem.pawn_price).toLocaleString()}${totalInterest > 0 ? `\n💰 ดอกเบี้ยทั้งหมด: ฿${totalInterest.toLocaleString()}` : ''}`;
+    const interestTxt = totalInterest > 0 ? `\n💰 ดอกเบี้ยที่จ่ายมาทั้งหมด: ฿${totalInterest.toLocaleString()}` : '';
+    const lineMsg = `🔓 ไถ่คืนเครื่องจำนำ\n━━━━━━━━━━━━━\n📦 ${foundItem.model}\n🔢 IMEI: ${foundItem.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${foundItem.customer_name}\n💵 รับเงินคืน: ฿${Number(foundItem.pawn_price).toLocaleString()}${interestTxt}\n👨‍💼 รับโดย: ${profile?.full_name || '-'}`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
     
     setFoundItem(null);

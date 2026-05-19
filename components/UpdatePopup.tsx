@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.3.0';
+const APP_VERSION = '3.3.1';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.3.0',
-  date: '2026-05-18',
+  version: '3.3.1',
+  date: '2026-05-19',
   features: [
     {
+      icon: '📖',
+      title: 'คู่มือ LINE OA ใหม่ครบ',
+      desc: 'อัพเดทขั้นตอนสร้าง LINE OA → เปิด Messaging API ที่ถูกต้อง (LINE เปลี่ยนวิธีใหม่)',
+    },
+    {
+      icon: '🕐',
+      title: 'มีวัน-เวลาทุกข้อความ LINE',
+      desc: 'ทุกข้อความที่ส่งมีวันเวลาท้ายข้อความอัตโนมัติ ไม่ต้องเดาเอง',
+    },
+    {
+      icon: '🎨',
+      title: 'ข้อความ LINE สวยขึ้น',
+      desc: 'แบ่งหัวข้อชัดเจน • มีเส้นแบ่ง • อ่านง่าย เป็นมืออาชีพ',
+    },
+    {
       icon: '🔔',
-      title: 'เปลี่ยนเป็น LINE Messaging API',
-      desc: 'LINE Notify ปิดบริการแล้ว ระบบเปลี่ยนเป็น Messaging API (ฟรี 200 ข้อความ/เดือน) - ต้องตั้งค่าใหม่',
-    },
-    {
-      icon: '📊',
-      title: 'หน้ารายงาน Redesign ใหม่',
-      desc: 'แยก tab ยอดขาย/รุ่นขายดี/สาขา - ดูทีละอย่าง สบายตา ไม่รก',
-    },
-    {
-      icon: '💾',
-      title: 'หน้า Backup สะอาดขึ้น',
-      desc: 'ออกแบบใหม่ minimal - ปุ่ม Excel/JSON เด่นชัด อ่านง่าย',
+      title: 'แจ้งครบทุก action',
+      desc: 'ขายเครื่อง/ขายของ/รับจำนำ/ต่อดอก/ไถ่/หลุดจำนำ/เพิ่มผ่อน/ชำระงวด/ปิดยอด ครบหมด',
     },
   ],
 };

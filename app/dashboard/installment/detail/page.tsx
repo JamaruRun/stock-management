@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import { sendLineNotify } from '@/lib/line-notify';
 
 function InstallmentDetailContent() {
   const supabase = createClient();
@@ -133,6 +134,12 @@ function InstallmentDetailContent() {
     }
 
     showToast('บันทึกการชำระแล้ว', `งวดที่ ${periodNumber}`);
+    
+    // 🔔 LINE Notify
+    const amount = parseFloat(newPayment.amount);
+    const lineMsg = `💳 รับชำระงวดผ่อน\n━━━━━━━━━━━━━\n📦 ${item.model}\n👤 ลูกค้า: ${item.customer_name}\n━━━━━━━━━━━━━\n💰 จำนวน: ฿${amount.toLocaleString()}\n📊 งวดที่: ${periodNumber}/${item.total_periods}\n👨‍💼 รับโดย: ${profile?.full_name || '-'}`;
+    sendLineNotify(lineMsg, 'installment').catch(() => {});
+    
     setShowAddPayment(false);
     setNewPayment({ amount: item.installment_amount.toString(), paymentDate: new Date().toISOString().split('T')[0], note: '' });
     loadData();
@@ -226,6 +233,12 @@ function InstallmentDetailContent() {
     }
 
     showToast('ปิดยอดสำเร็จ', `${item.model} - ${item.customer_name}`);
+    
+    // 🔔 LINE Notify
+    const totalReceived = (Number(item.down_payment) || 0) + payments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+    const lineMsg = `✅ ปิดยอดผ่อน\n━━━━━━━━━━━━━\n📦 ${item.model}\n🔢 IMEI: ${item.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${item.customer_name}\n💵 ราคาเต็ม: ฿${Number(item.full_price).toLocaleString()}\n💰 รับรวมทั้งหมด: ฿${totalReceived.toLocaleString()}\n📊 ผ่อนครบ ${item.total_periods}/${item.total_periods} งวด`;
+    sendLineNotify(lineMsg, 'installment').catch(() => {});
+    
     setShowCloseConfirm(false);
     router.push('/dashboard/installment/stock');
   }

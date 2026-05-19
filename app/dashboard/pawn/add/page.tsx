@@ -120,7 +120,8 @@ export default function AddPawnPage() {
     showToast('รับจำนำสำเร็จ', `${form.model} • ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
     
     // 🔔 LINE Notify
-    const lineMsg = `\n💰 รับจำนำเครื่องใหม่\n${form.model}\nIMEI: ${form.imei}\n👤 ลูกค้า: ${form.customerName}${form.customerPhone ? `\n📞 ${form.customerPhone}` : ''}\n💵 ราคา: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}`;
+    const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';
+    const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n🔢 IMEI: ${form.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
     
     reset();

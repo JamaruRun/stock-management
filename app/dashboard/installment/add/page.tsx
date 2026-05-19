@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import { sendLineNotify } from '@/lib/line-notify';
 
 export default function AddInstallmentPage() {
   const supabase = createClient();
@@ -159,6 +160,13 @@ export default function AddInstallmentPage() {
     }
 
     showToast('เพิ่มผ่อนสำเร็จ', `${form.model} - ${form.customerName}`);
+    
+    // 🔔 LINE Notify
+    const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';
+    const remaining = parseFloat(form.fullPrice) - (parseFloat(form.downPayment) || 0);
+    const lineMsg = `💳 เพิ่มเครื่องผ่อนใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n🔢 IMEI: ${form.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคาเต็ม: ฿${parseFloat(form.fullPrice).toLocaleString()}\n💰 ดาวน์: ฿${(parseFloat(form.downPayment) || 0).toLocaleString()}\n📊 ผ่อน ${form.totalPeriods} งวด × ฿${parseFloat(form.installmentAmount).toLocaleString()}\n📅 ค้างชำระ: ฿${remaining.toLocaleString()}`;
+    sendLineNotify(lineMsg, 'installment').catch(() => {});
+    
     reset();
   }
 

@@ -119,8 +119,11 @@ export default function SettingsPage() {
     }).eq('id', shop.id);
 
     const { sendLinePush } = await import('@/lib/line-notify');
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     const result = await sendLinePush(
-      `🎉 ทดสอบ LINE Messaging API\n\nร้าน: ${shop?.name || 'ของคุณ'}\nเวลา: ${new Date().toLocaleString('th-TH')}\n\n✅ การเชื่อมต่อสำเร็จ`,
+      `🎉 ทดสอบ LINE Messaging API\n\n🏪 ร้าน: ${shop?.name || 'ของคุณ'}\n📅 วันที่: ${dateStr}\n🕐 เวลา: ${timeStr} น.\n\n✅ การเชื่อมต่อสำเร็จ\nระบบจะแจ้งเตือนคุณตามที่ตั้งค่าไว้`,
       'test'
     );
 
@@ -355,39 +358,123 @@ export default function SettingsPage() {
         }}>
           <strong style={{ color: 'var(--warning-text)' }}>⚠️ LINE Notify ปิดบริการแล้ว</strong>
           <div style={{ marginTop: 4 }}>
-            ตอนนี้ใช้ <strong>LINE Messaging API</strong> แทน — ฟรี 200 ข้อความ/เดือน
+            ตอนนี้ใช้ <strong>LINE Messaging API</strong> ผ่าน LINE Official Account แทน — ฟรี 200 ข้อความ/เดือน
           </div>
         </div>
 
         <div style={{
-          padding: 12,
-          background: 'rgba(0, 195, 0, 0.08)',
-          borderLeft: '3px solid #00C300',
+          padding: 14,
+          background: 'rgba(0, 195, 0, 0.06)',
+          border: '1px solid rgba(0, 195, 0, 0.3)',
+          borderRadius: 'var(--radius-sm)',
           marginBottom: 16,
           fontSize: 12,
           lineHeight: 1.7,
         }}>
-          <strong style={{ color: '#00C300' }}>📌 วิธีตั้งค่า (5 นาที):</strong>
-          <ol style={{ marginLeft: 18, marginTop: 6 }}>
-            <li>ไป <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" style={{ color: '#00C300', textDecoration: 'underline' }}>LINE Developers Console</a></li>
-            <li>สร้าง <strong>Provider</strong> (ถ้ายังไม่มี) → สร้าง <strong>Messaging API channel</strong></li>
-            <li>ในช่อง <strong>Messaging API</strong> → copy <strong>Channel access token</strong></li>
-            <li>เพิ่มบอท LINE เป็นเพื่อนใน LINE ของคุณ (สแกน QR ใน Console)</li>
-            <li>ไป <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" style={{ color: '#00C300', textDecoration: 'underline' }}>หน้า Basic settings</a> → copy <strong>Your user ID</strong></li>
-            <li>วาง 2 ค่าด้านล่าง → กดทดสอบ</li>
-          </ol>
+          <div style={{ fontWeight: 700, color: '#00B900', fontSize: 13, marginBottom: 10 }}>
+            📌 วิธีตั้งค่า (10 นาที)
+          </div>
+
+          {/* ส่วนที่ 1 - สร้าง LINE OA */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+              ขั้นที่ 1: สร้าง LINE Official Account (LINE OA)
+            </div>
+            <ol style={{ marginLeft: 18, marginTop: 4 }}>
+              <li>ไปที่ <a href="https://www.linebiz.com/th/entry/" target="_blank" rel="noopener" style={{ color: '#00B900', textDecoration: 'underline', fontWeight: 600 }}>linebiz.com/th/entry/</a></li>
+              <li>กด <strong>"เริ่มต้นใช้งานฟรี"</strong> → Login ด้วย LINE ของเจ้าของร้าน</li>
+              <li>กรอกข้อมูล:
+                <ul style={{ marginLeft: 16, marginTop: 2 }}>
+                  <li>ชื่อบัญชี: "ร้านของคุณ" (เปลี่ยนทีหลังได้)</li>
+                  <li>ประเภทธุรกิจ: <strong>ร้านค้าปลีก</strong></li>
+                  <li>หมวดหมู่: <strong>โทรศัพท์/อุปกรณ์อิเล็กทรอนิกส์</strong></li>
+                </ul>
+              </li>
+              <li>กดสร้าง → ได้ LINE OA ใหม่ (ฟรี)</li>
+            </ol>
+          </div>
+
+          {/* ส่วนที่ 2 - เปิด Messaging API */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+              ขั้นที่ 2: เปิด Messaging API
+            </div>
+            <ol style={{ marginLeft: 18, marginTop: 4 }}>
+              <li>เข้า <a href="https://manager.line.biz/" target="_blank" rel="noopener" style={{ color: '#00B900', textDecoration: 'underline', fontWeight: 600 }}>LINE Official Account Manager</a></li>
+              <li>เลือก LINE OA ที่เพิ่งสร้าง → ไปที่ <strong>"การตั้งค่า"</strong> (มุมขวาบน)</li>
+              <li>เมนูซ้าย → <strong>"Messaging API"</strong></li>
+              <li>กด <strong>"ใช้ Messaging API"</strong> → ยอมรับเงื่อนไข</li>
+              <li>เลือก Provider (ถ้ายังไม่มี ให้สร้างใหม่ ชื่อร้านของคุณก็ได้)</li>
+              <li>กดยืนยัน → ระบบเชื่อม OA กับ Messaging API แล้ว</li>
+            </ol>
+          </div>
+
+          {/* ส่วนที่ 3 - เอา Token */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+              ขั้นที่ 3: Copy Channel Access Token
+            </div>
+            <ol style={{ marginLeft: 18, marginTop: 4 }}>
+              <li>หลังเปิด Messaging API แล้ว → จะมีลิงก์ไป <strong>LINE Developers Console</strong> ให้กดเข้า</li>
+              <li>หรือเข้าตรงๆ ที่ <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" style={{ color: '#00B900', textDecoration: 'underline', fontWeight: 600 }}>developers.line.biz/console/</a></li>
+              <li>เลือก Provider → เลือก Channel ของ OA คุณ</li>
+              <li>เข้า tab <strong>"Messaging API"</strong> → scroll ลงสุด</li>
+              <li>หา <strong>"Channel access token (long-lived)"</strong> → กด <strong>"Issue"</strong></li>
+              <li>Copy token ที่ได้</li>
+            </ol>
+          </div>
+
+          {/* ส่วนที่ 4 - Add บอทเป็นเพื่อน */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+              ขั้นที่ 4: เพิ่ม LINE OA เป็นเพื่อน
+            </div>
+            <ol style={{ marginLeft: 18, marginTop: 4 }}>
+              <li>ใน LINE Developers → tab <strong>"Messaging API"</strong></li>
+              <li>หา <strong>QR code</strong> ของ Bot (อยู่ใต้ Bot information)</li>
+              <li>เปิดแอป LINE มือถือ → สแกน QR Code → <strong>เพิ่มเพื่อน</strong></li>
+              <li>⚠️ <strong style={{ color: 'var(--danger)' }}>สำคัญ!</strong> ถ้าไม่เพิ่มเป็นเพื่อน บอทส่งข้อความหาคุณไม่ได้</li>
+            </ol>
+          </div>
+
+          {/* ส่วนที่ 5 - เอา User ID */}
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+              ขั้นที่ 5: Copy User ID ของคุณ
+            </div>
+            <ol style={{ marginLeft: 18, marginTop: 4 }}>
+              <li>ใน LINE Developers → tab <strong>"Basic settings"</strong></li>
+              <li>Scroll ลงสุด → หา <strong>"Your user ID"</strong></li>
+              <li>Copy User ID (ขึ้นต้นด้วย U เช่น <code style={{ fontSize: 11 }}>U1234567890abcdef...</code>)</li>
+              <li>กลับมาที่หน้านี้ → วาง Token + User ID → กด <strong>🧪 ทดสอบ</strong></li>
+            </ol>
+          </div>
+        </div>
+
+        <div style={{
+          padding: 10,
+          background: 'rgba(59, 130, 246, 0.08)',
+          borderLeft: '3px solid var(--accent)',
+          marginBottom: 16,
+          fontSize: 11,
+          lineHeight: 1.6,
+        }}>
+          💡 <strong>หมายเหตุ:</strong> ทำครั้งเดียวจบ ใช้ได้ตลอด • ฟรี 200 ข้อความ/เดือน (พอสำหรับร้านเล็ก-กลาง)
         </div>
 
         <div className="form-grid">
           <div className="field full">
-            <label>Channel Access Token</label>
+            <label>Channel Access Token (Long-lived)</label>
             <input 
               type="text" 
               value={lineForm.line_channel_access_token}
               onChange={(e) => setLineForm({ ...lineForm, line_channel_access_token: e.target.value })}
-              placeholder="วาง Channel Access Token จาก LINE Developers"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
+              placeholder="วาง Token ยาวๆ จาก LINE Developers"
+              style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}
             />
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+              จากขั้นที่ 3 • Token จะยาวมากๆ (ประมาณ 170 ตัวอักษร)
+            </div>
           </div>
 
           <div className="field full">
@@ -411,7 +498,7 @@ export default function SettingsPage() {
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-              💡 หา User ID ของคุณได้ที่หน้า Basic settings ของ Channel
+              จากขั้นที่ 5 • ขึ้นต้นด้วย U
             </div>
           </div>
 
