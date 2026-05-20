@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // ดึง shop_id ของ user ที่ login
     const { data: profile } = await supabase
       .from('profiles').select('shop_id').eq('id', user.id).single();
     
@@ -24,7 +23,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: 'no shop' });
     }
 
-    // ดึง shop settings (notification preferences)
     const { data: shop } = await supabase
       .from('shops').select('*').eq('id', profile.shop_id).single();
 
@@ -32,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: 'shop not found' });
     }
 
-    // เช็คประเภท notification ของร้าน
+    // เช็คประเภท notification
     const typeMap: Record<string, string> = {
       sale: 'line_notify_sale',
       pawn: 'line_notify_pawn',
@@ -45,7 +43,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: `${type} notify off` });
     }
 
-    // ⭐ ดึง admin ทุกคนในร้านนี้ที่ผูก LINE แล้ว
+    const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
+    if (!channelToken) {
+      return NextResponse.json({ 
+        error: 'LINE Messaging not configured on server', 
+        skipped: true 
+      });
+    }
+
+    // ⭐ Priority 1: ส่งเข้ากลุ่ม (ถ้ามี group_id)
+    if (shop.line_group_id) {
+      const response = await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${channelToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: shop.line_group_id,
+          messages: [{ type: 'text', text: message }],
+        }),
+      });
+
+      if (response.ok) {
+        return NextResponse.json({ success: true, target: 'group' });
+      } else {
+        const errorText = await response.text();
+        console.error('LINE Group push failed:', errorText);
+        // ถ้าส่งเข้ากลุ่ม fail → fallback ส่งหา admin แต่ละคน
+      }
+    }
+
+    // ⭐ Priority 2: ส่งหา admin แต่ละคน (fallback)
     let adminQuery = supabase
       .from('profiles')
       .select('id, line_user_id, full_name')
@@ -53,7 +82,6 @@ export async function POST(req: NextRequest) {
       .eq('role', 'admin')
       .not('line_user_id', 'is', null);
 
-    // ถ้าเป็น test → ส่งให้แค่คนที่กดทดสอบ
     if (type === 'test') {
       adminQuery = adminQuery.eq('id', user.id);
     }
@@ -63,20 +91,12 @@ export async function POST(req: NextRequest) {
     if (!admins || admins.length === 0) {
       return NextResponse.json({ 
         skipped: true, 
-        reason: type === 'test' ? 'you not connected' : 'no admin connected to LINE' 
+        reason: shop.line_group_id 
+          ? 'group send failed and no admin connected'
+          : (type === 'test' ? 'you not connected' : 'no admin connected to LINE') 
       });
     }
 
-    // ใช้ Channel Access Token จาก env
-    const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
-    if (!channelToken) {
-      return NextResponse.json({ 
-        error: 'LINE Messaging not configured on server', 
-        skipped: true 
-      });
-    }
-
-    // ⭐ ส่งหา admin ทุกคนในร้านที่ผูก LINE แล้ว
     const results = await Promise.allSettled(
       admins.map(async (admin: any) => {
         const response = await fetch('https://api.line.me/v2/bot/message/push', {
@@ -102,16 +122,9 @@ export async function POST(req: NextRequest) {
     const success = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    if (failed > 0) {
-      const errors = results
-        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-        .map(r => r.reason?.message || 'unknown')
-        .join('; ');
-      console.error('LINE Push partial fail:', errors);
-    }
-
     return NextResponse.json({ 
       success: success > 0, 
+      target: 'individuals',
       sentTo: success,
       failed: failed,
       total: admins.length,

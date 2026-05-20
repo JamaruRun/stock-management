@@ -37,6 +37,9 @@ function SettingsPageContent() {
   });
   const [disconnecting, setDisconnecting] = useState(false);
   const [otherAdmins, setOtherAdmins] = useState<any[]>([]);
+  const [groupIdInput, setGroupIdInput] = useState('');
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [showGroupGuide, setShowGroupGuide] = useState(false);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -154,6 +157,61 @@ function SettingsPageContent() {
       showToast('ส่งสำเร็จ ✓', `ส่งให้ ${profile.line_display_name}`);
     } else {
       showToast('ส่งไม่สำเร็จ', result.detail || result.error || 'ลองเชื่อม LINE ใหม่', 'danger');
+    }
+  }
+
+  async function handleSaveGroup() {
+    if (!groupIdInput.trim()) {
+      showToast('ใส่ Group ID ก่อน', '', 'danger');
+      return;
+    }
+    if (!groupIdInput.trim().startsWith('C')) {
+      showToast('Group ID ต้องขึ้นต้นด้วย C', 'ลองเช็คใหม่', 'danger');
+      return;
+    }
+
+    setSavingGroup(true);
+    try {
+      const res = await fetch('/api/line/group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupIdInput.trim() }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        showToast('เชื่อมกลุ่มสำเร็จ ✓', 'เช็คใน LINE - มีข้อความยืนยัน');
+        setGroupIdInput('');
+        const { data: s } = await supabase
+          .from('shops').select('*').eq('id', shop.id).single();
+        setShop(s);
+      } else {
+        showToast('เชื่อมไม่สำเร็จ', data.error || '', 'danger');
+      }
+    } catch (e: any) {
+      showToast('เกิดข้อผิดพลาด', e.message, 'danger');
+    } finally {
+      setSavingGroup(false);
+    }
+  }
+
+  async function handleDisconnectGroup() {
+    if (!confirm('ยกเลิกการเชื่อมกลุ่ม LINE?\n\nระบบจะกลับไปส่งหา admin แต่ละคนแทน')) return;
+    
+    try {
+      const res = await fetch('/api/line/group', { method: 'DELETE' });
+      const data = await res.json();
+      
+      if (data.success) {
+        showToast('ยกเลิกการเชื่อมกลุ่มแล้ว', '');
+        const { data: s } = await supabase
+          .from('shops').select('*').eq('id', shop.id).single();
+        setShop(s);
+      } else {
+        showToast('ยกเลิกไม่สำเร็จ', data.error || '', 'danger');
+      }
+    } catch (e: any) {
+      showToast('เกิดข้อผิดพลาด', e.message, 'danger');
     }
   }
 
@@ -397,11 +455,171 @@ function SettingsPageContent() {
       <div className="form-card">
         <h3>🔔 แจ้งเตือนผ่าน LINE</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
-          รับแจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE ของคุณ
-          <br/>
-          <span style={{ fontSize: 11 }}>
-            💡 แต่ละ admin ผูก LINE แยกกัน - ทุกคนจะได้รับแจ้งเตือนพร้อมกัน
-          </span>
+          รับแจ้งเตือนยอดขาย/จำนำ/ผ่อน เข้า LINE
+        </p>
+
+        {/* ⭐ Section: กลุ่ม LINE - แนะนำ! */}
+        <div style={{
+          padding: 14,
+          background: shop?.line_group_id 
+            ? 'rgba(0, 195, 0, 0.06)' 
+            : 'rgba(59, 130, 246, 0.06)',
+          border: `1px solid ${shop?.line_group_id ? 'rgba(0, 195, 0, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>
+              👥 ส่งเข้ากลุ่ม LINE (แนะนำ)
+            </div>
+            {shop?.line_group_id && (
+              <div style={{ fontSize: 11, color: '#00B900', fontWeight: 600 }}>
+                ✓ เชื่อมแล้ว
+              </div>
+            )}
+          </div>
+
+          {shop?.line_group_id ? (
+            // กรณีเชื่อมกลุ่มแล้ว
+            <>
+              <div style={{ 
+                padding: 10,
+                background: 'var(--surface-2)',
+                borderRadius: 4,
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 11,
+                color: 'var(--text-dim)',
+                marginBottom: 10,
+                wordBreak: 'break-all',
+              }}>
+                {shop.line_group_id}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
+                💡 ระบบจะส่งเข้ากลุ่มนี้ทุกครั้ง • ทุกคนในกลุ่มจะได้รับพร้อมกัน • ประหยัดโควต้า!
+              </div>
+              <button
+                onClick={handleDisconnectGroup}
+                className="btn btn-sec"
+                style={{ 
+                  width: 'auto', 
+                  padding: '6px 12px', 
+                  fontSize: 12,
+                  color: 'var(--danger)',
+                  borderColor: 'var(--danger)',
+                }}
+              >
+                ยกเลิกการเชื่อมกลุ่ม
+              </button>
+            </>
+          ) : (
+            // กรณียังไม่ได้เชื่อม
+            <>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 10 }}>
+                ส่ง 1 ข้อความ → ทุก admin ในกลุ่มเห็น • ประหยัดโควต้า LINE 🎯
+              </div>
+
+              <button
+                onClick={() => setShowGroupGuide(!showGroupGuide)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--accent)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  fontFamily: 'inherit',
+                  marginBottom: 10,
+                }}
+              >
+                {showGroupGuide ? '▼ ปิดวิธีทำ' : '▶ ดูวิธีทำ'}
+              </button>
+
+              {showGroupGuide && (
+                <div style={{
+                  padding: 12,
+                  background: 'var(--surface-2)',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                  marginBottom: 10,
+                }}>
+                  <strong>📋 ขั้นตอน (3 นาที):</strong>
+                  <ol style={{ marginLeft: 18, marginTop: 6 }}>
+                    <li>เปิดแอป LINE → สร้างกลุ่มใหม่ ตั้งชื่อ "แจ้งเตือนร้าน"</li>
+                    <li>Invite admin คนอื่นเข้ากลุ่ม</li>
+                    <li>Invite <strong>LINE OA ของระบบ</strong> เข้ากลุ่ม (ค้นชื่อ OA ตาม @id)</li>
+                    <li>บอทจะส่งข้อความ <strong>"Group ID:"</strong> เข้ามาในกลุ่มอัตโนมัติ</li>
+                    <li>Copy Group ID (ขึ้นต้นด้วย C) → วางในช่องด้านล่าง → บันทึก</li>
+                  </ol>
+                  <div style={{ 
+                    marginTop: 10, 
+                    padding: 8, 
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderLeft: '3px solid var(--warning)',
+                    fontSize: 11,
+                  }}>
+                    ⚠️ <strong>สำคัญ:</strong> ถ้าบอทเข้ากลุ่มแล้วไม่ส่งข้อความ ลองพิมพ์ <code>id</code> ในกลุ่ม → บอทจะตอบ Group ID
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  type="text"
+                  value={groupIdInput}
+                  onChange={(e) => setGroupIdInput(e.target.value)}
+                  placeholder="C1234567890abcdef..."
+                  style={{
+                    flex: 1,
+                    padding: 8,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    color: 'var(--text)',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: 11,
+                  }}
+                />
+                <button
+                  onClick={handleSaveGroup}
+                  disabled={savingGroup}
+                  style={{
+                    padding: '0 14px',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: savingGroup ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {savingGroup ? '...' : 'บันทึก'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* แยกส่วน */}
+        <div style={{ 
+          textAlign: 'center', 
+          color: 'var(--text-dim)', 
+          fontSize: 11,
+          margin: '16px 0',
+          letterSpacing: 1,
+        }}>
+          ───── หรือ ─────
+        </div>
+
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+          👤 ส่งแบบส่วนตัวให้แต่ละ admin
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 16 }}>
+          ใช้เฉพาะกรณีไม่อยากใช้กลุ่ม • โควต้าจะใช้เยอะกว่า
         </p>
 
         {/* สถานะ LINE ของฉัน */}

@@ -39,6 +39,8 @@ export async function GET(req: NextRequest) {
     redirect_uri: redirectUri,
     state: state,
     scope: 'profile openid',
+    // บังคับ LINE ขอ consent ใหม่ทุกครั้ง - กันปัญหา cache
+    prompt: 'consent',
   });
 
   const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?${params.toString()}`;
