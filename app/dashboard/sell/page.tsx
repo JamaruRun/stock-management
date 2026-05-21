@@ -44,12 +44,16 @@ export default function SellPage() {
 
     if (!stockItem) {
       const { data: soldItem } = await supabase
-        .from('sales_history').select('id').eq('imei', searchImei).maybeSingle();
+        .from('sales_history').select('id, model, sold_date').eq('imei', searchImei).maybeSingle();
 
       if (soldItem) {
-        showToast('ขายไปแล้ว', 'เครื่องนี้ขายไปแล้ว', 'danger');
+        showToast('ขายไปแล้ว', `${soldItem.model} - ขายเมื่อ ${soldItem.sold_date}`, 'danger');
       } else {
-        showToast('ไม่พบเครื่อง', 'IMEI นี้ไม่มีในสต๊อก', 'danger');
+        // ไม่เจอเลย → ถามว่าจะเพิ่มเครื่องไหม
+        if (confirm(`ไม่พบ IMEI: ${searchImei}\n\nต้องการเพิ่มเครื่องนี้เข้าสต๊อกไหม?`)) {
+          window.location.href = `/dashboard/add?imei=${encodeURIComponent(searchImei)}`;
+          return;
+        }
       }
       return;
     }

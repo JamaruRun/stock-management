@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.4.1';
+const APP_VERSION = '3.6.0';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,18 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.4.1',
-  date: '2026-05-19',
+  version: '3.6.0',
+  date: '2026-05-20',
   features: [
     {
-      icon: '👥',
-      title: 'แต่ละ Admin ผูก LINE แยกกันได้!',
-      desc: 'admin หลายคนในร้านเดียวสามารถผูก LINE ของตัวเอง • ทุกคนได้รับแจ้งเตือนพร้อมกัน',
+      icon: '📷',
+      title: 'Scanner เสถียรขึ้น!',
+      desc: 'กล้องหลังเป็นค่าเริ่มต้น • Debounce กันสแกนซ้ำ • หยุดกล้องทันทีหลังสแกนสำเร็จ',
     },
     {
-      icon: '👁️',
-      title: 'เห็น Admin อื่นที่เชื่อมแล้ว',
-      desc: 'ในหน้า Settings เห็นรายชื่อ admin คนอื่นในร้านที่ผูก LINE แล้ว - รู้ว่าใครจะได้รับแจ้งเตือน',
+      icon: '🛡️',
+      title: 'Error Handling ครบ',
+      desc: 'จับ error: ไม่อนุญาตกล้อง / ไม่มีกล้อง / browser ไม่รองรับ • แจ้งวิธีแก้ชัดเจน',
+    },
+    {
+      icon: '➕',
+      title: 'สแกนไม่เจอ → เพิ่มใหม่ทันที',
+      desc: 'สแกน SKU/IMEI ที่ยังไม่มีในระบบ → ระบบถามว่าจะเพิ่มไหม → กดใช่ → เปิดหน้าเพิ่มพร้อมรหัสเลย',
+    },
+    {
+      icon: '⌨️',
+      title: 'พิมพ์รหัสเองได้สะดวก',
+      desc: 'มีปุ่ม "กรอกเอง" ตอนเปิดกล้องอยู่ • Input ขนาด 16px กัน iOS zoom',
     },
   ],
 };

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
@@ -14,11 +14,14 @@ interface ModelSuggestion {
   count: number;
 }
 
-export default function AddStockPage() {
+function AddStockPageContent() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const imeiFromUrl = searchParams.get('imei');
+  
   const [form, setForm] = useState({
-    imei: '',
+    imei: imeiFromUrl || '',
     model: '',
     color: '',
     spec: '',
@@ -94,9 +97,32 @@ export default function AddStockPage() {
     showToast('นำข้อมูลมาใช้', `${s.model}`);
   }
 
-  function handleScan(imei: string) {
-    setForm({ ...form, imei });
+  async function handleScan(imei: string) {
     setShowScanner(false);
+    
+    // เช็คก่อนว่า IMEI นี้มีในสต๊อกแล้วหรือยัง
+    const { data: existing } = await supabase
+      .from('stock')
+      .select('id, model, color, price, sold_at')
+      .eq('imei', imei)
+      .maybeSingle();
+    
+    if (existing) {
+      // เจอแล้ว
+      if (existing.sold_at) {
+        showToast('IMEI ขายไปแล้ว', `${existing.model} - ดูในประวัติได้`, 'danger');
+        return;
+      }
+      // ยังขายอยู่ → ถามว่าจะดูเครื่องเดิมไหม
+      if (confirm(`IMEI นี้มีในสต๊อกแล้ว!\n\n${existing.model}${existing.color ? ` (${existing.color})` : ''}\nราคา: ฿${Number(existing.price).toLocaleString()}\n\nต้องการดูข้อมูลเครื่องเดิมไหม?`)) {
+        window.location.href = '/dashboard/stock';
+        return;
+      }
+      return;
+    }
+    
+    // ยังไม่มีในระบบ → ใส่ IMEI ในฟอร์ม
+    setForm({ ...form, imei });
     showToast('สแกนสำเร็จ', `IMEI: ${imei}`);
   }
 
@@ -203,6 +229,25 @@ export default function AddStockPage() {
         <h1>เพิ่มเครื่อง</h1>
         <div className="desc">ลงทะเบียนเครื่องใหม่เข้าสต๊อก</div>
       </div>
+
+      {/* Banner: มาจากหน้าขายแต่ไม่เจอ IMEI */}
+      {imeiFromUrl && (
+        <div style={{
+          padding: 14,
+          background: 'rgba(59, 130, 246, 0.08)',
+          borderLeft: '3px solid var(--accent)',
+          borderRadius: 6,
+          marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>
+            ✨ กำลังเพิ่มเครื่องใหม่จากการสแกน
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+            IMEI ที่สแกนได้: <strong style={{ color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{imeiFromUrl}</strong>
+            <br/>กรอกข้อมูลเครื่อง → กดบันทึก
+          </div>
+        </div>
+      )}
 
       <div className="form-card">
         <h3>📱 ข้อมูลเครื่อง</h3>
@@ -437,5 +482,13 @@ export default function AddStockPage() {
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
       {toast && <Toast {...toast} />}
     </>
+  );
+}
+
+export default function AddStockPage() {
+  return (
+    <Suspense fallback={<div className="loading"><div className="spinner"></div></div>}>
+      <AddStockPageContent />
+    </Suspense>
   );
 }

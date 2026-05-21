@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
@@ -16,11 +16,16 @@ function generateSku() {
   return result;
 }
 
-export default function AddGoodsPage() {
+function AddGoodsPageContent() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // ถ้ามี SKU จาก URL (มาจากหน้าขายแล้วไม่เจอ) → ใช้แทน
+  const skuFromUrl = searchParams.get('sku');
+  
   const [form, setForm] = useState({
-    sku: generateSku(),
+    sku: skuFromUrl || generateSku(),
     name: '',
     category: '',
     cost_price: '',
@@ -182,6 +187,25 @@ export default function AddGoodsPage() {
         <h1>➕ เพิ่มสินค้า</h1>
         <div className="desc">เพิ่มของใหม่ หรือสแกน barcode เพื่อเติมของเดิม</div>
       </div>
+
+      {/* Banner: มาจากหน้าขายแต่ไม่เจอสินค้า */}
+      {skuFromUrl && (
+        <div style={{
+          padding: 14,
+          background: 'rgba(59, 130, 246, 0.08)',
+          borderLeft: '3px solid var(--accent)',
+          borderRadius: 6,
+          marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>
+            ✨ กำลังเพิ่มสินค้าใหม่จากการสแกน
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+            ระบบใส่ SKU ที่สแกนได้ให้แล้ว: <strong style={{ color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{skuFromUrl}</strong>
+            <br/>กรอกชื่อ + ราคา + จำนวน → กดบันทึก
+          </div>
+        </div>
+      )}
 
       {/* Quick Action: Scan to Restock */}
       <div className="form-card" style={{ background: 'var(--surface-2)', borderLeft: '3px solid var(--accent)' }}>
@@ -381,5 +405,17 @@ export default function AddGoodsPage() {
       {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="sku" />}
       {toast && <Toast {...toast} />}
     </>
+  );
+}
+
+export default function AddGoodsPage() {
+  return (
+    <Suspense fallback={
+      <div className="loading">
+        <div className="spinner"></div>
+      </div>
+    }>
+      <AddGoodsPageContent />
+    </Suspense>
   );
 }

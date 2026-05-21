@@ -57,7 +57,11 @@ export default function SellGoodsPage() {
     }
 
     if (!item) {
-      showToast('ไม่พบสินค้า', `SKU: ${cleaned}`, 'danger');
+      // ไม่เจอสินค้า → ถามว่าจะเพิ่มใหม่ไหม
+      if (confirm(`ไม่พบสินค้า SKU: ${cleaned}\n\nต้องการเพิ่มสินค้าใหม่ด้วยรหัสนี้ไหม?`)) {
+        // ส่ง SKU ไปหน้าเพิ่มสินค้า ผ่าน query param
+        window.location.href = `/dashboard/goods/add?sku=${encodeURIComponent(cleaned)}`;
+      }
       return;
     }
 
