@@ -8,13 +8,20 @@ export const revalidate = 0;
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
 
+  // ใช้ getUser() เพราะเรา trust cookie อย่างเดียวไม่ได้
+  // (middleware ก็เรียกแล้ว แต่ data ไม่ส่งต่อมา → จำเป็นต้องเรียกซ้ำ)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // ดึงข้อมูล profile + branch + shop
+  // ⚡ Select เฉพาะ field ที่ใช้จริงในหน้านี้ + sidebar
+  // (เดิมใช้ '*' = ดึงทุก column + nested - ช้ามาก)
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*, branches(name), shops(id, name, status, package, expires_at)')
+    .select(`
+      id, username, full_name, role, branch_id, shop_id, is_super_admin,
+      branches(name),
+      shops(id, name, status, package, expires_at)
+    `)
     .eq('id', user.id)
     .single();
 

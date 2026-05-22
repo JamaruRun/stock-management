@@ -1,7 +1,18 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+const PROTECTED = ['/dashboard', '/super-admin', '/api/admin', '/api/super-admin'];
+
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const isProtected = PROTECTED.some(r => path.startsWith(r));
+  const isAuthPage = path === '/login' || path === '/';
+
+  // 🚀 Fast path: ไม่ใช่ route ที่ต้อง auth → skip getUser ทั้งหมด
+  if (!isProtected && !isAuthPage) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -23,27 +34,18 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // สำคัญ: เรียก getUser() เพื่อ refresh session cookies
+  // getUser() = network call → run เฉพาะที่จำเป็น
   const { data: { user } } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
-
-  // routes ที่ต้อง login
-  const protectedRoutes = ['/dashboard', '/super-admin', '/api/admin', '/api/super-admin'];
-  const isProtected = protectedRoutes.some(r => path.startsWith(r));
-
-  // ยังไม่ login + เข้า route ที่ป้องกัน → ไป login
   if (!user && isProtected) {
-    // ถ้าเป็น API → return JSON error
     if (path.startsWith('/api/')) {
       return NextResponse.json({ error: 'ต้อง login' }, { status: 401 });
     }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // login แล้ว + พยายามเข้า login → ไป dashboard
-  if (user && (path === '/login' || path === '/')) {
-    return NextResponse.redirect(new URL('/dashboard/stock', request.url));
+  if (user && isAuthPage) {
+    return NextResponse.redirect(new URL('/dashboard/home', request.url));
   }
 
   return supabaseResponse;
@@ -51,6 +53,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Exclude:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon, images, fonts, etc.
+     * - API route ของ LINE OAuth (มี auth ในตัวแล้ว)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$|api/line/).*)',
   ],
 };

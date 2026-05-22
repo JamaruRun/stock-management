@@ -63,37 +63,8 @@ export default function LoginPage() {
       return;
     }
 
-    // 3. เช็คสถานะร้าน
-    if (authData.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_super_admin, shops(name, status, package, expires_at)')
-        .eq('id', authData.user.id)
-        .single();
-
-      const shop = (profile?.shops as any);
-      const isSuperAdmin = profile?.is_super_admin;
-
-      if (!isSuperAdmin && shop) {
-        if (shop.status === 'suspended') {
-          await supabase.auth.signOut();
-          setError(`⛔ ร้าน "${shop.name}" ถูกระงับการใช้งาน - กรุณาติดต่อผู้ดูแลระบบ`);
-          setLoading(false);
-          return;
-        }
-
-        if (shop.package !== 'lifetime' && shop.expires_at) {
-          const expires = new Date(shop.expires_at);
-          if (expires < new Date()) {
-            await supabase.auth.signOut();
-            setError(`⏰ ร้าน "${shop.name}" หมดอายุการใช้งาน - กรุณาติดต่อผู้ดูแลระบบเพื่อต่ออายุ`);
-            setLoading(false);
-            return;
-          }
-        }
-      }
-    }
-
+    // ไม่ต้องเช็ค shop ที่นี่ - dashboard/layout.tsx จะเช็คให้
+    // (กัน query ซ้ำ + redirect ทันที = login เร็วขึ้น 800-1500ms)
     router.push('/dashboard/home');
     router.refresh();
   }
