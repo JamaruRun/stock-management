@@ -129,7 +129,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. สร้าง auth user
-    const email = `${signup.username}+${shopShortId}@example.com`;
+    // ⚠️ สำคัญ: ต้องใช้ format เดียวกับ find-email/route.ts
+    // find-email ใช้: shop_id.replace(/-/g, '').substring(0, 8)
+    // ดังนั้น email ที่นี่ต้องใช้ shop UUID first 8 chars (ไม่ใช่ shop_short_id ที่สุ่ม)
+    const shopIdShort = newShop.id.replace(/-/g, '').substring(0, 8);
+    const email = `${signup.username}+${shopIdShort}@example.com`;
     
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
