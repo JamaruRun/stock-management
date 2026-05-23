@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import DashboardClient from './dashboard-client';
 import Heartbeat from '@/components/Heartbeat';
+import BarcodeScannerPreload from '@/components/BarcodeScannerPreload';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -119,6 +120,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <DashboardClient profile={profile}>
       <Heartbeat />
+      <BarcodeScannerPreload />
       {children}
     </DashboardClient>
   );
