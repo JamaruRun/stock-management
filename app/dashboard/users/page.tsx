@@ -146,8 +146,17 @@ export default function UsersPage() {
       return;
     }
 
+    if (!profile?.shop_id) {
+      showToast('ไม่พบข้อมูลร้าน', 'กรุณา login ใหม่', 'danger');
+      return;
+    }
+
     setSubmitting(true);
-    const { error } = await supabase.from('branches').insert(newBranch);
+    // ⭐ สำคัญ: ต้องใส่ shop_id เพื่อให้ผ่าน RLS
+    const { error } = await supabase.from('branches').insert({
+      ...newBranch,
+      shop_id: profile.shop_id,
+    });
     setSubmitting(false);
 
     if (error) {
