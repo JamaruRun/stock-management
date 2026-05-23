@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       goods: 'line_notify_goods',
       installment: 'line_notify_installment',
       low_stock: 'line_notify_low_stock',
+      parts_low: 'line_notify_parts_low',
     };
 
     if (type !== 'test' && typeMap[type] && !shop[typeMap[type]]) {

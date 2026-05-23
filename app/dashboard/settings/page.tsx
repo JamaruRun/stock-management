@@ -34,6 +34,7 @@ function SettingsPageContent() {
     line_notify_goods: false,
     line_notify_installment: true,
     line_notify_low_stock: true,
+    line_notify_parts_low: true,
   });
   const [disconnecting, setDisconnecting] = useState(false);
   const [otherAdmins, setOtherAdmins] = useState<any[]>([]);
@@ -74,6 +75,7 @@ function SettingsPageContent() {
             line_notify_goods: s.line_notify_goods === true,
             line_notify_installment: s.line_notify_installment !== false,
             line_notify_low_stock: s.line_notify_low_stock !== false,
+            line_notify_parts_low: s.line_notify_parts_low !== false,
           });
         }
 
@@ -121,6 +123,7 @@ function SettingsPageContent() {
       line_notify_goods: lineForm.line_notify_goods,
       line_notify_installment: lineForm.line_notify_installment,
       line_notify_low_stock: lineForm.line_notify_low_stock,
+      line_notify_parts_low: lineForm.line_notify_parts_low,
     }).eq('id', shop.id);
 
     setSavingLine(false);
@@ -849,6 +852,13 @@ function SettingsPageContent() {
                   icon="📦"
                   title="สินค้าใกล้หมด"
                   desc="แจ้งเมื่อขายของแล้วเหลือน้อย"
+                />
+                <NotifyCheckbox
+                  checked={lineForm.line_notify_parts_low}
+                  onChange={(v) => setLineForm({ ...lineForm, line_notify_parts_low: v })}
+                  icon="🔧"
+                  title="อะไหล่ซ่อมใกล้หมด"
+                  desc="แจ้งเมื่ออะไหล่ในสต๊อกใกล้หมด"
                 />
               </div>
             </div>

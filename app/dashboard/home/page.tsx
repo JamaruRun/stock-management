@@ -19,6 +19,8 @@ interface Stats {
   goodsCount: number;
   goodsItems: number;
   goodsLowStock: number;
+  partsCount: number;
+  partsLowStock: number;
 }
 
 export default function DashboardHomePage() {
@@ -49,6 +51,7 @@ export default function DashboardHomePage() {
         pawnRes,
         installRes,
         goodsRes,
+        partsRes,
         paymentsRes,
       ] = await Promise.all([
         // Today revenue + profit (admin only - sales)
@@ -63,6 +66,8 @@ export default function DashboardHomePage() {
         supabase.from('installment_stock').select('id, installment_amount, total_periods, start_date'),
         // Goods
         supabase.from('goods').select('stock_qty, sell_price, low_stock_alert'),
+        // Parts (repair parts)
+        supabase.from('parts').select('stock_qty, low_stock_alert'),
         // Installment payments (สำหรับนับงวดที่จ่ายแล้ว)
         supabase.from('installment_payments').select('installment_id'),
       ]);
@@ -122,12 +127,18 @@ export default function DashboardHomePage() {
         Number(r.stock_qty || 0) <= Number(r.low_stock_alert || 5)
       ).length;
 
+      const partsCount = (partsRes.data || []).length;
+      const partsLowStock = (partsRes.data || []).filter((r: any) => 
+        Number(r.stock_qty || 0) <= Number(r.low_stock_alert || 2)
+      ).length;
+
       setStats({
         todayRevenue, todayProfit, todayOrders,
         stockCount, stockValue,
         pawnCount, pawnValue, pawnOverdue,
         installmentCount, installmentValue, installmentOverdue,
         goodsCount, goodsItems, goodsLowStock,
+        partsCount, partsLowStock,
       });
       setLoading(false);
     }
@@ -230,6 +241,17 @@ export default function DashboardHomePage() {
         </Link>
       )}
 
+      {/* Alert: อะไหล่ใกล้หมด */}
+      {stats.partsLowStock > 0 && (
+        <Link href="/dashboard/parts" className="alert-card">
+          <div className="alert-card-icon">🔧</div>
+          <div className="alert-card-content">
+            <strong>{stats.partsLowStock} อะไหล่</strong> ต้องสั่งซื้อ
+          </div>
+          <div className="alert-card-action">ดู →</div>
+        </Link>
+      )}
+
       {/* Quick: ดูรายงาน (Admin) */}
       {isAdmin && (
         <Link href="/dashboard/reports" style={{
@@ -304,6 +326,18 @@ export default function DashboardHomePage() {
           <div className="module-card-title">สต๊อกของ</div>
           <div className="module-card-count">{stats.goodsItems}</div>
           <div className="module-card-sub">{stats.goodsCount} รายการ</div>
+        </Link>
+
+        <Link href="/dashboard/parts" className="module-card" style={{ background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(234, 88, 12, 0.04) 100%)' }}>
+          <div className="module-card-header">
+            <div className="module-card-icon">🔧</div>
+            {stats.partsLowStock > 0 && (
+              <div className="module-card-badge warn">{stats.partsLowStock} ต้องสั่ง</div>
+            )}
+          </div>
+          <div className="module-card-title">อะไหล่ซ่อม</div>
+          <div className="module-card-count">{stats.partsCount}</div>
+          <div className="module-card-sub">รายการ</div>
         </Link>
       </div>
 

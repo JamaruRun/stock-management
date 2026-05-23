@@ -14,7 +14,7 @@ function getThaiDateTime(): string {
 
 export async function sendLinePush(
   message: string, 
-  type: 'sale' | 'pawn' | 'goods' | 'installment' | 'low_stock' | 'test' = 'sale'
+  type: 'sale' | 'pawn' | 'goods' | 'installment' | 'low_stock' | 'parts_low' | 'test' = 'sale'
 ) {
   try {
     // เพิ่มวันเวลาท้ายข้อความอัตโนมัติ (ยกเว้น test ที่มีอยู่แล้ว)

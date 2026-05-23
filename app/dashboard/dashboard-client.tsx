@@ -30,6 +30,7 @@ export default function DashboardClient({ profile, children }: Props) {
     { path: '/dashboard/pawn/stock', icon: '💰', label: 'จำนำ' },
     { path: '/dashboard/installment/stock', icon: '💳', label: 'ผ่อน' },
     { path: '/dashboard/goods/stock', icon: '🎒', label: 'สต๊อกของ' },
+    { path: '/dashboard/parts', icon: '🔧', label: 'อะไหล่ซ่อม' },
   ];
 
   // Bottom nav (mobile - 5 items max)
@@ -72,6 +73,7 @@ export default function DashboardClient({ profile, children }: Props) {
     if (pathname.startsWith('/dashboard/pawn')) return 'จำนำเครื่อง';
     if (pathname.startsWith('/dashboard/installment')) return 'ผ่อนเครื่อง';
     if (pathname.startsWith('/dashboard/goods')) return 'สต๊อกของ';
+    if (pathname.startsWith('/dashboard/parts')) return 'อะไหล่ซ่อม';
     if (pathname.startsWith('/dashboard/users')) return 'จัดการผู้ใช้';
     return 'หน้าหลัก';
   }
