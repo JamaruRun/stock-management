@@ -11,6 +11,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentShopId, setCurrentShopId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showAddBranch, setShowAddBranch] = useState(false);
@@ -39,12 +40,14 @@ export default function UsersPage() {
     setCurrentUserId(user.id);
 
     const { data: profileData } = await supabase
-      .from('profiles').select('role').eq('id', user.id).single();
+      .from('profiles').select('role, shop_id').eq('id', user.id).single();
 
     if (profileData?.role !== 'admin') {
       router.push('/dashboard/stock');
       return;
     }
+
+    setCurrentShopId(profileData.shop_id);
 
     const { data: usersData } = await supabase
       .from('profiles')
@@ -146,7 +149,7 @@ export default function UsersPage() {
       return;
     }
 
-    if (!profile?.shop_id) {
+    if (!currentShopId) {
       showToast('ไม่พบข้อมูลร้าน', 'กรุณา login ใหม่', 'danger');
       return;
     }
@@ -155,7 +158,7 @@ export default function UsersPage() {
     // ⭐ สำคัญ: ต้องใส่ shop_id เพื่อให้ผ่าน RLS
     const { error } = await supabase.from('branches').insert({
       ...newBranch,
-      shop_id: profile.shop_id,
+      shop_id: currentShopId,
     });
     setSubmitting(false);
 

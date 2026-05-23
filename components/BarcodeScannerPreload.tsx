@@ -6,13 +6,11 @@ import { useEffect } from 'react';
  * Preload html5-qrcode ตอน browser idle
  * - ไม่ block initial render
  * - ทำให้กดสแกนครั้งแรกเร็วขึ้น 300-800ms
- * - ใช้ตอน user login เข้า dashboard แล้ว ไม่ได้กำลังทำอะไร
  */
 export default function BarcodeScannerPreload() {
   useEffect(() => {
-    // ใช้ requestIdleCallback ถ้ารองรับ - ไม่งั้น setTimeout
     const schedule = (cb: () => void) => {
-      if ('requestIdleCallback' in window) {
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
         (window as any).requestIdleCallback(cb, { timeout: 3000 });
       } else {
         setTimeout(cb, 2000);
@@ -20,8 +18,12 @@ export default function BarcodeScannerPreload() {
     };
 
     schedule(() => {
-      // Preload - ผลคือ browser มี chunk ใน cache แล้ว
-      import('html5-qrcode').catch(() => {});
+      // ใช้ webpackIgnore เพื่อไม่ให้ webpack จับ - dynamic import แบบ runtime
+      // (เผื่อ package ยังไม่ install ก็ไม่กระทบ build)
+      import(/* webpackChunkName: "html5-qrcode-preload" */ 'html5-qrcode')
+        .catch(() => {
+          // silent - ไม่กระทบ user
+        });
     });
   }, []);
 
