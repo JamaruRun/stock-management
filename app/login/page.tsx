@@ -113,6 +113,29 @@ export default function LoginPage() {
             {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
+
+        {/* Link ไปหน้าสมัคร Beta */}
+        <div style={{ 
+          textAlign: 'center', 
+          marginTop: 20,
+          paddingTop: 20,
+          borderTop: '1px solid var(--border)',
+          fontSize: 13,
+          color: 'var(--text-dim)',
+        }}>
+          ยังไม่มีบัญชี?
+          <a 
+            href="/signup-beta" 
+            style={{ 
+              color: 'var(--accent)', 
+              textDecoration: 'none', 
+              fontWeight: 600,
+              marginLeft: 6,
+            }}
+          >
+            สมัคร Beta ฟรี 30 วัน →
+          </a>
+        </div>
       </div>
     </div>
   );

@@ -210,6 +210,56 @@ export default function SuperAdminPage() {
           <div className="desc">ทุกร้านในระบบ • Super Admin Panel</div>
         </div>
 
+        {/* Quick Links */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', 
+          gap: 10,
+          marginBottom: 20,
+        }}>
+          <Link href="/super-admin/beta" style={{
+            padding: 14,
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            borderRadius: 'var(--radius-sm)',
+            color: '#fff',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            transition: 'transform 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ fontSize: 28 }}>📋</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Beta Signups</div>
+              <div style={{ fontSize: 11, opacity: 0.9 }}>คำขอสมัครใหม่</div>
+            </div>
+          </Link>
+
+          <Link href="/super-admin/online" style={{
+            padding: 14,
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            borderRadius: 'var(--radius-sm)',
+            color: '#fff',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            transition: 'transform 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ fontSize: 28 }}>🟢</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Online Users</div>
+              <div style={{ fontSize: 11, opacity: 0.9 }}>ใครออนไลน์</div>
+            </div>
+          </Link>
+        </div>
+
         <div className="stats">
           <div className="stat">
             <div className="label">รวมทั้งหมด</div>

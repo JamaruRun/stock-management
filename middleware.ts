@@ -6,7 +6,7 @@ const PROTECTED = ['/dashboard', '/super-admin', '/api/admin', '/api/super-admin
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isProtected = PROTECTED.some(r => path.startsWith(r));
-  const isAuthPage = path === '/login' || path === '/';
+  const isAuthPage = path === '/login' || path === '/' || path === '/signup-beta';
 
   // 🚀 Fast path: ไม่ใช่ route ที่ต้อง auth → skip getUser ทั้งหมด
   if (!isProtected && !isAuthPage) {
