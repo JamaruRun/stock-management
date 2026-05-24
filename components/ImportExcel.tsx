@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 
-export type ImportType = 'pawn' | 'installment';
+export type ImportType = 'pawn' | 'installment' | 'stock';
 
 interface Props {
   type: ImportType;
@@ -50,6 +50,20 @@ interface InstallmentRow {
   _row?: number;
 }
 
+interface StockRow {
+  imei: string;
+  model: string;
+  color?: string;
+  spec?: string;
+  price: number;
+  cost_price?: number;
+  device_condition: 'new' | 'used';
+  supplier_name?: string;
+  note?: string;
+  _error?: string;
+  _row?: number;
+}
+
 // Template สำหรับดาวน์โหลด
 const TEMPLATES = {
   pawn: {
@@ -66,6 +80,15 @@ const TEMPLATES = {
     sample: [
       ['356789012345678', 'iPhone 15 Pro Max', 'Natural Titanium', '256GB', 50000, 10000, 2500, 18, '2026-05-01', 'นายสมชาย ใจดี', '0812345678', '1234567890123', 'กรุงเทพ', ''],
       ['357890123456789', 'Samsung S24', 'Black', '256GB', 30000, 5000, 2000, 14, '2026-05-02', 'นางสาวสมหญิง', '0823456789', '1234567890124', 'นนทบุรี', 'นัดเก็บงวดวันที่ 10'],
+    ],
+  },
+  stock: {
+    title: 'สต๊อกเครื่อง',
+    headers: ['IMEI', 'รุ่น', 'สี', 'สเปค', 'ราคาขาย', 'ราคาทุน', 'สภาพ (new/used)', 'Supplier', 'หมายเหตุ'],
+    sample: [
+      ['356789012345678', 'iPhone 15 Pro Max', 'Natural Titanium', '256GB', 48500, 42000, 'new', 'TH Mobile', 'มือ 1 ประกันศูนย์'],
+      ['357890123456789', 'Samsung S24 Ultra', 'Black', '512GB', 38000, 32500, 'new', '', ''],
+      ['358901234567890', 'iPhone 14 Pro', 'Deep Purple', '128GB', 28000, 23000, 'used', 'มือสองเชียงราย', 'รอยขีดเล็กน้อย'],
     ],
   },
 };
@@ -93,7 +116,7 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, template.title);
     
-    const filename = `template_${type === 'pawn' ? 'จำนำ' : 'ผ่อน'}.xlsx`;
+    const filename = `template_${type === 'pawn' ? 'จำนำ' : type === 'installment' ? 'ผ่อน' : 'สต๊อก'}.xlsx`;
     XLSX.writeFile(wb, filename);
     showToast('ดาวน์โหลดแล้ว', filename);
   }
@@ -196,6 +219,35 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
     return row;
   }
 
+  function validateStockRow(r: any, idx: number): StockRow {
+    const conditionRaw = String(r[6] || '').trim().toLowerCase();
+    const condition: 'new' | 'used' = 
+      conditionRaw === 'used' || conditionRaw === 'มือสอง' || conditionRaw === 'มือ2'
+        ? 'used' : 'new';
+
+    const row: StockRow = {
+      imei: String(r[0] || '').trim(),
+      model: String(r[1] || '').trim(),
+      color: String(r[2] || '').trim() || undefined,
+      spec: String(r[3] || '').trim() || undefined,
+      price: parseFloat(r[4]) || 0,
+      cost_price: parseFloat(r[5]) || 0,
+      device_condition: condition,
+      supplier_name: String(r[7] || '').trim() || undefined,
+      note: String(r[8] || '').trim() || undefined,
+      _row: idx + 2,
+    };
+
+    const errors: string[] = [];
+    if (!row.imei) errors.push('ไม่มี IMEI');
+    if (!/^\d{14,16}$/.test(row.imei.replace(/\D/g, ''))) errors.push('IMEI ต้องเป็นตัวเลข 14-16 หลัก');
+    if (!row.model) errors.push('ไม่มีรุ่น');
+    if (!row.price || row.price <= 0) errors.push('ราคาขายผิด');
+    
+    if (errors.length > 0) row._error = errors.join(', ');
+    return row;
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -218,7 +270,9 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
 
         // Validate
         const parsed = dataRows.map((r, i) => 
-          type === 'pawn' ? validatePawnRow(r, i) : validateInstallmentRow(r, i)
+          type === 'pawn' ? validatePawnRow(r, i) : 
+          type === 'installment' ? validateInstallmentRow(r, i) :
+          validateStockRow(r, i)
         );
 
         setRows(parsed);
@@ -249,6 +303,16 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
     let success = 0;
     let failed = 0;
 
+    // โหลด suppliers ของร้านเพื่อแมป supplier_name → supplier_id (สำหรับ stock)
+    let supplierMap: Record<string, string> = {};
+    if (type === 'stock') {
+      const { data: sups } = await supabase
+        .from('suppliers').select('id, name').eq('shop_id', shopId);
+      (sups || []).forEach((s: any) => {
+        supplierMap[s.name.toLowerCase().trim()] = s.id;
+      });
+    }
+
     for (let i = 0; i < validRows.length; i++) {
       const row = validRows[i];
       setProgress({ current: i + 1, total: validRows.length, success, failed });
@@ -276,7 +340,7 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
           } else {
             success++;
           }
-        } else {
+        } else if (type === 'installment') {
           const { error } = await supabase.from('installment_stock').insert({
             imei: row.imei,
             model: row.model,
@@ -292,6 +356,48 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
             customer_id_card: row.customer_id_card,
             customer_address: row.customer_address || null,
             customer_note: row.customer_note || null,
+            added_by: userId,
+            added_by_name: userName,
+            branch_id: branchId,
+            shop_id: shopId,
+          });
+          if (error) {
+            failed++;
+            row._error = error.message;
+          } else {
+            success++;
+          }
+        } else {
+          // stock
+          // หา supplier_id จากชื่อ (ถ้าไม่เจอ → สร้างใหม่)
+          let supplierId: string | null = null;
+          if (row.supplier_name) {
+            const key = row.supplier_name.toLowerCase().trim();
+            if (supplierMap[key]) {
+              supplierId = supplierMap[key];
+            } else {
+              // สร้าง supplier ใหม่
+              const { data: newSup } = await supabase
+                .from('suppliers').insert({
+                  shop_id: shopId,
+                  name: row.supplier_name,
+                }).select('id').single();
+              if (newSup) {
+                supplierId = newSup.id;
+                supplierMap[key] = newSup.id;
+              }
+            }
+          }
+
+          const { error } = await supabase.from('stock').insert({
+            imei: row.imei,
+            model: row.model,
+            color: row.color || null,
+            spec: row.spec || null,
+            price: row.price,
+            cost_price: row.cost_price || 0,
+            device_condition: row.device_condition,
+            supplier_id: supplierId,
             added_by: userId,
             added_by_name: userName,
             branch_id: branchId,

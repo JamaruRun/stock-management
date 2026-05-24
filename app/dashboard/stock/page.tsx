@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import ImportExcel from '@/components/ImportExcel';
 
 export default function StockPage() {
   const supabase = createClient();
@@ -16,6 +17,7 @@ export default function StockPage() {
   const [filterBranch, setFilterBranch] = useState('');
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
+  const [showImport, setShowImport] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -163,6 +165,15 @@ export default function StockPage() {
             ⏱️ ประวัติการขาย
           </Link>
         )}
+        {isAdmin && (
+          <button
+            onClick={() => setShowImport(true)}
+            className="btn btn-sec"
+            style={{ width: 'auto', flex: '1 1 200px' }}
+          >
+            📥 นำเข้า Excel
+          </button>
+        )}
       </div>
 
       {isAdmin && branches.length > 0 && (
@@ -303,6 +314,18 @@ export default function StockPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showImport && profile && (
+        <ImportExcel
+          type="stock"
+          branchId={profile.branch_id}
+          shopId={profile.shop_id}
+          userId={profile.id}
+          userName={profile.full_name || profile.username}
+          onClose={() => setShowImport(false)}
+          onSuccess={() => { setShowImport(false); loadData(); }}
+        />
       )}
 
       {toast && <Toast {...toast} />}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.8.3';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,28 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.8.0',
-  date: '2026-05-23',
+  version: '3.8.3',
+  date: '2026-05-24',
   features: [
     {
-      icon: '🔧',
-      title: 'ระบบสต๊อกอะไหล่งานซ่อม!',
-      desc: 'แบต • หน้าจอ • แพรชาร์จ • กล้อง • ลำโพง • IC ฯลฯ • จัดการแยกจากสินค้าทั่วไป',
+      icon: '📥',
+      title: 'นำเข้าสต๊อกเครื่องจาก Excel ได้แล้ว!',
+      desc: 'อัพโหลดไฟล์ Excel เพิ่มเครื่องครั้งละหลายร้อยเครื่อง • ดาวน์โหลด template ก่อนได้',
     },
     {
-      icon: '🔍',
-      title: 'ค้นหาอะไหล่ง่ายๆ',
-      desc: 'ค้นจากชื่อ / รุ่นมือถือ / ประเภท / เกรด (แท้/OEM/OLED/AAA) ในที่เดียว',
+      icon: '🏭',
+      title: 'Supplier สร้างอัตโนมัติ',
+      desc: 'ใส่ชื่อ supplier ใน Excel - ถ้ายังไม่มีในระบบ จะสร้างให้อัตโนมัติ',
     },
     {
-      icon: '⚠️',
-      title: 'แจ้งเตือนอะไหล่ใกล้หมด',
-      desc: 'ตั้งจุดแจ้งเตือนต่ออะไหล่ • แสดงในหน้าหลัก • ส่งเข้า LINE ได้',
-    },
-    {
-      icon: '📜',
-      title: 'ประวัติทุกการเคลื่อนไหว',
-      desc: 'บันทึกทุกครั้งที่รับเข้า/จ่ายออก/ปรับสต๊อก พร้อมผู้ทำและหมายเหตุ',
+      icon: '✅',
+      title: 'ตรวจสอบก่อนนำเข้า',
+      desc: 'Preview ข้อมูลทุกแถว • แสดงแถวที่ผิด (IMEI ไม่ครบ / ราคาผิด) • Skip อัตโนมัติ',
     },
   ],
 };
