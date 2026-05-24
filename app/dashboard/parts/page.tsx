@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
 import { sendLinePush } from '@/lib/line-notify';
+import LabelPrint30x20 from '@/components/LabelPrint30x20';
 
 interface Part {
   id: string;
@@ -40,6 +41,9 @@ export default function PartsPage() {
   // Quick adjust modal
   const [adjusting, setAdjusting] = useState<Part | null>(null);
   const [adjustQty, setAdjustQty] = useState('');
+  
+  // Print label
+  const [printingLabel, setPrintingLabel] = useState<Part | null>(null);
   const [adjustNote, setAdjustNote] = useState('');
   const [adjustType, setAdjustType] = useState<'in' | 'out' | 'set'>('in');
   const [savingAdjust, setSavingAdjust] = useState(false);
@@ -57,7 +61,7 @@ export default function PartsPage() {
     if (!user) { setLoading(false); return; }
 
     const { data: p } = await supabase
-      .from('profiles').select('*').eq('id', user.id).single();
+      .from('profiles').select('*, shops(name)').eq('id', user.id).single();
     setProfile(p);
 
     const { data } = await supabase
@@ -452,6 +456,19 @@ export default function PartsPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button
+                      onClick={() => setPrintingLabel(p)}
+                      style={{
+                        padding: '4px 10px',
+                        background: 'var(--surface-2)',
+                        color: 'var(--text)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        fontFamily: 'inherit',
+                      }}
+                    >🏷️</button>
+                    <button
                       onClick={() => openAdjust(p)}
                       style={{
                         padding: '4px 10px',
@@ -463,7 +480,7 @@ export default function PartsPage() {
                         fontSize: 11,
                         fontFamily: 'inherit',
                       }}
-                    >📊 ปรับสต๊อก</button>
+                    >📊 ปรับ</button>
                     <Link
                       href={`/dashboard/parts/edit?id=${p.id}`}
                       style={{
@@ -556,6 +573,22 @@ export default function PartsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {printingLabel && profile && (
+        <LabelPrint30x20
+          items={[{
+            shopName: profile.shops?.name,
+            productName: printingLabel.name,
+            variant: `${printingLabel.phone_model}${printingLabel.grade ? ' • ' + (getGradeInfo(printingLabel.grade)?.label || printingLabel.grade) : ''}`,
+            price: Number(printingLabel.sell_price),
+            code: printingLabel.sku || printingLabel.id,
+            showBarcode: true,
+            showQR: true,
+          }]}
+          copies={1}
+          onClose={() => setPrintingLabel(null)}
+        />
       )}
 
       {toast && <Toast {...toast} />}

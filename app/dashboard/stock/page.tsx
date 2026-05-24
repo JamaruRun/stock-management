@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import ImportExcel from '@/components/ImportExcel';
+import LabelPrint30x20 from '@/components/LabelPrint30x20';
 
 export default function StockPage() {
   const supabase = createClient();
@@ -18,6 +19,7 @@ export default function StockPage() {
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [showImport, setShowImport] = useState(false);
+  const [printingLabel, setPrintingLabel] = useState<any | null>(null);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -31,7 +33,7 @@ export default function StockPage() {
     if (!user) { setLoading(false); return; }
 
     const [profileRes, stockRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('profiles').select('*, shops(name)').eq('id', user.id).single(),
       supabase
         .from('stock')
         .select('*, added_by_profile:profiles!stock_added_by_fkey(full_name), branch:branches(name)')
@@ -243,6 +245,7 @@ export default function StockPage() {
                   เพิ่มโดย {item.added_by_profile?.full_name || item.added_by_name || '-'} · {new Date(item.created_at).toLocaleDateString('th-TH')}
                 </div>
                 <div className="actions">
+                  <button className="icon-btn" onClick={() => setPrintingLabel(item)} title="ปริ้นป้ายราคา">🏷️</button>
                   <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
                   {isAdmin && (
                     <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
@@ -325,6 +328,26 @@ export default function StockPage() {
           userName={profile.full_name || profile.username}
           onClose={() => setShowImport(false)}
           onSuccess={() => { setShowImport(false); loadData(); }}
+        />
+      )}
+
+      {printingLabel && profile && (
+        <LabelPrint30x20
+          items={[{
+            shopName: profile.shops?.name,
+            productName: printingLabel.model,
+            variant: [
+              printingLabel.color,
+              printingLabel.spec,
+              printingLabel.device_condition === 'used' ? 'Used' : 'New',
+            ].filter(Boolean).join(' '),
+            price: Number(printingLabel.price),
+            code: printingLabel.imei,
+            showBarcode: true,
+            showQR: true,
+          }]}
+          copies={1}
+          onClose={() => setPrintingLabel(null)}
         />
       )}
 

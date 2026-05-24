@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import LabelPrint30x20 from '@/components/LabelPrint30x20';
 
 export default function GoodsStockPage() {
   const supabase = createClient();
@@ -16,6 +17,7 @@ export default function GoodsStockPage() {
   const [filterBranch, setFilterBranch] = useState('');
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
+  const [printingLabel, setPrintingLabel] = useState<any | null>(null);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -28,7 +30,7 @@ export default function GoodsStockPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data: p } = await supabase.from('profiles').select('*, shops(name)').eq('id', user.id).single();
     setProfile(p);
 
     const { data: goodsData } = await supabase
@@ -246,6 +248,7 @@ export default function GoodsStockPage() {
                   <div className="actions">
                     {isAdmin && (
                       <>
+                        <button className="icon-btn" onClick={() => setPrintingLabel(item)} title="ปริ้นป้ายราคา">🏷️</button>
                         <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
                         <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
                       </>
@@ -326,6 +329,22 @@ export default function GoodsStockPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {printingLabel && profile && (
+        <LabelPrint30x20
+          items={[{
+            shopName: profile.shops?.name,
+            productName: printingLabel.name,
+            variant: printingLabel.category,
+            price: Number(printingLabel.sell_price),
+            code: printingLabel.sku || printingLabel.id,
+            showBarcode: true,
+            showQR: true,
+          }]}
+          copies={1}
+          onClose={() => setPrintingLabel(null)}
+        />
       )}
 
       {toast && <Toast {...toast} />}

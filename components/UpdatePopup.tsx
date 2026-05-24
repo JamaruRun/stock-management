@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.8.3';
+const APP_VERSION = '3.8.4';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.8.3',
+  version: '3.8.4',
   date: '2026-05-24',
   features: [
     {
+      icon: '🏷️',
+      title: 'ปริ้นป้ายราคาเครื่อง Easy Print แล้ว!',
+      desc: 'ขนาด 30×20mm • รองรับเครื่องพิมพ์ความร้อน • มี Barcode + QR ในป้ายเดียว',
+    },
+    {
       icon: '📥',
-      title: 'นำเข้าสต๊อกเครื่องจาก Excel ได้แล้ว!',
-      desc: 'อัพโหลดไฟล์ Excel เพิ่มเครื่องครั้งละหลายร้อยเครื่อง • ดาวน์โหลด template ก่อนได้',
+      title: 'นำเข้าสต๊อกเครื่องจาก Excel',
+      desc: 'อัพโหลดไฟล์ Excel เพิ่มเครื่องครั้งละหลายร้อยเครื่อง • Supplier ใหม่สร้างอัตโนมัติ',
     },
     {
-      icon: '🏭',
-      title: 'Supplier สร้างอัตโนมัติ',
-      desc: 'ใส่ชื่อ supplier ใน Excel - ถ้ายังไม่มีในระบบ จะสร้างให้อัตโนมัติ',
-    },
-    {
-      icon: '✅',
-      title: 'ตรวจสอบก่อนนำเข้า',
-      desc: 'Preview ข้อมูลทุกแถว • แสดงแถวที่ผิด (IMEI ไม่ครบ / ราคาผิด) • Skip อัตโนมัติ',
+      icon: '📱',
+      title: 'ใช้ได้กับทุก module',
+      desc: 'สต๊อกเครื่อง • สต๊อกของ • อะไหล่ซ่อม — กดปุ่ม 🏷️ ในแต่ละรายการได้เลย',
     },
   ],
 };
