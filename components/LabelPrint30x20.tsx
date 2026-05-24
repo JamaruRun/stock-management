@@ -21,7 +21,8 @@ interface Props {
   onClose: () => void;
 }
 
-export default function LabelPrint30x20({ items, copies = 1, onClose }: Props) {
+export default function LabelPrint30x20({ items, copies: initialCopies = 1, onClose }: Props) {
+  const [copies, setCopies] = useState(initialCopies);
   const [labels, setLabels] = useState<Array<LabelItem & { barcodeUrl?: string; qrUrl?: string }>>([]);
   const [loading, setLoading] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
@@ -191,6 +192,97 @@ export default function LabelPrint30x20({ items, copies = 1, onClose }: Props) {
               <li>Margin: 0 / Scale: 100%</li>
             </ol>
           </div>
+
+          {/* Copies selector */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ 
+              fontSize: 12, 
+              fontWeight: 600, 
+              color: 'var(--text)',
+              display: 'block',
+              marginBottom: 8,
+            }}>
+              🖨️ จำนวนสำเนา/ชิ้น
+            </label>
+            <div style={{ 
+              display: 'flex', 
+              gap: 6, 
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}>
+              {[1, 2, 3, 5, 10].map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setCopies(n)}
+                  style={{
+                    padding: '8px 16px',
+                    background: copies === n ? 'var(--accent)' : 'var(--surface-2)',
+                    color: copies === n ? '#fff' : 'var(--text)',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    minWidth: 44,
+                  }}
+                >×{n}</button>
+              ))}
+              <input
+                type="number"
+                value={copies}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value);
+                  if (v > 0 && v <= 100) setCopies(v);
+                }}
+                min="1"
+                max="100"
+                style={{
+                  width: 70,
+                  padding: 8,
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text)',
+                  fontFamily: 'inherit',
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                = {items.length * copies} ป้ายรวม
+              </span>
+            </div>
+          </div>
+
+          {/* รายการ items (ถ้ามีหลายชิ้น) */}
+          {items.length > 1 && (
+            <div style={{
+              padding: 10,
+              background: 'var(--surface-2)',
+              borderRadius: 6,
+              marginBottom: 14,
+              maxHeight: 120,
+              overflow: 'auto',
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6, fontWeight: 600 }}>
+                📦 จะปริ้น {items.length} รายการ
+              </div>
+              {items.map((it, i) => (
+                <div key={i} style={{ 
+                  fontSize: 11, 
+                  padding: '4px 0',
+                  borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                }}>
+                  <span>{it.productName}</span>
+                  <span style={{ color: 'var(--accent)' }}>×{copies}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: 40 }}>

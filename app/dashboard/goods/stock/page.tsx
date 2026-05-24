@@ -18,6 +18,9 @@ export default function GoodsStockPage() {
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [printingLabel, setPrintingLabel] = useState<any | null>(null);
+  const [printingMulti, setPrintingMulti] = useState<any[] | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -155,15 +158,102 @@ export default function GoodsStockPage() {
         }}>
           📷 ขายของ (สแกน)
         </Link>
-        <Link href="/dashboard/goods/print" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
-          🖨️ ปริ้น Barcode
-        </Link>
+        <button
+          onClick={() => {
+            setSelectMode(!selectMode);
+            setSelectedIds(new Set());
+          }}
+          className="btn btn-sec"
+          style={{ 
+            width: 'auto', 
+            flex: '1 1 200px',
+            background: selectMode ? 'var(--accent)' : undefined,
+            color: selectMode ? '#fff' : undefined,
+          }}
+        >
+          {selectMode ? '✕ ยกเลิกเลือก' : '🏷️ เลือกหลายชิ้นปริ้นป้าย'}
+        </button>
         {isAdmin && (
           <Link href="/dashboard/goods/history" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
             ⏱️ ประวัติขายของ
           </Link>
         )}
       </div>
+
+      {/* Sticky bar เมื่ออยู่ใน select mode */}
+      {selectMode && (
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+          color: '#fff',
+          padding: 12,
+          borderRadius: 8,
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap',
+          boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>
+              เลือกแล้ว {selectedIds.size} ชิ้น
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.9 }}>
+              แตะที่รายการเพื่อเลือก/ยกเลิก
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              // Select all visible
+              const visible = items.filter((item: any) => {
+                const matchSearch = !search || 
+                  item.name?.toLowerCase().includes(search.toLowerCase()) ||
+                  item.sku?.toLowerCase().includes(search.toLowerCase());
+                const matchCat = !filterCategory || item.category === filterCategory;
+                const matchBranch = !filterBranch || item.branch_id === filterBranch;
+                return matchSearch && matchCat && matchBranch;
+              });
+              if (selectedIds.size === visible.length) {
+                setSelectedIds(new Set());
+              } else {
+                setSelectedIds(new Set(visible.map((i: any) => i.id)));
+              }
+            }}
+            style={{
+              padding: '8px 14px',
+              background: 'rgba(255,255,255,0.2)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontFamily: 'inherit',
+              fontWeight: 600,
+            }}
+          >☑️ เลือกทั้งหมด</button>
+          <button
+            disabled={selectedIds.size === 0}
+            onClick={() => {
+              const toPrint = items.filter((i: any) => selectedIds.has(i.id));
+              setPrintingMulti(toPrint);
+            }}
+            style={{
+              padding: '8px 16px',
+              background: selectedIds.size === 0 ? 'rgba(255,255,255,0.15)' : '#fff',
+              color: selectedIds.size === 0 ? 'rgba(255,255,255,0.6)' : '#2563eb',
+              border: 'none',
+              borderRadius: 6,
+              cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer',
+              fontSize: 13,
+              fontFamily: 'inherit',
+              fontWeight: 700,
+            }}
+          >🖨️ ปริ้น ({selectedIds.size})</button>
+        </div>
+      )}
 
       {isAdmin && branches.length > 0 && (
         <div className="branch-tabs">
@@ -215,8 +305,46 @@ export default function GoodsStockPage() {
           {filtered.map((item) => {
             const isLow = item.stock_qty <= (item.low_stock_alert || 5);
             const isOut = item.stock_qty <= 0;
+            const isSelected = selectedIds.has(item.id);
             return (
-              <div key={item.id} className="item-card">
+              <div 
+                key={item.id} 
+                className="item-card"
+                onClick={() => {
+                  if (!selectMode) return;
+                  const next = new Set(selectedIds);
+                  if (next.has(item.id)) next.delete(item.id);
+                  else next.add(item.id);
+                  setSelectedIds(next);
+                }}
+                style={selectMode ? {
+                  cursor: 'pointer',
+                  border: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                  background: isSelected ? 'rgba(59, 130, 246, 0.08)' : undefined,
+                  position: 'relative',
+                } : undefined}
+              >
+                {selectMode && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: isSelected ? 'var(--accent)' : 'var(--surface-2)',
+                    border: '2px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    zIndex: 5,
+                  }}>
+                    {isSelected && '✓'}
+                  </div>
+                )}
                 <div className="top-row">
                   <div className="model">{item.name}</div>
                   <div className="price">฿{Number(item.sell_price).toLocaleString()}</div>
@@ -344,6 +472,26 @@ export default function GoodsStockPage() {
           }]}
           copies={1}
           onClose={() => setPrintingLabel(null)}
+        />
+      )}
+
+      {printingMulti && profile && (
+        <LabelPrint30x20
+          items={printingMulti.map(item => ({
+            shopName: profile.shops?.name,
+            productName: item.name,
+            variant: item.category,
+            price: Number(item.sell_price),
+            code: item.sku || item.id,
+            showBarcode: true,
+            showQR: true,
+          }))}
+          copies={1}
+          onClose={() => {
+            setPrintingMulti(null);
+            setSelectedIds(new Set());
+            setSelectMode(false);
+          }}
         />
       )}
 
