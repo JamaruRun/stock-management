@@ -258,6 +258,27 @@ export default function SuperAdminPage() {
               <div style={{ fontSize: 11, opacity: 0.9 }}>ใครออนไลน์</div>
             </div>
           </Link>
+
+          <Link href="/super-admin/feedback" style={{
+            padding: 14,
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
+            borderRadius: 'var(--radius-sm)',
+            color: '#fff',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            transition: 'transform 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ fontSize: 28 }}>📬</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Feedback</div>
+              <div style={{ fontSize: 11, opacity: 0.9 }}>ข้อเสนอแนะ + บั๊ก</div>
+            </div>
+          </Link>
         </div>
 
         <div className="stats">

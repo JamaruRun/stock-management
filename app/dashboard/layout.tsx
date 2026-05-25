@@ -4,6 +4,7 @@ import DashboardClient from './dashboard-client';
 import Heartbeat from '@/components/Heartbeat';
 import BarcodeScannerPreload from '@/components/BarcodeScannerPreload';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import FeedbackButton from '@/components/FeedbackButton';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -123,6 +124,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Heartbeat />
       <BarcodeScannerPreload />
       <PWAInstallPrompt />
+      <FeedbackButton />
       {children}
     </DashboardClient>
   );
