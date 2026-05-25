@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.3';
+const APP_VERSION = '3.9.4';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.3',
-  date: '2026-05-24',
+  version: '3.9.4',
+  date: '2026-05-25',
   features: [
     {
+      icon: '🛠️',
+      title: 'ระบบใบงานซ่อมพร้อมใช้!',
+      desc: 'รับซ่อม • ใช้อะไหล่ → ตัดสต๊อกอัตโนมัติ • คำนวณกำไร • LINE notify',
+    },
+    {
+      icon: '📱',
+      title: 'ติดตั้งเป็นแอป (PWA)',
+      desc: 'เปิดเร็วกว่า • icon บนหน้าจอ • full-screen เหมือนแอปจริง',
+    },
+    {
       icon: '💬',
-      title: 'ส่ง Feedback ถึงทีมพัฒนาได้แล้ว!',
-      desc: 'กดปุ่ม 💬 มุมขวาล่าง • แจ้งบั๊ก • ขอฟีเจอร์ • ชม/ติ - ทีมเราจะนำไปปรับปรุง',
+      title: 'ส่ง Feedback ถึงทีมพัฒนาได้แล้ว',
+      desc: 'กดปุ่ม 💬 มุมขวาล่าง • แจ้งบั๊ก / ขอฟีเจอร์ / ชม / ติ',
     },
     {
-      icon: '⭐',
-      title: 'ให้คะแนนระบบ',
-      desc: 'เลือกประเภท "ชื่นชม" → ให้ดาว 1-5 → ส่งกำลังใจให้ทีมพัฒนา',
-    },
-    {
-      icon: '🚀',
-      title: 'ส่งตรงถึงทีมงาน',
-      desc: 'ข้อความจะถูกส่งให้ทีมพัฒนาผ่าน LINE ทันที + บันทึกในระบบให้ดูย้อนหลังได้',
+      icon: '🎨',
+      title: 'หน้าตามืออาชีพขึ้น',
+      desc: 'Logo ทุกจุด • Landing page Beta Signup สวยใหม่',
     },
   ],
 };

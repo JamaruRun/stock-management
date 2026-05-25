@@ -20,6 +20,7 @@ interface RepairJob {
   profit: number;
   received_date: string;
   done_date?: string;
+  delivered_date?: string;
   technician_name?: string;
   created_at: string;
 }
