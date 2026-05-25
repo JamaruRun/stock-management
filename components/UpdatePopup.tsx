@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.0';
+const APP_VERSION = '3.9.1';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,33 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.0',
+  version: '3.9.1',
   date: '2026-05-24',
   features: [
     {
+      icon: '📱',
+      title: 'ติดตั้งเป็นแอปบนมือถือได้แล้ว!',
+      desc: 'PWA = เปิดเร็วกว่า • icon บนหน้าจอ • full-screen ไม่ต้องเปิด browser',
+    },
+    {
+      icon: '🎨',
+      title: 'Logo + ไอคอนใหม่',
+      desc: 'น้องกล่องน่ารักประจำระบบ - แสดงบน home screen + tab',
+    },
+    {
+      icon: '⚡',
+      title: 'ทำงานเร็วขึ้น',
+      desc: 'Service Worker cache assets • ลด data ใช้งาน • หน้าโหลดเร็วขึ้น 30-50%',
+    },
+    {
       icon: '🛠️',
-      title: 'ระบบใบงานซ่อม! (Phase 2)',
-      desc: 'รับซ่อม - ออกใบ - ติดตามสถานะ - คำนวณกำไรอัตโนมัติ • รุ่นใหม่ของระบบ',
-    },
-    {
-      icon: '📋',
-      title: 'จัดการสถานะ 6 แบบ',
-      desc: '🕐 รอตรวจ • 🔧 กำลังซ่อม • ⏳ รออะไหล่ • ✅ ซ่อมเสร็จ • 🎉 ส่งมอบ • ❌ ยกเลิก',
-    },
-    {
-      icon: '🔧',
-      title: 'ใช้อะไหล่ → ตัดสต๊อกอัตโนมัติ',
-      desc: 'เพิ่มอะไหล่ในใบงาน • ระบบตัดสต๊อกจาก parts ทันที • คำนวณกำไรจริง (รวมค่าแรง + ส่วนต่างอะไหล่)',
-    },
-    {
-      icon: '💬',
-      title: 'แจ้งเตือน LINE เมื่อสถานะเปลี่ยน',
-      desc: 'รับงานใหม่ • เปลี่ยนสถานะ • ส่งเข้า LINE group ของร้านอัตโนมัติ',
-    },
-    {
-      icon: '📜',
-      title: 'ประวัติทุกการเปลี่ยนแปลง',
-      desc: 'เก็บ log ทุกครั้งที่เปลี่ยนสถานะ พร้อมผู้ทำ + หมายเหตุ',
+      title: 'ระบบใบงานซ่อมพร้อมใช้แล้ว',
+      desc: 'รับซ่อม • ใช้อะไหล่ → ตัดสต๊อกอัตโนมัติ • คำนวณกำไร • LINE notify',
     },
   ],
 };

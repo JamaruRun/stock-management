@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 import DashboardClient from './dashboard-client';
 import Heartbeat from '@/components/Heartbeat';
 import BarcodeScannerPreload from '@/components/BarcodeScannerPreload';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -121,6 +122,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <DashboardClient profile={profile}>
       <Heartbeat />
       <BarcodeScannerPreload />
+      <PWAInstallPrompt />
       {children}
     </DashboardClient>
   );
