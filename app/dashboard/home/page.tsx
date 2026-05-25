@@ -21,6 +21,8 @@ interface Stats {
   goodsLowStock: number;
   partsCount: number;
   partsLowStock: number;
+  repairActive: number;
+  repairWaitingParts: number;
 }
 
 export default function DashboardHomePage() {
@@ -52,6 +54,7 @@ export default function DashboardHomePage() {
         installRes,
         goodsRes,
         partsRes,
+        repairRes,
         paymentsRes,
       ] = await Promise.all([
         // Today revenue + profit (admin only - sales)
@@ -68,6 +71,8 @@ export default function DashboardHomePage() {
         supabase.from('goods').select('stock_qty, sell_price, low_stock_alert'),
         // Parts (repair parts)
         supabase.from('parts').select('stock_qty, low_stock_alert'),
+        // Repair jobs (active)
+        supabase.from('repair_jobs').select('status'),
         // Installment payments (สำหรับนับงวดที่จ่ายแล้ว)
         supabase.from('installment_payments').select('installment_id'),
       ]);
@@ -132,6 +137,13 @@ export default function DashboardHomePage() {
         Number(r.stock_qty || 0) <= Number(r.low_stock_alert || 2)
       ).length;
 
+      const repairActive = (repairRes.data || []).filter((r: any) => 
+        r.status === 'pending' || r.status === 'in_progress' || r.status === 'waiting_parts'
+      ).length;
+      const repairWaitingParts = (repairRes.data || []).filter((r: any) => 
+        r.status === 'waiting_parts'
+      ).length;
+
       setStats({
         todayRevenue, todayProfit, todayOrders,
         stockCount, stockValue,
@@ -139,6 +151,7 @@ export default function DashboardHomePage() {
         installmentCount, installmentValue, installmentOverdue,
         goodsCount, goodsItems, goodsLowStock,
         partsCount, partsLowStock,
+        repairActive, repairWaitingParts,
       });
       setLoading(false);
     }
@@ -252,6 +265,28 @@ export default function DashboardHomePage() {
         </Link>
       )}
 
+      {/* Alert: งานซ่อมรออะไหล่ */}
+      {stats.repairWaitingParts > 0 && (
+        <Link href="/dashboard/repair" className="alert-card">
+          <div className="alert-card-icon">⏳</div>
+          <div className="alert-card-content">
+            <strong>{stats.repairWaitingParts} งาน</strong> รออะไหล่
+          </div>
+          <div className="alert-card-action">ดู →</div>
+        </Link>
+      )}
+
+      {/* Alert: งานซ่อมค้างทั้งหมด */}
+      {stats.repairActive > 0 && stats.repairWaitingParts === 0 && (
+        <Link href="/dashboard/repair" className="alert-card">
+          <div className="alert-card-icon">🛠️</div>
+          <div className="alert-card-content">
+            <strong>{stats.repairActive} ใบงานซ่อม</strong> รอดำเนินการ
+          </div>
+          <div className="alert-card-action">ดู →</div>
+        </Link>
+      )}
+
       {/* Quick: ดูรายงาน (Admin) */}
       {isAdmin && (
         <Link href="/dashboard/reports" style={{
@@ -339,6 +374,18 @@ export default function DashboardHomePage() {
           <div className="module-card-count">{stats.partsCount}</div>
           <div className="module-card-sub">รายการ</div>
         </Link>
+
+        <Link href="/dashboard/repair" className="module-card" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(109, 40, 217, 0.04) 100%)' }}>
+          <div className="module-card-header">
+            <div className="module-card-icon">🛠️</div>
+            {stats.repairActive > 0 && (
+              <div className="module-card-badge warn">{stats.repairActive} ค้าง</div>
+            )}
+          </div>
+          <div className="module-card-title">ใบงานซ่อม</div>
+          <div className="module-card-count">{stats.repairActive}</div>
+          <div className="module-card-sub">รอดำเนินการ</div>
+        </Link>
       </div>
 
       {/* Quick Actions */}
@@ -376,6 +423,14 @@ export default function DashboardHomePage() {
           <div>
             <div className="quick-action-text">สแกนขาย</div>
             <div className="quick-action-sub">อุปกรณ์เสริม</div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/repair/new" className="quick-action">
+          <div className="quick-action-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#7c3aed' }}>🛠️</div>
+          <div>
+            <div className="quick-action-text">รับงานซ่อม</div>
+            <div className="quick-action-sub">ออกใบงาน</div>
           </div>
         </Link>
       </div>
