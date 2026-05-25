@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.8.5';
+const APP_VERSION = '3.8.6';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.8.5',
+  version: '3.8.6',
   date: '2026-05-24',
   features: [
     {
+      icon: '🏷️',
+      title: 'ปริ้นป้ายได้ 2 แบบ!',
+      desc: 'ป้ายเล็ก 30×20mm (Easy Print) • ป้าย A4 (Barcode รวมหน้าเดียว) - เลือกใช้ได้ตามต้องการ',
+    },
+    {
       icon: '☑️',
-      title: 'เลือกหลายรายการปริ้นทีเดียว!',
-      desc: 'ในหน้าสต๊อกของ • กด "🏷️ เลือกหลายชิ้น" → แตะรายการที่ต้องการ → กดปริ้น',
+      title: 'เลือกหลายชิ้น × จำนวนสำเนา',
+      desc: 'เลือก 20 ชิ้น × 3 สำเนา = 60 ป้ายในคลิกเดียว',
     },
     {
-      icon: '🔢',
-      title: 'เลือกจำนวนสำเนาต่อชิ้น',
-      desc: '1, 2, 3, 5, 10 ดวง หรือกรอกเอง (1-100) • ดูยอดรวมก่อนปริ้น',
-    },
-    {
-      icon: '⚡',
-      title: 'ปริ้นเร็วขึ้น 10 เท่า',
-      desc: 'ก่อน: ปริ้นทีละชิ้น ช้า • ตอนนี้: เลือก 20 ชิ้น × 3 สำเนา = 60 ป้ายในคลิกเดียว',
+      icon: '📥',
+      title: 'นำเข้าสต๊อกเครื่องจาก Excel',
+      desc: 'อัพโหลดไฟล์ Excel เพิ่มเครื่องครั้งละหลายร้อย • Supplier ใหม่สร้างอัตโนมัติ',
     },
   ],
 };

@@ -171,8 +171,11 @@ export default function GoodsStockPage() {
             color: selectMode ? '#fff' : undefined,
           }}
         >
-          {selectMode ? '✕ ยกเลิกเลือก' : '🏷️ เลือกหลายชิ้นปริ้นป้าย'}
+          {selectMode ? '✕ ยกเลิกเลือก' : '🏷️ ป้ายเล็ก 30×20mm'}
         </button>
+        <Link href="/dashboard/goods/print" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
+          📄 ป้าย A4 (Barcode)
+        </Link>
         {isAdmin && (
           <Link href="/dashboard/goods/history" className="btn btn-sec" style={{ width: 'auto', flex: '1 1 200px' }}>
             ⏱️ ประวัติขายของ
