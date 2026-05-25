@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.1';
+const APP_VERSION = '3.9.2';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,27 +12,27 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.1',
+  version: '3.9.2',
   date: '2026-05-24',
   features: [
     {
-      icon: '📱',
-      title: 'ติดตั้งเป็นแอปบนมือถือได้แล้ว!',
-      desc: 'PWA = เปิดเร็วกว่า • icon บนหน้าจอ • full-screen ไม่ต้องเปิด browser',
-    },
-    {
       icon: '🎨',
-      title: 'Logo + ไอคอนใหม่',
-      desc: 'น้องกล่องน่ารักประจำระบบ - แสดงบน home screen + tab',
+      title: 'หน้า Beta Signup สวยมืออาชีพ',
+      desc: 'Landing page ใหม่ • Logo + Features grid • Trust badges • UX ดูดีขึ้น',
     },
     {
-      icon: '⚡',
-      title: 'ทำงานเร็วขึ้น',
-      desc: 'Service Worker cache assets • ลด data ใช้งาน • หน้าโหลดเร็วขึ้น 30-50%',
+      icon: '🏷️',
+      title: 'Logo ในทุกจุด',
+      desc: 'Login • Sidebar • Update popup • PWA prompt — ใช้ Logo เดียวกันทั้งระบบ',
+    },
+    {
+      icon: '📱',
+      title: 'PWA + ติดตั้งเป็นแอป',
+      desc: 'เปิดเร็วกว่า • icon บน home screen • full-screen ไม่ต้องเปิด browser',
     },
     {
       icon: '🛠️',
-      title: 'ระบบใบงานซ่อมพร้อมใช้แล้ว',
+      title: 'ระบบใบงานซ่อม (Phase 2)',
       desc: 'รับซ่อม • ใช้อะไหล่ → ตัดสต๊อกอัตโนมัติ • คำนวณกำไร • LINE notify',
     },
   ],
@@ -72,20 +72,33 @@ export default function UpdatePopup() {
           alignItems: 'flex-start',
           marginBottom: 12,
         }}>
-          <div>
-            <div style={{
-              display: 'inline-block',
-              fontSize: 11,
-              color: 'var(--accent)',
-              fontFamily: 'JetBrains Mono, monospace',
-              letterSpacing: 1,
-              padding: '2px 8px',
-              border: '1px solid var(--accent)',
-              marginBottom: 8,
-            }}>
-              v{updateInfo.version}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <img 
+              src="/icon-192.png" 
+              alt="Stock"
+              style={{ 
+                width: 52, 
+                height: 52, 
+                borderRadius: 12,
+                flexShrink: 0,
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)',
+              }}
+            />
+            <div>
+              <div style={{
+                display: 'inline-block',
+                fontSize: 11,
+                color: 'var(--accent)',
+                fontFamily: 'JetBrains Mono, monospace',
+                letterSpacing: 1,
+                padding: '2px 8px',
+                border: '1px solid var(--accent)',
+                marginBottom: 8,
+              }}>
+                v{updateInfo.version}
+              </div>
+              <h3 style={{ margin: 0 }}>🎉 อัพเดทใหม่!</h3>
             </div>
-            <h3 style={{ margin: 0 }}>🎉 อัพเดทใหม่!</h3>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
             {updateInfo.date}

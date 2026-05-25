@@ -73,12 +73,23 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-icon">🏪</div>
-          <div className="login-logo-text">STOCK MANAGER · v2.0</div>
+          <img 
+            src="/icon-192.png" 
+            alt="Stock Manager"
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 16,
+              boxShadow: '0 8px 20px rgba(59, 130, 246, 0.25)',
+              animation: 'login-logo-float 3s ease-in-out infinite',
+            }}
+          />
+          <div className="login-logo-text">STOCK MANAGER</div>
+          <style>{`@keyframes login-logo-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }`}</style>
         </div>
         
         <h1 className="login-title">เข้าสู่ระบบ</h1>
-        <p className="login-sub">ระบบจัดการสต๊อกร้านมือถือ</p>
+        <p className="login-sub">ระบบจัดการสต๊อกร้านมือถือ + ร้านซ่อม</p>
 
         <form onSubmit={handleLogin}>
           {error && <div className="login-error">{error}</div>}

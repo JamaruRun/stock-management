@@ -91,6 +91,40 @@ export default function DashboardClient({ profile, children }: Props) {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
+          {/* Brand */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 10,
+            padding: '4px 0 14px',
+            marginBottom: 12,
+            borderBottom: '1px solid var(--border)',
+          }}>
+            <img 
+              src="/icon-192.png" 
+              alt="Stock"
+              style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 8,
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ 
+                fontSize: 13, 
+                fontWeight: 700, 
+                color: 'var(--text)',
+                lineHeight: 1.1,
+              }}>Stock Manager</div>
+              <div style={{ 
+                fontSize: 10, 
+                color: 'var(--text-dim)',
+                marginTop: 2,
+              }}>ระบบจัดการร้าน</div>
+            </div>
+          </div>
+
           <div className="sidebar-shop">
             <div className="sidebar-shop-icon">🏪</div>
             <div className="sidebar-shop-info">
