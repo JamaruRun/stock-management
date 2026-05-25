@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.8.6';
+const APP_VERSION = '3.8.7';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.8.6',
+  version: '3.8.7',
   date: '2026-05-24',
   features: [
     {
-      icon: '🏷️',
-      title: 'ปริ้นป้ายได้ 2 แบบ!',
-      desc: 'ป้ายเล็ก 30×20mm (Easy Print) • ป้าย A4 (Barcode รวมหน้าเดียว) - เลือกใช้ได้ตามต้องการ',
+      icon: '🐛',
+      title: 'แก้ปริ้นป้ายแล้ว!',
+      desc: 'ก่อน: กดปริ้นแล้วหน้าว่าง • ตอนนี้: เปิดหน้าใหม่ + ปริ้นได้สมบูรณ์',
     },
     {
-      icon: '☑️',
-      title: 'เลือกหลายชิ้น × จำนวนสำเนา',
-      desc: 'เลือก 20 ชิ้น × 3 สำเนา = 60 ป้ายในคลิกเดียว',
+      icon: '👁️',
+      title: 'Preview ก่อนปริ้น',
+      desc: 'หน้าต่างใหม่จะเปิดให้ดูป้ายก่อน → ตรวจสอบความถูกต้อง → กดปริ้น',
     },
     {
-      icon: '📥',
-      title: 'นำเข้าสต๊อกเครื่องจาก Excel',
-      desc: 'อัพโหลดไฟล์ Excel เพิ่มเครื่องครั้งละหลายร้อย • Supplier ใหม่สร้างอัตโนมัติ',
+      icon: '👑',
+      title: 'Super Admin เห็นทุกร้านแล้ว',
+      desc: 'ก่อน: เห็นแค่ร้านตัวเอง • ตอนนี้: เห็นทุกร้านในระบบ + จัดการ user ได้',
     },
   ],
 };
