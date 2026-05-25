@@ -40,11 +40,37 @@ const themeScript = `
 })();
 `;
 
+// Service Worker - update เก่าทันที + reload
 const swScript = `
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js').catch(function(err) {
+    navigator.serviceWorker.register('/sw.js').then(function(reg) {
+      // เช็ค update ทุก 30 วินาที
+      setInterval(function() { reg.update(); }, 30000);
+      
+      // ถ้ามี SW ใหม่ → ใช้ทันที
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // SW ใหม่พร้อม → reload
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        }
+      });
+    }).catch(function(err) {
       console.warn('SW registration failed:', err);
+    });
+    
+    // เมื่อ SW ใหม่ activate → reload
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   });
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.4';
+const APP_VERSION = '3.9.5';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,28 +12,28 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.4',
+  version: '3.9.5',
   date: '2026-05-25',
   features: [
     {
+      icon: '⚡',
+      title: 'PWA เปิดเร็วขึ้น 3-5 เท่า!',
+      desc: 'เปลี่ยน Service Worker strategy → Cache-first + Stale-While-Revalidate',
+    },
+    {
+      icon: '🔄',
+      title: 'Auto-update ในแอป',
+      desc: 'ระบบเช็ค update อัตโนมัติ • ไม่ต้องลบ cache เอง • ใช้เวอร์ชั่นใหม่เสมอ',
+    },
+    {
       icon: '🛠️',
-      title: 'ระบบใบงานซ่อมพร้อมใช้!',
+      title: 'ระบบใบงานซ่อม',
       desc: 'รับซ่อม • ใช้อะไหล่ → ตัดสต๊อกอัตโนมัติ • คำนวณกำไร • LINE notify',
     },
     {
-      icon: '📱',
-      title: 'ติดตั้งเป็นแอป (PWA)',
-      desc: 'เปิดเร็วกว่า • icon บนหน้าจอ • full-screen เหมือนแอปจริง',
-    },
-    {
       icon: '💬',
-      title: 'ส่ง Feedback ถึงทีมพัฒนาได้แล้ว',
+      title: 'ส่ง Feedback ถึงทีม',
       desc: 'กดปุ่ม 💬 มุมขวาล่าง • แจ้งบั๊ก / ขอฟีเจอร์ / ชม / ติ',
-    },
-    {
-      icon: '🎨',
-      title: 'หน้าตามืออาชีพขึ้น',
-      desc: 'Logo ทุกจุด • Landing page Beta Signup สวยใหม่',
     },
   ],
 };
