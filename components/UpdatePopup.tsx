@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.9';
+const APP_VERSION = '3.9.10';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,7 +12,7 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.9',
+  version: '3.9.10',
   date: '2026-05-27',
   features: [
     {
@@ -21,14 +21,9 @@ const LATEST_UPDATE: UpdateInfo = {
       desc: 'ขายอุปกรณ์เสริมเสร็จ → กดปริ้นใบเสร็จได้ทันที ส่งให้ลูกค้าได้',
     },
     {
-      icon: '✏️',
-      title: 'เปลี่ยน Username ได้',
-      desc: 'Admin เปลี่ยน username ของตัวเอง / พนักงานได้แล้ว ในเมนูจัดการผู้ใช้',
-    },
-    {
-      icon: '🛡️',
-      title: 'เช็คซ้ำกัน Username ซ้ำกัน',
-      desc: 'ระบบเช็คก่อนเปลี่ยน ไม่ให้ซ้ำกับคนอื่นในระบบ',
+      icon: '🔒',
+      title: 'อยากเปลี่ยน Username?',
+      desc: 'ติดต่อทีมงานเพื่อเปลี่ยน Username • ป้องกันความผิดพลาด + ปลอดภัยกว่า',
     },
   ],
 };

@@ -300,6 +300,27 @@ export default function SuperAdminPage() {
               <div style={{ fontSize: 11, opacity: 0.9 }}>ใครใช้บ่อย • พร้อมจ่าย</div>
             </div>
           </Link>
+
+          <Link href="/super-admin/users" style={{
+            padding: 14,
+            background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+            borderRadius: 'var(--radius-sm)',
+            color: '#fff',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            transition: 'transform 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ fontSize: 28 }}>👥</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>จัดการ Users</div>
+              <div style={{ fontSize: 11, opacity: 0.9 }}>เปลี่ยน Username • Password</div>
+            </div>
+          </Link>
         </div>
 
         <div className="stats">
