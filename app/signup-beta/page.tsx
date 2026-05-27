@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase-client';
 
 export default function SignupBetaPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -52,30 +50,40 @@ export default function SignupBetaPage() {
     }
 
     setSubmitting(true);
-    const { error: insertError } = await supabase
-      .from('beta_signups')
-      .insert({
-        shop_name: form.shop_name.trim(),
-        contact_name: form.contact_name.trim(),
-        phone: form.phone.replace(/[-\s]/g, ''),
-        line_id: form.line_id.trim() || null,
-        province: form.province.trim() || null,
-        business_type: form.business_type,
-        shop_size: form.shop_size,
-        branch_count: form.branch_count,
-        current_system: form.current_system,
-        username: form.username.trim().toLowerCase(),
-        password_hash: form.password,
-        note: form.note.trim() || null,
-        status: 'pending',
+    
+    try {
+      const res = await fetch('/api/beta-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_name: form.shop_name,
+          contact_name: form.contact_name,
+          phone: form.phone,
+          line_id: form.line_id,
+          province: form.province,
+          business_type: form.business_type,
+          shop_size: form.shop_size,
+          branch_count: form.branch_count,
+          current_system: form.current_system,
+          username: form.username,
+          password: form.password,
+          note: form.note,
+        }),
       });
 
-    setSubmitting(false);
-    if (insertError) {
-      setError('เกิดข้อผิดพลาด: ' + insertError.message);
-      return;
+      const data = await res.json();
+      setSubmitting(false);
+
+      if (!res.ok) {
+        setError(data.error || 'เกิดข้อผิดพลาด');
+        return;
+      }
+
+      setSubmitted(true);
+    } catch (e: any) {
+      setSubmitting(false);
+      setError('เกิดข้อผิดพลาด: ' + e.message);
     }
-    setSubmitted(true);
   }
 
   if (submitted) {
