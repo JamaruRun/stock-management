@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import ReceiptPDF from '@/components/ReceiptPDF';
 import { sendLineNotify } from '@/lib/line-notify';
 
 interface CartItem {
@@ -26,6 +27,9 @@ export default function SellGoodsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  
+  // 🆕 Receipt data หลังขายสำเร็จ
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -210,6 +214,21 @@ export default function SellGoodsPage() {
     const lineMsg = `🎒 ขายอุปกรณ์เสริม\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━\n💵 รวม: ฿${total.toLocaleString()}`;
     sendLineNotify(lineMsg, 'goods').catch(() => {});
     
+    // 🆕 เก็บข้อมูลใบเสร็จไว้ → จะแสดงปุ่มปริ้น
+    setReceiptData({
+      receiptNo: receiptId.substring(0, 8).toUpperCase(),
+      items: cart.map(c => ({
+        name: c.name,
+        detail: c.category || '',
+        qty: c.quantity,
+        price: c.unit_price,
+      })),
+      subtotal,
+      discount: discountValue,
+      total,
+      issuedByName: profile?.full_name || profile?.username || '',
+    });
+    
     setCart([]);
     setDiscount('');
   }
@@ -386,6 +405,20 @@ export default function SellGoodsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🆕 ใบเสร็จหลังขายสำเร็จ */}
+      {receiptData && (
+        <ReceiptPDF
+          receiptNo={receiptData.receiptNo}
+          type="goods_sale"
+          items={receiptData.items}
+          subtotal={receiptData.subtotal}
+          discount={receiptData.discount}
+          total={receiptData.total}
+          issuedByName={receiptData.issuedByName}
+          onClose={() => setReceiptData(null)}
+        />
       )}
 
       {toast && <Toast {...toast} />}

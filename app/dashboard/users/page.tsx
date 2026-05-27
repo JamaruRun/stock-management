@@ -113,6 +113,21 @@ export default function UsersPage() {
       branch_id: editingUser.branch_id,
     };
 
+    // 🆕 ถ้ามีการเปลี่ยน username
+    if (editingUser.newUsername && editingUser.newUsername !== editingUser.username) {
+      const cleanUsername = editingUser.newUsername.trim().toLowerCase();
+      
+      if (cleanUsername.length < 3) {
+        showToast('Username สั้นเกินไป', 'อย่างน้อย 3 ตัว', 'danger');
+        return;
+      }
+      if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+        showToast('Username ผิดรูปแบบ', 'ใช้ได้แค่ a-z, 0-9, _', 'danger');
+        return;
+      }
+      payload.username = cleanUsername;
+    }
+
     // ถ้ามีรหัสผ่านใหม่
     if (editingUser.newPassword) {
       if (editingUser.newPassword.length < 6) {
@@ -386,6 +401,36 @@ export default function UsersPage() {
                     onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
                     required />
                 </div>
+                
+                {/* 🆕 Username field */}
+                <div className="field full">
+                  <label>
+                    Username (เข้าระบบ)
+                    {editingUser.id === currentUserId && (
+                      <span style={{ fontSize: 11, color: '#f59e0b', marginLeft: 6 }}>
+                        ⚠️ เปลี่ยนแล้วต้อง login ใหม่
+                      </span>
+                    )}
+                  </label>
+                  <input 
+                    type="text" 
+                    value={editingUser.newUsername ?? editingUser.username ?? ''}
+                    onChange={(e) => setEditingUser({ 
+                      ...editingUser, 
+                      newUsername: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+                    })}
+                    placeholder={editingUser.username || 'username'}
+                    style={{ 
+                      textTransform: 'lowercase',
+                      fontFamily: 'monospace',
+                    }}
+                    maxLength={30}
+                  />
+                  <small style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                    ใช้ได้แค่ a-z, 0-9, _ • อย่างน้อย 3 ตัว
+                  </small>
+                </div>
+                
                 <div className="field">
                   <label>บทบาท</label>
                   <select value={editingUser.role}

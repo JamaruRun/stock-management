@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.8';
+const APP_VERSION = '3.9.9';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.8',
+  version: '3.9.9',
   date: '2026-05-27',
   features: [
     {
-      icon: '🏷️',
-      title: 'ป้ายราคา 2 ขนาดให้เลือก!',
-      desc: '30×20mm (เล็ก) + 50×25mm (ใหญ่ อ่านง่าย สแกนชัด) - เลือกได้ตามเครื่องพิมพ์',
+      icon: '🧾',
+      title: 'ปริ้นใบเสร็จหลังขายของได้แล้ว!',
+      desc: 'ขายอุปกรณ์เสริมเสร็จ → กดปริ้นใบเสร็จได้ทันที ส่งให้ลูกค้าได้',
     },
     {
-      icon: '📏',
-      title: 'แก้บั๊กป้ายล้นขอบ',
-      desc: 'Barcode ปรับขนาดให้ฟิตขอบกระดาษ ไม่โดนตัดข้าง สแกนได้ทุกครั้ง',
+      icon: '✏️',
+      title: 'เปลี่ยน Username ได้',
+      desc: 'Admin เปลี่ยน username ของตัวเอง / พนักงานได้แล้ว ในเมนูจัดการผู้ใช้',
     },
     {
-      icon: '✨',
-      title: 'ตัวอักษรชัดขึ้น',
-      desc: 'ป้ายใหญ่ 50×25 อ่านง่าย ลูกค้าเห็นราคาชัดเจน เหมาะกับสินค้าหน้าร้าน',
+      icon: '🛡️',
+      title: 'เช็คซ้ำกัน Username ซ้ำกัน',
+      desc: 'ระบบเช็คก่อนเปลี่ยน ไม่ให้ซ้ำกับคนอื่นในระบบ',
     },
   ],
 };
