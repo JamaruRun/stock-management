@@ -20,10 +20,53 @@ interface Props {
   onClose: () => void;
 }
 
+type LabelSize = '30x20' | '50x25';
+
+const SIZE_CONFIG = {
+  '30x20': {
+    label: '30 × 20mm',
+    desc: 'ขนาดเล็ก - Easy Print',
+    width: 30,
+    height: 20,
+    // barcode + QR ขนาด (มม.)
+    barcodeWidth: 18,
+    barcodeHeight: 5,
+    barcodeBarWidth: 1.0,
+    qrSize: 6,
+    // font sizes (pt)
+    shopFont: 5,
+    nameFont: 5.5,
+    variantFont: 4,
+    codeFont: 3.5,
+    priceFont: 6,
+    // เลือกแสดงอะไรบ้าง
+    showShop: true,
+  },
+  '50x25': {
+    label: '50 × 25mm',
+    desc: 'ขนาดใหญ่ - อ่านง่าย สแกนชัด',
+    width: 50,
+    height: 25,
+    barcodeWidth: 32,
+    barcodeHeight: 8,
+    barcodeBarWidth: 1.6,
+    qrSize: 10,
+    shopFont: 6,
+    nameFont: 8,
+    variantFont: 5.5,
+    codeFont: 5,
+    priceFont: 9,
+    showShop: true,
+  },
+};
+
 export default function LabelPrint30x20({ items, copies: initialCopies = 1, onClose }: Props) {
+  const [size, setSize] = useState<LabelSize>('30x20');
   const [copies, setCopies] = useState(initialCopies);
   const [labels, setLabels] = useState<Array<LabelItem & { barcodeUrl?: string; qrUrl?: string }>>([]);
   const [loading, setLoading] = useState(true);
+
+  const cfg = SIZE_CONFIG[size];
 
   useEffect(() => {
     async function generate() {
@@ -45,8 +88,8 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
               const canvas = document.createElement('canvas');
               JsBarcode(canvas, item.code, {
                 format: 'CODE128',
-                width: 1.4,
-                height: 30,
+                width: cfg.barcodeBarWidth,
+                height: cfg.barcodeHeight * 6, // ขยายให้ชัด
                 displayValue: false,
                 margin: 0,
               });
@@ -59,7 +102,7 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
           if (item.showQR !== false && item.code) {
             try {
               qrUrl = await QRCode.toDataURL(item.code, {
-                width: 100,
+                width: cfg.qrSize * 15,
                 margin: 0,
                 errorCorrectionLevel: 'M',
               });
@@ -76,10 +119,8 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
       setLoading(false);
     }
     generate();
-  }, [items, copies]);
+  }, [items, copies, size]);
 
-  // ⭐ NEW: เปิดหน้า print window ใหม่ → ใช้ window.print() ในนั้น
-  // วิธีนี้แก้ปัญหา CSS print กับ Next.js styled-jsx
   function handlePrint() {
     if (labels.length === 0) return;
 
@@ -89,23 +130,27 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
       return;
     }
 
-    // สร้าง HTML ของป้ายทั้งหมด
+    // คำนวณ inner sizes (เผื่อ padding 1mm ทั้ง 4 ด้าน → ลด barcode/QR ลงเล็กน้อย)
+    const innerPadding = 1; // mm
+    const barcodeMaxWidth = cfg.barcodeWidth;
     const labelsHtml = labels.map(label => `
       <div class="label-page">
-        <div class="label-top">
-          ${label.shopName ? `<div class="label-shop">${escapeHtml(label.shopName)}</div>` : ''}
-          <div class="label-name">${escapeHtml(label.productName)}</div>
-          ${label.variant ? `<div class="label-variant">${escapeHtml(label.variant)}</div>` : ''}
-        </div>
-        <div class="label-mid">
-          ${label.barcodeUrl ? `<img class="label-barcode" src="${label.barcodeUrl}" />` : ''}
-          ${label.qrUrl ? `<img class="label-qr" src="${label.qrUrl}" />` : ''}
-        </div>
-        <div class="label-bot">
-          <span class="label-code">${escapeHtml(label.code)}</span>
-          ${label.price !== undefined && label.price > 0 
-            ? `<span class="label-price">฿${Number(label.price).toLocaleString()}</span>` 
-            : ''}
+        <div class="label-inner">
+          <div class="label-top">
+            ${label.shopName && cfg.showShop ? `<div class="label-shop">${escapeHtml(label.shopName)}</div>` : ''}
+            <div class="label-name">${escapeHtml(label.productName)}</div>
+            ${label.variant ? `<div class="label-variant">${escapeHtml(label.variant)}</div>` : ''}
+          </div>
+          <div class="label-mid">
+            ${label.barcodeUrl ? `<img class="label-barcode" src="${label.barcodeUrl}" />` : ''}
+            ${label.qrUrl ? `<img class="label-qr" src="${label.qrUrl}" />` : ''}
+          </div>
+          <div class="label-bot">
+            <span class="label-code">${escapeHtml(label.code)}</span>
+            ${label.price !== undefined && label.price > 0 
+              ? `<span class="label-price">฿${Number(label.price).toLocaleString()}</span>` 
+              : ''}
+          </div>
         </div>
       </div>
     `).join('');
@@ -114,17 +159,17 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Print Labels</title>
+  <title>Print Labels ${cfg.label}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     @page {
-      size: 30mm 20mm;
+      size: ${cfg.width}mm ${cfg.height}mm;
       margin: 0;
     }
     
     html, body {
-      width: 30mm;
+      width: ${cfg.width}mm;
       margin: 0;
       padding: 0;
       background: white;
@@ -132,21 +177,27 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
     }
     
     .label-page {
-      width: 30mm;
-      height: 20mm;
-      padding: 0.5mm;
+      width: ${cfg.width}mm;
+      height: ${cfg.height}mm;
+      padding: 0;
       page-break-after: always;
       page-break-inside: avoid;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
       overflow: hidden;
-      color: #000;
       background: white;
     }
     
     .label-page:last-child {
       page-break-after: auto;
+    }
+    
+    .label-inner {
+      width: 100%;
+      height: 100%;
+      padding: ${innerPadding}mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #000;
     }
     
     .label-top {
@@ -156,7 +207,7 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
     }
     
     .label-shop {
-      font-size: 5pt;
+      font-size: ${cfg.shopFont}pt;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
@@ -164,15 +215,16 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
     }
     
     .label-name {
-      font-size: 6pt;
+      font-size: ${cfg.nameFont}pt;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      line-height: 1.1;
     }
     
     .label-variant {
-      font-size: 4.5pt;
+      font-size: ${cfg.variantFont}pt;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -182,20 +234,23 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5mm;
+      gap: 1mm;
       flex: 1 1 auto;
       min-height: 0;
+      padding: 0.3mm 0;
     }
     
     .label-barcode {
-      height: 6mm;
-      max-width: 18mm;
+      height: ${cfg.barcodeHeight}mm;
+      max-width: ${barcodeMaxWidth - innerPadding * 2}mm;
+      width: auto;
       object-fit: contain;
     }
     
     .label-qr {
-      height: 7mm;
-      width: 7mm;
+      height: ${cfg.qrSize}mm;
+      width: ${cfg.qrSize}mm;
+      flex-shrink: 0;
     }
     
     .label-bot {
@@ -204,19 +259,23 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
       align-items: flex-end;
       flex: 0 0 auto;
       line-height: 1;
+      gap: 1mm;
     }
     
     .label-code {
-      font-size: 4pt;
+      font-size: ${cfg.codeFont}pt;
       font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     
     .label-price {
-      font-size: 7pt;
+      font-size: ${cfg.priceFont}pt;
       font-weight: 700;
+      white-space: nowrap;
     }
     
-    /* Toolbar ที่แสดงบนหน้าจอ - ไม่ปริ้น */
     .toolbar {
       position: fixed;
       top: 0;
@@ -256,7 +315,6 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
       padding-top: 60px;
     }
     
-    /* แสดง preview ของแต่ละป้ายบนหน้าจอ */
     @media screen {
       body {
         background: #f3f4f6;
@@ -280,12 +338,11 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
 </head>
 <body>
   <div class="toolbar">
-    <button class="btn-print" onclick="window.print()">🖨️ ปริ้น ${labels.length} ป้าย</button>
+    <button class="btn-print" onclick="window.print()">🖨️ ปริ้น ${labels.length} ป้าย (${cfg.label})</button>
     <button class="btn-close" onclick="window.close()">✕ ปิด</button>
   </div>
   ${labelsHtml}
   <script>
-    // Auto open print dialog หลังโหลดเสร็จ
     window.onload = function() {
       setTimeout(function() {
         window.print();
@@ -309,7 +366,7 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
-            <h3 style={{ margin: 0 }}>🏷️ ปริ้นป้ายราคา 30×20mm</h3>
+            <h3 style={{ margin: 0 }}>🏷️ ปริ้นป้ายราคา</h3>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-dim)' }}>
               ทั้งหมด {labels.length} ดวง • สำหรับเครื่อง Easy Print
             </p>
@@ -329,6 +386,48 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
           >✕</button>
         </div>
 
+        {/* 🆕 เลือกขนาดป้าย */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ 
+            fontSize: 12, 
+            fontWeight: 600, 
+            color: 'var(--text)',
+            display: 'block',
+            marginBottom: 8,
+          }}>
+            📏 เลือกขนาดป้าย
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['30x20', '50x25'] as LabelSize[]).map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSize(s)}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: size === s 
+                    ? 'linear-gradient(135deg, var(--accent), #6366f1)' 
+                    : 'var(--surface-2)',
+                  color: size === s ? '#fff' : 'var(--text)',
+                  border: size === s ? 'none' : '1px solid var(--border)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>
+                  {SIZE_CONFIG[s].label}
+                </div>
+                <div style={{ fontSize: 10, opacity: 0.9 }}>
+                  {SIZE_CONFIG[s].desc}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* คำแนะนำ */}
         <div style={{
           padding: 12,
@@ -341,9 +440,9 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
         }}>
           <strong>💡 วิธีใช้:</strong>
           <ol style={{ marginLeft: 18, marginTop: 4 }}>
+            <li>เลือกขนาดป้ายที่ตรงกับกระดาษในเครื่อง</li>
             <li>กดปุ่ม <strong>🖨️ เปิดหน้าปริ้น</strong></li>
-            <li>หน้าต่างใหม่จะเปิด + แสดง preview ป้าย</li>
-            <li>เลือก <strong>Easy Print</strong> + กระดาษ <strong>30×20mm</strong></li>
+            <li>เลือก <strong>Easy Print</strong> + กระดาษ <strong>{cfg.label}</strong></li>
             <li>Margin: 0 / Scale: 100% → กด Print</li>
           </ol>
         </div>
@@ -456,10 +555,10 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
           </div>
         ) : (
           <>
-            {/* Preview - ใช้ inline div ธรรมดา */}
+            {/* Preview */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600 }}>
-                👁️ ตัวอย่าง (ขนาดจริง)
+                👁️ ตัวอย่าง (ขนาดจริง {cfg.label})
               </div>
               <div style={{
                 background: 'var(--surface-2)',
@@ -473,7 +572,7 @@ export default function LabelPrint30x20({ items, copies: initialCopies = 1, onCl
                 overflow: 'auto',
               }}>
                 {labels.slice(0, 6).map((label, idx) => (
-                  <PreviewLabel key={idx} label={label} />
+                  <PreviewLabel key={idx} label={label} cfg={cfg} />
                 ))}
                 {labels.length > 6 && (
                   <div style={{ 
@@ -513,54 +612,67 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#039;');
 }
 
-function PreviewLabel({ label }: { label: any }) {
+function PreviewLabel({ label, cfg }: { label: any; cfg: any }) {
+  const innerPadding = 1;
   return (
     <div style={{
-      width: '30mm',
-      height: '20mm',
+      width: `${cfg.width}mm`,
+      height: `${cfg.height}mm`,
       background: 'white',
       color: 'black',
       border: '1px dashed #999',
-      padding: '0.5mm',
+      padding: 0,
       boxSizing: 'border-box',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
       overflow: 'hidden',
       fontFamily: 'Arial, sans-serif',
     }}>
-      <div style={{ textAlign: 'center', lineHeight: 1.05, flex: '0 0 auto' }}>
-        {label.shopName && (
-          <div style={{ fontSize: '5pt', fontWeight: 700, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {label.shopName}
+      <div style={{
+        width: '100%',
+        height: '100%',
+        padding: `${innerPadding}mm`,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxSizing: 'border-box',
+      }}>
+        <div style={{ textAlign: 'center', lineHeight: 1.05, flex: '0 0 auto' }}>
+          {label.shopName && cfg.showShop && (
+            <div style={{ fontSize: `${cfg.shopFont}pt`, fontWeight: 700, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {label.shopName}
+            </div>
+          )}
+          <div style={{ fontSize: `${cfg.nameFont}pt`, fontWeight: 700, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.1 }}>
+            {label.productName}
           </div>
-        )}
-        <div style={{ fontSize: '6pt', fontWeight: 700, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {label.productName}
+          {label.variant && (
+            <div style={{ fontSize: `${cfg.variantFont}pt`, color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {label.variant}
+            </div>
+          )}
         </div>
-        {label.variant && (
-          <div style={{ fontSize: '4.5pt', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {label.variant}
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5mm', flex: '1 1 auto', minHeight: 0 }}>
-        {label.barcodeUrl && (
-          <img src={label.barcodeUrl} alt="b" style={{ height: '6mm', maxWidth: label.qrUrl ? '18mm' : '28mm', objectFit: 'contain' }} />
-        )}
-        {label.qrUrl && (
-          <img src={label.qrUrl} alt="q" style={{ height: '7mm', width: '7mm' }} />
-        )}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flex: '0 0 auto', lineHeight: 1 }}>
-        <div style={{ fontSize: '4pt', color: '#000', fontFamily: 'monospace' }}>
-          {label.code}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1mm', flex: '1 1 auto', minHeight: 0, padding: '0.3mm 0' }}>
+          {label.barcodeUrl && (
+            <img src={label.barcodeUrl} alt="b" style={{ 
+              height: `${cfg.barcodeHeight}mm`, 
+              maxWidth: `${cfg.barcodeWidth - innerPadding * 2}mm`,
+              width: 'auto',
+              objectFit: 'contain',
+            }} />
+          )}
+          {label.qrUrl && (
+            <img src={label.qrUrl} alt="q" style={{ height: `${cfg.qrSize}mm`, width: `${cfg.qrSize}mm` }} />
+          )}
         </div>
-        {label.price !== undefined && label.price > 0 && (
-          <div style={{ fontSize: '7pt', fontWeight: 700, color: '#000' }}>
-            ฿{Number(label.price).toLocaleString()}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flex: '0 0 auto', lineHeight: 1, gap: '1mm' }}>
+          <div style={{ fontSize: `${cfg.codeFont}pt`, color: '#000', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {label.code}
           </div>
-        )}
+          {label.price !== undefined && label.price > 0 && (
+            <div style={{ fontSize: `${cfg.priceFont}pt`, fontWeight: 700, color: '#000', whiteSpace: 'nowrap' }}>
+              ฿{Number(label.price).toLocaleString()}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.7';
+const APP_VERSION = '3.9.8';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,28 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.5',
-  date: '2026-05-25',
+  version: '3.9.8',
+  date: '2026-05-27',
   features: [
     {
-      icon: '⚡',
-      title: 'PWA เปิดเร็วขึ้น 3-5 เท่า!',
-      desc: 'เปลี่ยน Service Worker strategy → Cache-first + Stale-While-Revalidate',
+      icon: '🏷️',
+      title: 'ป้ายราคา 2 ขนาดให้เลือก!',
+      desc: '30×20mm (เล็ก) + 50×25mm (ใหญ่ อ่านง่าย สแกนชัด) - เลือกได้ตามเครื่องพิมพ์',
     },
     {
-      icon: '🔄',
-      title: 'Auto-update ในแอป',
-      desc: 'ระบบเช็ค update อัตโนมัติ • ไม่ต้องลบ cache เอง • ใช้เวอร์ชั่นใหม่เสมอ',
+      icon: '📏',
+      title: 'แก้บั๊กป้ายล้นขอบ',
+      desc: 'Barcode ปรับขนาดให้ฟิตขอบกระดาษ ไม่โดนตัดข้าง สแกนได้ทุกครั้ง',
     },
     {
-      icon: '🛠️',
-      title: 'ระบบใบงานซ่อม',
-      desc: 'รับซ่อม • ใช้อะไหล่ → ตัดสต๊อกอัตโนมัติ • คำนวณกำไร • LINE notify',
-    },
-    {
-      icon: '💬',
-      title: 'ส่ง Feedback ถึงทีม',
-      desc: 'กดปุ่ม 💬 มุมขวาล่าง • แจ้งบั๊ก / ขอฟีเจอร์ / ชม / ติ',
+      icon: '✨',
+      title: 'ตัวอักษรชัดขึ้น',
+      desc: 'ป้ายใหญ่ 50×25 อ่านง่าย ลูกค้าเห็นราคาชัดเจน เหมาะกับสินค้าหน้าร้าน',
     },
   ],
 };
