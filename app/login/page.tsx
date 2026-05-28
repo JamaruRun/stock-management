@@ -63,8 +63,32 @@ export default function LoginPage() {
       return;
     }
 
-    // ไม่ต้องเช็ค shop ที่นี่ - dashboard/layout.tsx จะเช็คให้
-    // (กัน query ซ้ำ + redirect ทันที = login เร็วขึ้น 800-1500ms)
+    // 🆕 เช็ค shop status - ถ้า suspended → แสดงหมายเหตุ + logout
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('shop_id, is_super_admin')
+      .eq('id', authData.user.id)
+      .single();
+
+    // super admin ข้าม check ไป
+    if (profileData && !profileData.is_super_admin && profileData.shop_id) {
+      const { data: shopData } = await supabase
+        .from('shops')
+        .select('status, suspension_note, name')
+        .eq('id', profileData.shop_id)
+        .single();
+
+      if (shopData?.status === 'suspended') {
+        // Logout เพราะ shop suspended
+        await supabase.auth.signOut();
+        
+        const note = shopData.suspension_note || 'ติดต่อทีมงานเพื่อสอบถามรายละเอียด';
+        setError(`⛔ ร้าน "${shopData.name}" ถูกระงับการใช้งาน\n\n${note}`);
+        setLoading(false);
+        return;
+      }
+    }
+
     router.push('/dashboard/home');
     router.refresh();
   }
@@ -92,7 +116,11 @@ export default function LoginPage() {
         <p className="login-sub">ระบบจัดการสต๊อกร้านมือถือ + ร้านซ่อม</p>
 
         <form onSubmit={handleLogin}>
-          {error && <div className="login-error">{error}</div>}
+          {error && (
+            <div className="login-error" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+              {error}
+            </div>
+          )}
 
           <div className="field" style={{ marginBottom: 14 }}>
             <label>ชื่อผู้ใช้</label>

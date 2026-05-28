@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.10';
+const APP_VERSION = '3.9.11';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,13 +12,13 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.10',
+  version: '3.9.11',
   date: '2026-05-27',
   features: [
     {
-      icon: '🧾',
-      title: 'ปริ้นใบเสร็จหลังขายของได้แล้ว!',
-      desc: 'ขายอุปกรณ์เสริมเสร็จ → กดปริ้นใบเสร็จได้ทันที ส่งให้ลูกค้าได้',
+      icon: '🏪',
+      title: 'แก้ไขข้อมูลร้านได้เองแล้ว!',
+      desc: 'Settings → ข้อมูลร้าน • เปลี่ยน ชื่อร้าน / เจ้าของ / จังหวัด / เบอร์โทร ได้เลย',
     },
     {
       icon: '🔒',

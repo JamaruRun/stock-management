@@ -16,7 +16,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, name, owner_name, phone, email, package: pkg, status, expires_at, note } = body;
+    const { 
+      id, name, owner_name, phone, province, email, 
+      package: pkg, status, expires_at, note, suspension_note 
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ต้องระบุ id' }, { status: 400 });
@@ -33,10 +36,17 @@ export async function POST(request: NextRequest) {
     if (name !== undefined) updates.name = name;
     if (owner_name !== undefined) updates.owner_name = owner_name;
     if (phone !== undefined) updates.phone = phone;
+    if (province !== undefined) updates.province = province;
     if (email !== undefined) updates.email = email;
     if (pkg !== undefined) updates.package = pkg;
     if (status !== undefined) updates.status = status;
     if (note !== undefined) updates.note = note;
+    if (suspension_note !== undefined) updates.suspension_note = suspension_note;
+    
+    // ถ้า status เปลี่ยนเป็น active → ล้าง suspension_note
+    if (status === 'active') {
+      updates.suspension_note = null;
+    }
     
     // lifetime = null expires
     if (pkg === 'lifetime') {

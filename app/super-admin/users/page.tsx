@@ -152,6 +152,48 @@ export default function SuperAdminUsersPage() {
     }
   }
 
+  async function handleImpersonate(u: UserRow) {
+    if (u.is_super_admin) {
+      showToast('ไม่สามารถ login as super admin', 'danger');
+      return;
+    }
+
+    const confirm1 = confirm(
+      `🔐 Login เป็น ${u.full_name || u.username}?\n\n` +
+      `🏪 ร้าน: ${u.shop_name}\n` +
+      `👤 Role: ${u.role}\n\n` +
+      `⚠️ คำเตือน:\n` +
+      `• คุณจะ logout จากบัญชี super admin\n` +
+      `• ทุก action จะเกิดในชื่อ user นี้\n` +
+      `• เมื่อเสร็จต้อง login กลับเป็น super admin\n\n` +
+      `ดำเนินการต่อ?`
+    );
+
+    if (!confirm1) return;
+
+    showToast('กำลัง login as ...', 'success');
+
+    try {
+      const res = await fetch('/api/super-admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast('ไม่สำเร็จ: ' + (data.error || ''), 'danger');
+        return;
+      }
+
+      // Redirect ไป magic link → จะ login เป็น user นั้น
+      window.location.href = data.link;
+    } catch (e: any) {
+      showToast('เกิดข้อผิดพลาด: ' + e.message, 'danger');
+    }
+  }
+
   function timeAgo(dateStr: string | null) {
     if (!dateStr) return 'ไม่เคย';
     const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -278,23 +320,44 @@ export default function SuperAdminUsersPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => openEdit(u)}
-                style={{
-                  padding: '8px 14px',
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  fontFamily: 'inherit',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ✏️ แก้ไข
-              </button>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button
+                  onClick={() => handleImpersonate(u)}
+                  disabled={u.is_super_admin}
+                  title={u.is_super_admin ? 'Login as ตัวเองไม่ได้' : 'Login เป็น user นี้'}
+                  style={{
+                    padding: '8px 12px',
+                    background: u.is_super_admin ? 'var(--surface-2)' : '#8b5cf6',
+                    color: u.is_super_admin ? 'var(--text-dim)' : '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: u.is_super_admin ? 'not-allowed' : 'pointer',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  🔐 Login as
+                </button>
+                <button
+                  onClick={() => openEdit(u)}
+                  style={{
+                    padding: '8px 12px',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ✏️ แก้ไข
+                </button>
+              </div>
             </div>
           ))}
         </div>
