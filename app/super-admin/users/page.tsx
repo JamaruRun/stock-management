@@ -187,6 +187,13 @@ export default function SuperAdminUsersPage() {
         return;
       }
 
+      // 🆕 ต้อง signOut session super admin ก่อน
+      // ไม่งั้น magic link จะไม่ทำงาน (ใช้ session เดิม)
+      await supabase.auth.signOut();
+
+      // รอ session clear แล้วค่อย redirect
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Redirect ไป magic link → จะ login เป็น user นั้น
       window.location.href = data.action_link;
     } catch (e: any) {

@@ -46,23 +46,25 @@ export async function POST(request: NextRequest) {
     const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
       type: 'magiclink',
       email,
-      options: {
-        redirectTo: `${request.nextUrl.origin}/dashboard/home`,
-      },
     });
 
-    if (linkErr || !linkData.properties?.action_link) {
+    if (linkErr || !linkData.properties?.hashed_token) {
       return NextResponse.json(
         { error: 'สร้างลิงก์ไม่สำเร็จ: ' + (linkErr?.message || 'unknown') },
         { status: 500 }
       );
     }
 
+    // สร้าง URL ของเราเอง ชี้ไป /auth/confirm
+    // ใช้ token_hash ที่ Supabase ให้มา
+    const tokenHash = linkData.properties.hashed_token;
+    const confirmUrl = `${request.nextUrl.origin}/auth/confirm?token_hash=${tokenHash}&type=magiclink&next=/dashboard/home`;
+
     console.log(`[Impersonate] ${user.id} → ${targetUserId} (${email})`);
 
     return NextResponse.json({
       success: true,
-      action_link: linkData.properties.action_link,
+      action_link: confirmUrl,
       email,
     });
   } catch (e: any) {
