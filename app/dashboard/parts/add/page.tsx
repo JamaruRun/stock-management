@@ -34,6 +34,9 @@ export default function AddPartPage() {
     setTimeout(() => setToast(null), 2500);
   }
 
+  // 🆕 เฉพาะ admin เห็นช่องต้นทุน
+  const isAdmin = profile?.role === 'admin';
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -219,18 +222,20 @@ export default function AddPartPage() {
             </div>
           </div>
 
-          {/* Prices */}
-          <div className="field">
-            <label>ต้นทุน/ชิ้น</label>
-            <input
-              type="number"
-              value={form.cost_price}
-              onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
-              inputMode="decimal"
-              placeholder="0"
-              step="0.01"
-            />
-          </div>
+          {/* Prices - ต้นทุนเฉพาะ admin */}
+          {isAdmin && (
+            <div className="field">
+              <label>ต้นทุน/ชิ้น <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>(เฉพาะเจ้าของเห็น)</span></label>
+              <input
+                type="number"
+                value={form.cost_price}
+                onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                inputMode="decimal"
+                placeholder="0"
+                step="0.01"
+              />
+            </div>
+          )}
 
           <div className="field">
             <label>ราคาขาย/ราคาเปลี่ยน</label>
@@ -320,7 +325,7 @@ export default function AddPartPage() {
             </div>
             <div style={{ fontWeight: 700 }}>{form.name}</div>
             <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>📱 {form.phone_model}</div>
-            {parseFloat(form.cost_price) > 0 && parseFloat(form.sell_price) > 0 && (
+            {isAdmin && parseFloat(form.cost_price) > 0 && parseFloat(form.sell_price) > 0 && (
               <div style={{ marginTop: 4, color: '#10b981' }}>
                 💰 กำไร: ฿{((parseFloat(form.sell_price) - parseFloat(form.cost_price))).toLocaleString()}/ชิ้น
               </div>

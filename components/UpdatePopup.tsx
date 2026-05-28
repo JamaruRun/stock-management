@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.12';
+const APP_VERSION = '3.9.13';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,18 +12,18 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.12',
-  date: '2026-05-27',
+  version: '3.9.13',
+  date: '2026-05-28',
   features: [
     {
-      icon: '📘',
-      title: 'ติดต่อทีมงานบน Facebook ได้แล้ว!',
-      desc: 'มีปัญหา? อยากเปลี่ยน Username? เสนอฟีเจอร์? ทักทีมงานในเพจ Stock Manager บน Facebook ได้เลย',
+      icon: '🔒',
+      title: 'ต้นทุนอะไหล่ - ความลับเจ้าของ',
+      desc: 'พนักงานคีย์สต๊อก + ราคาขายได้ แต่ไม่เห็นต้นทุน • เฉพาะเจ้าของร้านเห็นต้นทุน + กำไร',
     },
     {
-      icon: '🏪',
-      title: 'แก้ไขข้อมูลร้านได้เอง',
-      desc: 'Settings → ข้อมูลร้าน • เปลี่ยน ชื่อร้าน / เจ้าของ / จังหวัด / เบอร์โทร',
+      icon: '👥',
+      title: 'พนักงานช่วยงานได้เต็มที่',
+      desc: 'คีย์อะไหล่เข้าสต๊อก แก้ข้อมูลได้ปกติ • ต้นทุนที่เจ้าของใส่ไว้ไม่ถูกแตะ',
     },
   ],
 };

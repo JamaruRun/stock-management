@@ -41,6 +41,9 @@ function EditPartContent() {
     setTimeout(() => setToast(null), 2500);
   }
 
+  // 🆕 เฉพาะ admin เห็น/แก้ต้นทุน
+  const isAdmin = profile?.role === 'admin';
+
   useEffect(() => {
     async function load() {
       if (!partId) {
@@ -55,7 +58,7 @@ function EditPartContent() {
         .from('profiles').select('*').eq('id', user.id).single();
       setProfile(p);
 
-      // Load part
+      // Load part data
       const { data: part, error } = await supabase
         .from('parts').select('*').eq('id', partId).single();
       
@@ -108,20 +111,28 @@ function EditPartContent() {
 
     setSaving(true);
 
+    // สร้าง update object
+    const updateData: any = {
+      name: form.name.trim(),
+      category: form.category,
+      phone_model: form.phone_model.trim(),
+      grade: form.grade || null,
+      sell_price: parseFloat(form.sell_price) || 0,
+      low_stock_alert: parseInt(form.low_stock_alert) || 2,
+      supplier_id: form.supplier_id || null,
+      sku: form.sku.trim() || null,
+      note: form.note.trim() || null,
+    };
+
+    // 🆕 เฉพาะ admin เท่านั้นที่อัพเดท cost_price ได้
+    // (staff แก้ข้อมูลอื่นได้ แต่ต้นทุนไม่ถูกแตะ)
+    if (isAdmin) {
+      updateData.cost_price = parseFloat(form.cost_price) || 0;
+    }
+
     const { error } = await supabase
       .from('parts')
-      .update({
-        name: form.name.trim(),
-        category: form.category,
-        phone_model: form.phone_model.trim(),
-        grade: form.grade || null,
-        cost_price: parseFloat(form.cost_price) || 0,
-        sell_price: parseFloat(form.sell_price) || 0,
-        low_stock_alert: parseInt(form.low_stock_alert) || 2,
-        supplier_id: form.supplier_id || null,
-        sku: form.sku.trim() || null,
-        note: form.note.trim() || null,
-      })
+      .update(updateData)
       .eq('id', partId);
 
     if (error) {
@@ -270,16 +281,18 @@ function EditPartContent() {
             </div>
           </div>
 
-          <div className="field">
-            <label>ต้นทุน/ชิ้น</label>
-            <input
-              type="number"
-              value={form.cost_price}
-              onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
-              inputMode="decimal"
-              step="0.01"
-            />
-          </div>
+          {isAdmin && (
+            <div className="field">
+              <label>ต้นทุน/ชิ้น <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>(เฉพาะเจ้าของเห็น)</span></label>
+              <input
+                type="number"
+                value={form.cost_price}
+                onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                inputMode="decimal"
+                step="0.01"
+              />
+            </div>
+          )}
 
           <div className="field">
             <label>ราคาขาย/เปลี่ยน</label>
