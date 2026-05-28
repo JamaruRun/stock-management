@@ -1005,6 +1005,47 @@ function SettingsPageContent() {
         )}
       </div>
 
+      {/* 🆕 ติดต่อทีมงาน */}
+      <div className="form-card" style={{ marginTop: 16 }}>
+        <h3>💬 ช่วยเหลือ / ติดต่อทีมงาน</h3>
+        <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.6 }}>
+          มีปัญหา? อยากเปลี่ยน Username? อยากเสนอฟีเจอร์ใหม่?
+          <br />ติดต่อทีมงานได้เลย ตอบเร็วทุก message
+        </div>
+        <a
+          href="https://www.facebook.com/share/1DNJt1sNyY/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '12px 20px',
+            background: 'linear-gradient(135deg, #1877f2 0%, #0d5fbb 100%)',
+            color: '#fff',
+            borderRadius: 8,
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: 14,
+            boxShadow: '0 4px 12px rgba(24, 119, 242, 0.3)',
+          }}
+        >
+          📘 ติดต่อทีมงานบน Facebook
+        </a>
+        <div style={{
+          marginTop: 12,
+          padding: 10,
+          background: 'rgba(139, 92, 246, 0.08)',
+          borderLeft: '3px solid #8b5cf6',
+          borderRadius: 6,
+          fontSize: 11,
+          color: 'var(--text-dim)',
+          lineHeight: 1.6,
+        }}>
+          💡 หรือใช้ปุ่ม <strong>💬 Feedback</strong> มุมขวาล่างทุกหน้า — ส่งตรงถึงทีมพัฒนา
+        </div>
+      </div>
+
       {toast && <Toast {...toast} />}
     </>
   );

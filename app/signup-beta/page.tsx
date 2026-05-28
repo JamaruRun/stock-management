@@ -131,6 +131,35 @@ export default function SignupBetaPage() {
               onClick={() => router.push('/login')}
               className="signup-btn-primary"
             >ไปหน้า Login</button>
+
+            {/* 🆕 FB contact */}
+            <div style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: '1px solid #e5e7eb',
+              fontSize: 12,
+              color: '#6b7280',
+            }}>
+              ติดต่อทีมงานได้ที่<br />
+              <a
+                href="https://www.facebook.com/share/1DNJt1sNyY/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-block',
+                  marginTop: 6,
+                  padding: '6px 14px',
+                  background: '#1877f2',
+                  color: '#fff',
+                  borderRadius: 6,
+                  textDecoration: 'none',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                📘 Facebook Page
+              </a>
+            </div>
           </div>
         </div>
         <style>{styles}</style>
@@ -336,6 +365,15 @@ export default function SignupBetaPage() {
 
           <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#9ca3af' }}>
             มีบัญชีอยู่แล้ว? <a href="/login" style={{ color: '#3b82f6', fontWeight: 600 }}>เข้าสู่ระบบ</a>
+            <span style={{ margin: '0 8px' }}>·</span>
+            <a 
+              href="https://www.facebook.com/share/1DNJt1sNyY/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#1877f2', fontWeight: 600, textDecoration: 'none' }}
+            >
+              📘 ติดต่อทีมงาน
+            </a>
           </div>
         </form>
 

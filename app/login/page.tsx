@@ -119,6 +119,32 @@ export default function LoginPage() {
           {error && (
             <div className="login-error" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
               {error}
+              {error.includes('ถูกระงับ') && (
+                <div style={{
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: '1px solid rgba(239, 68, 68, 0.3)',
+                  textAlign: 'center',
+                }}>
+                  <a
+                    href="https://www.facebook.com/share/1DNJt1sNyY/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      background: '#1877f2',
+                      color: '#fff',
+                      borderRadius: 6,
+                      textDecoration: 'none',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    📘 ติดต่อทีมงานบน Facebook
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
@@ -173,6 +199,27 @@ export default function LoginPage() {
             }}
           >
             สมัคร Beta ฟรี 30 วัน →
+          </a>
+        </div>
+
+        {/* 🆕 Facebook contact */}
+        <div style={{
+          textAlign: 'center',
+          marginTop: 14,
+          fontSize: 11,
+          color: 'var(--text-dim)',
+        }}>
+          มีปัญหา? <a 
+            href="https://www.facebook.com/share/1DNJt1sNyY/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#1877f2',
+              textDecoration: 'none',
+              fontWeight: 600,
+            }}
+          >
+            📘 ติดต่อทีมงานบน Facebook
           </a>
         </div>
       </div>

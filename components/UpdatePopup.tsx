@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.11';
+const APP_VERSION = '3.9.12';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,18 +12,18 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.11',
+  version: '3.9.12',
   date: '2026-05-27',
   features: [
     {
-      icon: '🏪',
-      title: 'แก้ไขข้อมูลร้านได้เองแล้ว!',
-      desc: 'Settings → ข้อมูลร้าน • เปลี่ยน ชื่อร้าน / เจ้าของ / จังหวัด / เบอร์โทร ได้เลย',
+      icon: '📘',
+      title: 'ติดต่อทีมงานบน Facebook ได้แล้ว!',
+      desc: 'มีปัญหา? อยากเปลี่ยน Username? เสนอฟีเจอร์? ทักทีมงานในเพจ Stock Manager บน Facebook ได้เลย',
     },
     {
-      icon: '🔒',
-      title: 'อยากเปลี่ยน Username?',
-      desc: 'ติดต่อทีมงานเพื่อเปลี่ยน Username • ป้องกันความผิดพลาด + ปลอดภัยกว่า',
+      icon: '🏪',
+      title: 'แก้ไขข้อมูลร้านได้เอง',
+      desc: 'Settings → ข้อมูลร้าน • เปลี่ยน ชื่อร้าน / เจ้าของ / จังหวัด / เบอร์โทร',
     },
   ],
 };
@@ -124,6 +124,24 @@ export default function UpdatePopup() {
         <button className="btn" onClick={handleClose} style={{ width: '100%' }}>
           เข้าใจแล้ว ✓
         </button>
+
+        <div style={{
+          textAlign: 'center',
+          marginTop: 14,
+          paddingTop: 14,
+          borderTop: '1px solid var(--border)',
+          fontSize: 11,
+          color: 'var(--text-dim)',
+        }}>
+          มีปัญหา? <a
+            href="https://www.facebook.com/share/1DNJt1sNyY/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#1877f2', fontWeight: 600, textDecoration: 'none' }}
+          >
+            📘 ติดต่อทีมงานบน Facebook
+          </a>
+        </div>
       </div>
     </div>
   );
