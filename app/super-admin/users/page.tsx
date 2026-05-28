@@ -177,7 +177,7 @@ export default function SuperAdminUsersPage() {
       const res = await fetch('/api/super-admin/impersonate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: u.id }),
+        body: JSON.stringify({ targetUserId: u.id }),
       });
 
       const data = await res.json();
@@ -188,7 +188,7 @@ export default function SuperAdminUsersPage() {
       }
 
       // Redirect ไป magic link → จะ login เป็น user นั้น
-      window.location.href = data.link;
+      window.location.href = data.action_link;
     } catch (e: any) {
       showToast('เกิดข้อผิดพลาด: ' + e.message, 'danger');
     }
