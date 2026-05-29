@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import { redirect, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
+import ReceiptPDF from '@/components/ReceiptPDF';
 
 export default function HistoryPage() {
   const supabase = createClient();
@@ -19,6 +20,7 @@ export default function HistoryPage() {
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
+  const [printing, setPrinting] = useState<any>(null);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -330,6 +332,7 @@ export default function HistoryPage() {
                   ลง {item.added_date} → ขาย {item.sold_date}
                 </div>
                 <div className="actions">
+                  <button className="icon-btn" onClick={() => setPrinting(item)} title="ปริ้นสลิป">🖨️</button>
                   <button className="icon-btn" onClick={() => setViewing(item)} title="ดู">ⓘ</button>
                   <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
                   <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
@@ -624,6 +627,26 @@ export default function HistoryPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Print Slip Modal */}
+      {printing && (
+        <ReceiptPDF
+          receiptNo={printing.id?.substring(0, 8).toUpperCase()}
+          type="stock_sale"
+          customerName={printing.customer_name}
+          customerPhone={printing.customer_phone}
+          items={[{
+            name: `${printing.brand || ''} ${printing.model}`.trim(),
+            detail: `${printing.color ? printing.color + ' ' : ''}${printing.spec || ''} • IMEI: ${printing.imei}`,
+            qty: 1,
+            price: Number(printing.sale_price) || 0,
+          }]}
+          subtotal={Number(printing.sale_price) || 0}
+          total={Number(printing.sale_price) || 0}
+          issuedByName={printing.sold_by_profile?.full_name || printing.sold_by_profile?.username || ''}
+          onClose={() => setPrinting(null)}
+        />
       )}
 
       {toast && <Toast {...toast} />}

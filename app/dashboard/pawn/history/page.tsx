@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
+import ReceiptPDF from '@/components/ReceiptPDF';
 
 export default function PawnHistoryPage() {
   const supabase = createClient();
@@ -18,6 +19,7 @@ export default function PawnHistoryPage() {
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
+  const [printing, setPrinting] = useState<any>(null);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -250,6 +252,7 @@ export default function PawnHistoryPage() {
                   จำนำ {item.pawn_date} → ไถ่ {item.redeem_date}
                 </div>
                 <div className="actions">
+                  <button className="icon-btn" onClick={() => setPrinting(item)} title="ปริ้นสลิป">🖨️</button>
                   <button className="icon-btn" onClick={() => setViewing(item)} title="ดู">ⓘ</button>
                   <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
                   <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
@@ -410,6 +413,26 @@ export default function PawnHistoryPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Print Slip Modal */}
+      {printing && (
+        <ReceiptPDF
+          receiptNo={printing.id?.substring(0, 8).toUpperCase()}
+          type="pawn_redeem"
+          customerName={printing.customer_name}
+          customerPhone={printing.customer_phone}
+          items={[{
+            name: `${printing.brand || ''} ${printing.model}`.trim(),
+            detail: `${printing.color ? printing.color + ' ' : ''}${printing.spec || ''} • IMEI: ${printing.imei}`,
+            qty: 1,
+            price: Number(printing.pawn_price) || 0,
+          }]}
+          subtotal={Number(printing.pawn_price) || 0}
+          total={Number(printing.pawn_price) || 0}
+          issuedByName={printing.redeemed_by_profile?.full_name || printing.redeemed_by_name || ''}
+          onClose={() => setPrinting(null)}
+        />
       )}
 
       {toast && <Toast {...toast} />}

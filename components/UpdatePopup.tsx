@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.17';
+const APP_VERSION = '3.9.18';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,23 +12,18 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.16',
-  date: '2026-05-28',
+  version: '3.9.18',
+  date: '2026-05-29',
   features: [
     {
-      icon: '🏷️',
-      title: 'ปริ้นใบรับซ่อม - ติดเครื่องได้แล้ว!',
-      desc: 'เปิดใบงานซ่อม → กดปุ่ม 🏷️ ใบรับซ่อม → ปริ้นออกใบสลิป 80mm ติดเครื่องได้เลย',
+      icon: '🖨️',
+      title: 'ปริ้นสลิปย้อนหลังได้แล้ว!',
+      desc: 'หน้าประวัติทุกประเภท: ขายเครื่อง / ขายของ / จำนำ / ผ่อน • กดปุ่ม 🖨️ → ปริ้นใบเสร็จได้เลย',
     },
     {
-      icon: '🔓',
-      title: 'รหัสปลดล็อค + อาการ เด่นชัด',
-      desc: 'ช่างเห็นชัด อาการเน้นกล่องเหลือง รหัสปลดล็อคเน้นกล่องแดง',
-    },
-    {
-      icon: '🔢',
-      title: 'Barcode เลขใบงาน',
-      desc: 'สแกน barcode บนใบสลิป → เข้าใบงานได้ทันที (ในอนาคต)',
+      icon: '📜',
+      title: 'ใบเสร็จย้อนหลัง',
+      desc: 'ลูกค้าขอใบเสร็จเก่า? ค้นในประวัติ → กดปริ้น → ออกใบใหม่ได้ทันที',
     },
   ],
 };

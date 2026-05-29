@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import ReceiptPDF from '@/components/ReceiptPDF';
 
 export default function GoodsHistoryPage() {
   const supabase = createClient();
@@ -19,6 +20,7 @@ export default function GoodsHistoryPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deletingReceipt, setDeletingReceipt] = useState<any>(null);
   const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [printing, setPrinting] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
@@ -242,6 +244,7 @@ export default function GoodsHistoryPage() {
                   {new Date(r.created_at).toLocaleString('th-TH')}
                 </div>
                 <div className="actions">
+                  <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setPrinting(r); }} title="ปริ้นสลิป">🖨️</button>
                   <button className="icon-btn" onClick={() => setViewing(r)} title="ดูรายละเอียด">👁</button>
                   <button className="icon-btn danger" onClick={(e) => { e.stopPropagation(); setDeletingReceipt(r); }} title="ลบใบเสร็จ">×</button>
                 </div>
@@ -390,6 +393,24 @@ export default function GoodsHistoryPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Print Slip Modal */}
+      {printing && (
+        <ReceiptPDF
+          receiptNo={printing.receipt_id?.substring(0, 8).toUpperCase()}
+          type="goods_sale"
+          items={printing.items.map((it: any) => ({
+            name: it.name,
+            detail: it.sku || '',
+            qty: it.quantity,
+            price: Number(it.unit_price) || 0,
+          }))}
+          subtotal={Number(printing.total) || 0}
+          total={Number(printing.total) || 0}
+          issuedByName={printing.sold_by_name || ''}
+          onClose={() => setPrinting(null)}
+        />
       )}
 
       {toast && <Toast {...toast} />}
