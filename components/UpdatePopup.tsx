@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.15';
+const APP_VERSION = '3.9.16';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,18 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.13',
+  version: '3.9.16',
   date: '2026-05-28',
   features: [
     {
-      icon: '🔒',
-      title: 'ต้นทุนอะไหล่ - ความลับเจ้าของ',
-      desc: 'พนักงานคีย์สต๊อก + ราคาขายได้ แต่ไม่เห็นต้นทุน • เฉพาะเจ้าของร้านเห็นต้นทุน + กำไร',
+      icon: '🏷️',
+      title: 'ปริ้นใบรับซ่อม - ติดเครื่องได้แล้ว!',
+      desc: 'เปิดใบงานซ่อม → กดปุ่ม 🏷️ ใบรับซ่อม → ปริ้นออกใบสลิป 80mm ติดเครื่องได้เลย',
     },
     {
-      icon: '👥',
-      title: 'พนักงานช่วยงานได้เต็มที่',
-      desc: 'คีย์อะไหล่เข้าสต๊อก แก้ข้อมูลได้ปกติ • ต้นทุนที่เจ้าของใส่ไว้ไม่ถูกแตะ',
+      icon: '🔓',
+      title: 'รหัสปลดล็อค + อาการ เด่นชัด',
+      desc: 'ช่างเห็นชัด อาการเน้นกล่องเหลือง รหัสปลดล็อคเน้นกล่องแดง',
+    },
+    {
+      icon: '🔢',
+      title: 'Barcode เลขใบงาน',
+      desc: 'สแกน barcode บนใบสลิป → เข้าใบงานได้ทันที (ในอนาคต)',
     },
   ],
 };
