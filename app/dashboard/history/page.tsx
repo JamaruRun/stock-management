@@ -630,24 +630,30 @@ export default function HistoryPage() {
       )}
 
       {/* Print Slip Modal */}
-      {printing && (
-        <ReceiptPDF
-          receiptNo={printing.id?.substring(0, 8).toUpperCase()}
-          type="stock_sale"
-          customerName={printing.customer_name}
-          customerPhone={printing.customer_phone}
-          items={[{
-            name: `${printing.brand || ''} ${printing.model}`.trim(),
-            detail: `${printing.color ? printing.color + ' ' : ''}${printing.spec || ''} • IMEI: ${printing.imei}`,
-            qty: 1,
-            price: Number(printing.sale_price) || 0,
-          }]}
-          subtotal={Number(printing.sale_price) || 0}
-          total={Number(printing.sale_price) || 0}
-          issuedByName={printing.sold_by_profile?.full_name || printing.sold_by_profile?.username || ''}
-          onClose={() => setPrinting(null)}
-        />
-      )}
+      {printing && (() => {
+        const price = Number(printing.price) || 0;
+        const discount = Number(printing.discount) || 0;
+        const finalPrice = Number(printing.final_price) || price;
+        return (
+          <ReceiptPDF
+            receiptNo={printing.id?.substring(0, 8).toUpperCase()}
+            type="stock_sale"
+            customerName={printing.customer_name}
+            customerPhone={printing.customer_phone}
+            items={[{
+              name: `${printing.brand || ''} ${printing.model}`.trim(),
+              detail: `${printing.color ? printing.color + ' ' : ''}${printing.spec || ''} • IMEI: ${printing.imei}`,
+              qty: 1,
+              price: price,
+            }]}
+            subtotal={price}
+            discount={discount}
+            total={finalPrice}
+            issuedByName={printing.sold_by_profile?.full_name || printing.sold_by_profile?.username || ''}
+            onClose={() => setPrinting(null)}
+          />
+        );
+      })()}
 
       {toast && <Toast {...toast} />}
     </>
