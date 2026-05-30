@@ -18,6 +18,7 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deletingBranch, setDeletingBranch] = useState<any>(null);
   const [forceDeleteBranch, setForceDeleteBranch] = useState<any>(null);
+  const [moveToBranchId, setMoveToBranchId] = useState<string>('');
   const [deletingUser, setDeletingUser] = useState<any>(null);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
@@ -113,6 +114,21 @@ export default function UsersPage() {
       branch_id: editingUser.branch_id,
     };
 
+    // 🆕 ถ้ามีการเปลี่ยน username
+    if (editingUser.newUsername && editingUser.newUsername !== editingUser.username) {
+      const cleanUsername = editingUser.newUsername.trim().toLowerCase();
+      
+      if (cleanUsername.length < 3) {
+        showToast('Username สั้นเกินไป', 'อย่างน้อย 3 ตัว', 'danger');
+        return;
+      }
+      if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+        showToast('Username ผิดรูปแบบ', 'ใช้ได้แค่ a-z, 0-9, _', 'danger');
+        return;
+      }
+      payload.username = cleanUsername;
+    }
+
     // ถ้ามีรหัสผ่านใหม่
     if (editingUser.newPassword) {
       if (editingUser.newPassword.length < 6) {
@@ -173,23 +189,31 @@ export default function UsersPage() {
     loadData();
   }
 
-  async function handleDeleteBranch(force = false) {
+  async function handleDeleteBranch(moveToBranchId?: string) {
     if (!deletingBranch) return;
 
     setSubmitting(true);
     const res = await fetch('/api/admin/delete-branch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branchId: deletingBranch.id, force }),
+      body: JSON.stringify({ 
+        branchId: deletingBranch.id, 
+        moveToBranchId,
+      }),
     });
 
     const result = await res.json();
     setSubmitting(false);
 
     if (!res.ok) {
-      // ถ้ามีข้อมูลในสาขา + ลบได้แบบ force
-      if (result.canForce && !force) {
-        setForceDeleteBranch({ ...deletingBranch, details: result.details });
+      // ถ้ามีข้อมูลในสาขา → ต้องเลือกสาขาย้ายไป
+      if (result.needsMove && !moveToBranchId) {
+        setForceDeleteBranch({ 
+          ...deletingBranch, 
+          details: result.details,
+          totalRecords: result.totalRecords,
+          otherBranches: result.otherBranches || [],
+        });
         setDeletingBranch(null);
         return;
       }
@@ -197,7 +221,8 @@ export default function UsersPage() {
       return;
     }
 
-    showToast('ลบสาขาแล้ว', '');
+    const movedMsg = result.moved > 0 ? `ย้ายข้อมูล ${result.moved} รายการแล้ว` : '';
+    showToast('ลบสาขาสำเร็จ', movedMsg);
     setDeletingBranch(null);
     setForceDeleteBranch(null);
     loadData();
@@ -387,23 +412,32 @@ export default function UsersPage() {
                     required />
                 </div>
                 
-                {/* Username แสดงแบบ readonly + บอกให้ติดต่อ super admin */}
+                {/* 🆕 Username field */}
                 <div className="field full">
-                  <label>Username (เข้าระบบ)</label>
+                  <label>
+                    Username (เข้าระบบ)
+                    {editingUser.id === currentUserId && (
+                      <span style={{ fontSize: 11, color: '#f59e0b', marginLeft: 6 }}>
+                        ⚠️ เปลี่ยนแล้วต้อง login ใหม่
+                      </span>
+                    )}
+                  </label>
                   <input 
                     type="text" 
-                    value={editingUser.username || ''}
-                    readOnly
-                    disabled
+                    value={editingUser.newUsername ?? editingUser.username ?? ''}
+                    onChange={(e) => setEditingUser({ 
+                      ...editingUser, 
+                      newUsername: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')
+                    })}
+                    placeholder={editingUser.username || 'username'}
                     style={{ 
+                      textTransform: 'lowercase',
                       fontFamily: 'monospace',
-                      background: 'var(--surface-2)',
-                      cursor: 'not-allowed',
-                      opacity: 0.7,
                     }}
+                    maxLength={30}
                   />
                   <small style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                    🔒 ติดต่อทีมงานเพื่อเปลี่ยน Username
+                    ใช้ได้แค่ a-z, 0-9, _ • อย่างน้อย 3 ตัว
                   </small>
                 </div>
                 
@@ -498,7 +532,7 @@ export default function UsersPage() {
             <h3 style={{ color: 'var(--danger)' }}>ลบสาขา?</h3>
             <p className="modal-sub">จะลบสาขา <strong>{deletingBranch.name}</strong> ออกจากระบบ</p>
             <div className="modal-actions">
-              <button className="btn btn-danger" onClick={() => handleDeleteBranch(false)} disabled={submitting}>
+              <button className="btn btn-danger" onClick={() => handleDeleteBranch()} disabled={submitting}>
                 {submitting ? 'กำลังลบ...' : 'ลบสาขา'}
               </button>
               <button className="btn btn-sec" onClick={() => setDeletingBranch(null)}>
@@ -509,13 +543,13 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Force Delete Branch (when has data) */}
+      {/* Has Data - Move Modal */}
       {forceDeleteBranch && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setForceDeleteBranch(null)}>
           <div className="modal">
-            <h3 style={{ color: 'var(--danger)' }}>⚠️ สาขามีข้อมูลใช้งานอยู่</h3>
+            <h3 style={{ color: 'var(--warning, #f59e0b)' }}>⚠️ สาขามีข้อมูลใช้งานอยู่</h3>
             <p className="modal-sub">
-              สาขา <strong>{forceDeleteBranch.name}</strong> มีข้อมูล:
+              สาขา <strong>{forceDeleteBranch.name}</strong> มีข้อมูล <strong>{forceDeleteBranch.totalRecords}</strong> รายการ:
             </p>
             <div style={{
               background: 'var(--surface-2)',
@@ -523,24 +557,87 @@ export default function UsersPage() {
               marginBottom: 16,
               fontSize: 13,
               fontFamily: 'JetBrains Mono, monospace',
+              borderRadius: 6,
             }}>
-              {forceDeleteBranch.details.stock > 0 && <div>📦 สต๊อก: {forceDeleteBranch.details.stock}</div>}
-              {forceDeleteBranch.details.sales > 0 && <div>💵 ประวัติขาย: {forceDeleteBranch.details.sales}</div>}
-              {forceDeleteBranch.details.pawn > 0 && <div>💰 จำนำ: {forceDeleteBranch.details.pawn}</div>}
-              {forceDeleteBranch.details.pawnHistory > 0 && <div>📋 ประวัติจำนำ: {forceDeleteBranch.details.pawnHistory}</div>}
-              {forceDeleteBranch.details.installment > 0 && <div>💳 ผ่อน: {forceDeleteBranch.details.installment}</div>}
-              {forceDeleteBranch.details.installmentHistory > 0 && <div>📋 ประวัติผ่อน: {forceDeleteBranch.details.installmentHistory}</div>}
+              {forceDeleteBranch.details.stock > 0 && <div>📦 สต๊อกเครื่อง: {forceDeleteBranch.details.stock}</div>}
+              {forceDeleteBranch.details.sales_history > 0 && <div>💵 ประวัติขายเครื่อง: {forceDeleteBranch.details.sales_history}</div>}
+              {forceDeleteBranch.details.pawn_stock > 0 && <div>💰 จำนำ: {forceDeleteBranch.details.pawn_stock}</div>}
+              {forceDeleteBranch.details.pawn_history > 0 && <div>📋 ประวัติจำนำ: {forceDeleteBranch.details.pawn_history}</div>}
+              {forceDeleteBranch.details.installment_stock > 0 && <div>💳 ผ่อน: {forceDeleteBranch.details.installment_stock}</div>}
+              {forceDeleteBranch.details.installment_history > 0 && <div>📋 ประวัติผ่อน: {forceDeleteBranch.details.installment_history}</div>}
+              {forceDeleteBranch.details.goods > 0 && <div>🎒 อุปกรณ์เสริม: {forceDeleteBranch.details.goods}</div>}
+              {forceDeleteBranch.details.goods_sales > 0 && <div>🛍️ ประวัติขายของ: {forceDeleteBranch.details.goods_sales}</div>}
+              {forceDeleteBranch.details.parts > 0 && <div>🔧 อะไหล่: {forceDeleteBranch.details.parts}</div>}
+              {forceDeleteBranch.details.repair_jobs > 0 && <div>🛠️ ใบงานซ่อม: {forceDeleteBranch.details.repair_jobs}</div>}
+              {forceDeleteBranch.details.receipts > 0 && <div>🧾 ใบเสร็จ: {forceDeleteBranch.details.receipts}</div>}
             </div>
-            <p style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 16 }}>
-              ⚠️ การกดยืนยันจะ <strong>ลบข้อมูลทั้งหมด</strong> ในสาขานี้!
+
+            <p style={{ fontSize: 13, marginBottom: 10, fontWeight: 600 }}>
+              📂 ย้ายข้อมูลทั้งหมดไปสาขาไหน?
             </p>
+
+            {(forceDeleteBranch.otherBranches?.length || 0) === 0 ? (
+              <div style={{
+                padding: 12,
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 6,
+                fontSize: 12,
+                color: '#dc2626',
+                marginBottom: 16,
+              }}>
+                ❌ ไม่มีสาขาอื่นให้ย้ายข้อมูลไป<br />
+                ต้องสร้างสาขาใหม่ก่อน แล้วค่อยมาลบสาขานี้
+              </div>
+            ) : (
+              <select
+                value={moveToBranchId}
+                onChange={(e) => setMoveToBranchId(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: 12,
+                  fontSize: 14,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text)',
+                  fontFamily: 'inherit',
+                  marginBottom: 16,
+                }}
+              >
+                <option value="">-- เลือกสาขา --</option>
+                {forceDeleteBranch.otherBranches.map((b: any) => (
+                  <option key={b.id} value={b.id}>📍 {b.name}</option>
+                ))}
+              </select>
+            )}
+
+            <div style={{
+              padding: 10,
+              background: 'rgba(59, 130, 246, 0.08)',
+              borderLeft: '3px solid var(--accent)',
+              borderRadius: 6,
+              fontSize: 11,
+              marginBottom: 16,
+              lineHeight: 1.6,
+            }}>
+              💡 <strong>ข้อมูลจะถูกย้ายไปสาขาที่เลือก ไม่หาย</strong> • หลังย้ายแล้วสาขานี้จะถูกลบ
+            </div>
+
             <div className="modal-actions">
-              <button className="btn btn-danger"
-                onClick={() => { setDeletingBranch(forceDeleteBranch); handleDeleteBranch(true); }}
-                disabled={submitting}>
-                {submitting ? 'กำลังลบ...' : 'ลบทั้งหมด'}
+              <button 
+                className="btn"
+                onClick={() => { 
+                  if (!moveToBranchId) return;
+                  setDeletingBranch(forceDeleteBranch); 
+                  handleDeleteBranch(moveToBranchId);
+                  setMoveToBranchId('');
+                }}
+                disabled={submitting || !moveToBranchId || (forceDeleteBranch.otherBranches?.length || 0) === 0}
+              >
+                {submitting ? 'กำลังย้าย+ลบ...' : '📂 ย้ายข้อมูล + ลบสาขา'}
               </button>
-              <button className="btn btn-sec" onClick={() => setForceDeleteBranch(null)}>
+              <button className="btn btn-sec" onClick={() => { setForceDeleteBranch(null); setMoveToBranchId(''); }}>
                 ยกเลิก
               </button>
             </div>

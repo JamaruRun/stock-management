@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.19';
+const APP_VERSION = '3.9.20';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
@@ -12,18 +12,23 @@ interface UpdateInfo {
 }
 
 const LATEST_UPDATE: UpdateInfo = {
-  version: '3.9.18',
-  date: '2026-05-29',
+  version: '3.9.9',
+  date: '2026-05-27',
   features: [
     {
-      icon: '🖨️',
-      title: 'ปริ้นสลิปย้อนหลังได้แล้ว!',
-      desc: 'หน้าประวัติทุกประเภท: ขายเครื่อง / ขายของ / จำนำ / ผ่อน • กดปุ่ม 🖨️ → ปริ้นใบเสร็จได้เลย',
+      icon: '🧾',
+      title: 'ปริ้นใบเสร็จหลังขายของได้แล้ว!',
+      desc: 'ขายอุปกรณ์เสริมเสร็จ → กดปริ้นใบเสร็จได้ทันที ส่งให้ลูกค้าได้',
     },
     {
-      icon: '📜',
-      title: 'ใบเสร็จย้อนหลัง',
-      desc: 'ลูกค้าขอใบเสร็จเก่า? ค้นในประวัติ → กดปริ้น → ออกใบใหม่ได้ทันที',
+      icon: '✏️',
+      title: 'เปลี่ยน Username ได้',
+      desc: 'Admin เปลี่ยน username ของตัวเอง / พนักงานได้แล้ว ในเมนูจัดการผู้ใช้',
+    },
+    {
+      icon: '🛡️',
+      title: 'เช็คซ้ำกัน Username ซ้ำกัน',
+      desc: 'ระบบเช็คก่อนเปลี่ยน ไม่ให้ซ้ำกับคนอื่นในระบบ',
     },
   ],
 };
@@ -124,24 +129,6 @@ export default function UpdatePopup() {
         <button className="btn" onClick={handleClose} style={{ width: '100%' }}>
           เข้าใจแล้ว ✓
         </button>
-
-        <div style={{
-          textAlign: 'center',
-          marginTop: 14,
-          paddingTop: 14,
-          borderTop: '1px solid var(--border)',
-          fontSize: 11,
-          color: 'var(--text-dim)',
-        }}>
-          มีปัญหา? <a
-            href="https://www.facebook.com/share/1DNJt1sNyY/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#1877f2', fontWeight: 600, textDecoration: 'none' }}
-          >
-            📘 ติดต่อทีมงานบน Facebook
-          </a>
-        </div>
       </div>
     </div>
   );

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
-import RepairSlipPrint from '@/components/RepairSlipPrint';
 import { REPAIR_STATUSES, getStatusInfo, type RepairStatus } from '@/lib/repair-constants';
 import { sendLinePush } from '@/lib/line-notify';
 import { getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
@@ -39,10 +38,6 @@ function EditRepairContent() {
   // payment
   const [paidInput, setPaidInput] = useState('');
 
-  // 🆕 slip print
-  const [showSlip, setShowSlip] = useState(false);
-  const [shopInfo, setShopInfo] = useState<{ name?: string; phone?: string } | null>(null);
-
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -62,13 +57,6 @@ function EditRepairContent() {
     const { data: p } = await supabase
       .from('profiles').select('*').eq('id', user.id).single();
     setProfile(p);
-
-    // 🆕 load shop info สำหรับใบสลิป
-    if (p?.shop_id) {
-      const { data: shop } = await supabase
-        .from('shops').select('name, phone').eq('id', p.shop_id).single();
-      if (shop) setShopInfo({ name: shop.name, phone: shop.phone });
-    }
 
     const [jobRes, partsRes, logRes, allPartsRes] = await Promise.all([
       supabase.from('repair_jobs').select('*').eq('id', jobId).single(),
@@ -277,32 +265,15 @@ function EditRepairContent() {
           <h1 style={{ fontSize: 20 }}>{job.job_no}</h1>
           <div className="desc">📱 {job.device_brand} {job.device_model} • 👤 {job.customer_name}</div>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <button
-            onClick={() => setShowSlip(true)}
-            style={{
-              padding: '8px 14px',
-              background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-            }}
-          >🏷️ ใบรับซ่อม</button>
-          <Link href="/dashboard/repair" style={{
-            padding: '8px 14px',
-            background: 'var(--surface-2)',
-            color: 'var(--text)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            fontSize: 12,
-            textDecoration: 'none',
-          }}>← กลับ</Link>
-        </div>
+        <Link href="/dashboard/repair" style={{
+          padding: '8px 14px',
+          background: 'var(--surface-2)',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          fontSize: 12,
+          textDecoration: 'none',
+        }}>← กลับ</Link>
       </div>
 
       {/* Status Hero */}
@@ -761,16 +732,6 @@ function EditRepairContent() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* 🆕 Repair Slip Modal */}
-      {showSlip && job && (
-        <RepairSlipPrint
-          job={job}
-          shopName={shopInfo?.name}
-          shopPhone={shopInfo?.phone}
-          onClose={() => setShowSlip(false)}
-        />
       )}
 
       {toast && <Toast {...toast} />}

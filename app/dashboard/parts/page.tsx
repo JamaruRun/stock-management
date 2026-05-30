@@ -118,9 +118,6 @@ export default function PartsPage() {
     };
   }, [parts]);
 
-  // 🆕 เฉพาะ admin เห็นต้นทุน + มูลค่าสต๊อก
-  const isAdmin = profile?.role === 'admin';
-
   async function handleAdjustSubmit() {
     if (!adjusting) return;
     const qty = parseInt(adjustQty);
@@ -246,21 +243,10 @@ export default function PartsPage() {
         marginBottom: 20,
         color: '#fff',
       }}>
-        {isAdmin ? (
-          <>
-            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>มูลค่าสต๊อกรวม (ต้นทุน)</div>
-            <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }}>
-              ฿{stats.totalValue.toLocaleString()}
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>คลังอะไหล่</div>
-            <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }}>
-              {stats.total} รายการ
-            </div>
-          </>
-        )}
+        <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>มูลค่าสต๊อกรวม</div>
+        <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }}>
+          ฿{stats.totalValue.toLocaleString()}
+        </div>
         <div style={{ 
           marginTop: 12, 
           paddingTop: 12, 
@@ -465,9 +451,7 @@ export default function PartsPage() {
                   fontSize: 12,
                 }}>
                   <div style={{ display: 'flex', gap: 12, color: 'var(--text-dim)' }}>
-                    {isAdmin && (
-                      <span>ต้นทุน <strong style={{ color: 'var(--text)' }}>฿{Number(p.cost_price).toLocaleString()}</strong></span>
-                    )}
+                    <span>ต้นทุน <strong style={{ color: 'var(--text)' }}>฿{Number(p.cost_price).toLocaleString()}</strong></span>
                     <span>ขาย <strong style={{ color: 'var(--accent)' }}>฿{Number(p.sell_price).toLocaleString()}</strong></span>
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>

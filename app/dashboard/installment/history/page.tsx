@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Toast from '@/components/Toast';
-import ReceiptPDF from '@/components/ReceiptPDF';
 
 export default function InstallmentHistoryPage() {
   const supabase = createClient();
@@ -17,7 +16,6 @@ export default function InstallmentHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState<any>(null);
-  const [printing, setPrinting] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
@@ -194,7 +192,6 @@ export default function InstallmentHistoryPage() {
                     เริ่ม {item.start_date} → ครบ {item.completed_date}
                   </div>
                   <div className="actions">
-                    <button className="icon-btn" onClick={() => setPrinting(item)} title="ปริ้นสลิป">🖨️</button>
                     <button className="icon-btn" onClick={() => setViewing(item)} title="ดู">ⓘ</button>
                     <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
                   </div>
@@ -312,29 +309,6 @@ export default function InstallmentHistoryPage() {
           </div>
         </div>
       )}
-
-      {/* Print Slip Modal */}
-      {printing && (() => {
-        const totalRevenue = Number(printing.down_payment) + (Number(printing.installment_amount) * printing.total_periods);
-        return (
-          <ReceiptPDF
-            receiptNo={printing.id?.substring(0, 8).toUpperCase()}
-            type="installment_payment"
-            customerName={printing.customer_name}
-            customerPhone={printing.customer_phone}
-            items={[{
-              name: `${printing.brand || ''} ${printing.model}`.trim(),
-              detail: `${printing.color ? printing.color + ' ' : ''}${printing.spec || ''} • IMEI: ${printing.imei} • ${printing.total_periods} งวด`,
-              qty: 1,
-              price: totalRevenue,
-            }]}
-            subtotal={totalRevenue}
-            total={totalRevenue}
-            issuedByName={printing.closed_by_profile?.full_name || printing.added_by_profile?.full_name || ''}
-            onClose={() => setPrinting(null)}
-          />
-        );
-      })()}
 
       {toast && <Toast {...toast} />}
     </>

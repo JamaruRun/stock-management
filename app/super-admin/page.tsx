@@ -10,13 +10,11 @@ interface Shop {
   name: string;
   owner_name?: string;
   phone?: string;
-  province?: string;
   email?: string;
   package: 'trial' | 'monthly' | 'yearly' | 'lifetime';
   expires_at?: string;
   status: 'active' | 'suspended' | 'expired';
   note?: string;
-  suspension_note?: string;
   created_at: string;
 }
 
@@ -302,27 +300,6 @@ export default function SuperAdminPage() {
               <div style={{ fontSize: 11, opacity: 0.9 }}>ใครใช้บ่อย • พร้อมจ่าย</div>
             </div>
           </Link>
-
-          <Link href="/super-admin/users" style={{
-            padding: 14,
-            background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-            borderRadius: 'var(--radius-sm)',
-            color: '#fff',
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            transition: 'transform 0.15s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <div style={{ fontSize: 28 }}>👥</div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>จัดการ Users</div>
-              <div style={{ fontSize: 11, opacity: 0.9 }}>เปลี่ยน Username • Password</div>
-            </div>
-          </Link>
         </div>
 
         <div className="stats">
@@ -557,37 +534,10 @@ export default function SuperAdminPage() {
                   onChange={(e) => setEditing({ ...editing, expires_at: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                   disabled={editing.package === 'lifetime'} />
               </div>
-              
-              {/* 🆕 หมายเหตุการระงับ - แสดงเมื่อ status = suspended */}
-              {editing.status === 'suspended' && (
-                <div className="field full">
-                  <label style={{ color: '#ef4444', fontWeight: 700 }}>
-                    ⛔ หมายเหตุการระงับ (ลูกค้าจะเห็นข้อความนี้)
-                  </label>
-                  <textarea
-                    value={(editing as any).suspension_note || ''}
-                    onChange={(e) => setEditing({ ...editing, suspension_note: e.target.value } as any)}
-                    placeholder="เช่น: ค้างชำระค่าบริการ - กรุณาติดต่อทีมงานเพื่อชำระเงิน 0812345678"
-                    rows={3}
-                    style={{ 
-                      resize: 'vertical', 
-                      fontFamily: 'inherit',
-                      background: 'rgba(239, 68, 68, 0.05)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                    }}
-                  />
-                  <small style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-                    💡 ข้อความนี้จะแสดงตอนลูกค้าพยายาม login • ใส่ช่องทางติดต่อด้วย
-                  </small>
-                </div>
-              )}
-              
               <div className="field full">
-                <label>หมายเหตุภายใน (super admin only)</label>
+                <label>หมายเหตุ</label>
                 <input type="text" value={editing.note || ''}
-                  onChange={(e) => setEditing({ ...editing, note: e.target.value })} 
-                  placeholder="โน้ตของคุณ - ลูกค้าไม่เห็น"
-                />
+                  onChange={(e) => setEditing({ ...editing, note: e.target.value })} />
               </div>
             </div>
             <div className="modal-actions" style={{ marginTop: 20 }}>

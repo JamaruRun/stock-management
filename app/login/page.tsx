@@ -63,32 +63,8 @@ export default function LoginPage() {
       return;
     }
 
-    // 🆕 เช็ค shop status - ถ้า suspended → แสดงหมายเหตุ + logout
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('shop_id, is_super_admin')
-      .eq('id', authData.user.id)
-      .single();
-
-    // super admin ข้าม check ไป
-    if (profileData && !profileData.is_super_admin && profileData.shop_id) {
-      const { data: shopData } = await supabase
-        .from('shops')
-        .select('status, suspension_note, name')
-        .eq('id', profileData.shop_id)
-        .single();
-
-      if (shopData?.status === 'suspended') {
-        // Logout เพราะ shop suspended
-        await supabase.auth.signOut();
-        
-        const note = shopData.suspension_note || 'ติดต่อทีมงานเพื่อสอบถามรายละเอียด';
-        setError(`⛔ ร้าน "${shopData.name}" ถูกระงับการใช้งาน\n\n${note}`);
-        setLoading(false);
-        return;
-      }
-    }
-
+    // ไม่ต้องเช็ค shop ที่นี่ - dashboard/layout.tsx จะเช็คให้
+    // (กัน query ซ้ำ + redirect ทันที = login เร็วขึ้น 800-1500ms)
     router.push('/dashboard/home');
     router.refresh();
   }
@@ -116,37 +92,7 @@ export default function LoginPage() {
         <p className="login-sub">ระบบจัดการสต๊อกร้านมือถือ + ร้านซ่อม</p>
 
         <form onSubmit={handleLogin}>
-          {error && (
-            <div className="login-error" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-              {error}
-              {error.includes('ถูกระงับ') && (
-                <div style={{
-                  marginTop: 12,
-                  paddingTop: 12,
-                  borderTop: '1px solid rgba(239, 68, 68, 0.3)',
-                  textAlign: 'center',
-                }}>
-                  <a
-                    href="https://www.facebook.com/share/1DNJt1sNyY/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-block',
-                      padding: '8px 16px',
-                      background: '#1877f2',
-                      color: '#fff',
-                      borderRadius: 6,
-                      textDecoration: 'none',
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
-                    📘 ติดต่อทีมงานบน Facebook
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
+          {error && <div className="login-error">{error}</div>}
 
           <div className="field" style={{ marginBottom: 14 }}>
             <label>ชื่อผู้ใช้</label>
@@ -199,27 +145,6 @@ export default function LoginPage() {
             }}
           >
             สมัคร Beta ฟรี 30 วัน →
-          </a>
-        </div>
-
-        {/* 🆕 Facebook contact */}
-        <div style={{
-          textAlign: 'center',
-          marginTop: 14,
-          fontSize: 11,
-          color: 'var(--text-dim)',
-        }}>
-          มีปัญหา? <a 
-            href="https://www.facebook.com/share/1DNJt1sNyY/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: '#1877f2',
-              textDecoration: 'none',
-              fontWeight: 600,
-            }}
-          >
-            📘 ติดต่อทีมงานบน Facebook
           </a>
         </div>
       </div>

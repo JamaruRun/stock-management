@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, shop_id')
       .eq('id', user.id)
       .single();
 
@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    // หมายเหตุ: admin เปลี่ยน username ไม่ได้ - ต้องผ่าน super admin
-    const { userId, full_name, role, branch_id, password } = body;
+    const { userId, full_name, username, role, branch_id, password } = body;
 
     if (!userId) {
       return NextResponse.json({ error: 'ต้องระบุ userId' }, { status: 400 });
@@ -50,9 +49,44 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // อัพเดท profile (ไม่รวม username)
+    // 🆕 Validate + เช็ค username ซ้ำ (ถ้ามีการเปลี่ยน)
+    if (username !== undefined) {
+      const cleanUsername = username.trim().toLowerCase();
+      
+      if (cleanUsername.length < 3) {
+        return NextResponse.json(
+          { error: 'Username ต้องมีอย่างน้อย 3 ตัวอักษร' },
+          { status: 400 }
+        );
+      }
+
+      if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+        return NextResponse.json(
+          { error: 'Username ใช้ได้แค่ a-z, 0-9, _ (ตัวเล็ก)' },
+          { status: 400 }
+        );
+      }
+
+      // เช็คว่า username ซ้ำกับคนอื่นไหม
+      const { data: existing } = await adminClient
+        .from('profiles')
+        .select('id, username')
+        .eq('username', cleanUsername)
+        .neq('id', userId)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return NextResponse.json(
+          { error: 'Username นี้มีคนใช้แล้ว เลือกใหม่' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // อัพเดท profile
     const updates: any = {};
     if (full_name !== undefined) updates.full_name = full_name;
+    if (username !== undefined) updates.username = username.trim().toLowerCase();
     if (role !== undefined) updates.role = role;
     if (branch_id !== undefined) updates.branch_id = branch_id;
 
@@ -64,6 +98,24 @@ export async function POST(request: NextRequest) {
 
       if (profileError) {
         return NextResponse.json({ error: profileError.message }, { status: 400 });
+      }
+    }
+
+    // 🆕 อัพเดท email ของ auth.users ให้ตรงกับ username
+    // (เพราะระบบใช้ username@stock.local เป็น email login)
+    if (username !== undefined) {
+      const newEmail = `${username.trim().toLowerCase()}@stock.local`;
+      const { error: emailError } = await adminClient.auth.admin.updateUserById(userId, {
+        email: newEmail,
+      });
+
+      if (emailError) {
+        // Rollback profiles ถ้า auth ล้มเหลว
+        console.error('Auth email update failed:', emailError);
+        return NextResponse.json(
+          { error: 'อัพเดท username ไม่สำเร็จ: ' + emailError.message },
+          { status: 400 }
+        );
       }
     }
 

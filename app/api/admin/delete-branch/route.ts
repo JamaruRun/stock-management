@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, branch_id')
+      .select('role, branch_id, shop_id')
       .eq('id', user.id)
       .single();
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์' }, { status: 403 });
     }
 
-    const { branchId, force } = await request.json();
+    const { branchId, moveToBranchId } = await request.json();
     if (!branchId) {
       return NextResponse.json({ error: 'ต้องระบุ branchId' }, { status: 400 });
     }
@@ -44,68 +44,120 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // เช็คว่ามีข้อมูลที่อ้างอิงสาขานี้ไหม
-    const [
-      { count: usersCount },
-      { count: stockCount },
-      { count: salesCount },
-      { count: pawnCount },
-      { count: pawnHistCount },
-      { count: instCount },
-      { count: instHistCount },
-    ] = await Promise.all([
-      adminClient.from('profiles').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-      adminClient.from('stock').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-      adminClient.from('sales_history').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-      adminClient.from('pawn_stock').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-      adminClient.from('pawn_history').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-      adminClient.from('installment_stock').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-      adminClient.from('installment_history').select('*', { count: 'exact', head: true }).eq('branch_id', branchId),
-    ]);
+    // เช็ค users ในสาขานี้ก่อน
+    const { count: usersCount } = await adminClient
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('branch_id', branchId);
 
-    const total = (usersCount || 0) + (stockCount || 0) + (salesCount || 0) +
-      (pawnCount || 0) + (pawnHistCount || 0) + (instCount || 0) + (instHistCount || 0);
-
-    if (total > 0 && !force) {
+    if ((usersCount || 0) > 0) {
       return NextResponse.json({
-        error: 'สาขานี้มีข้อมูลใช้งานอยู่',
-        details: {
-          users: usersCount || 0,
-          stock: stockCount || 0,
-          sales: salesCount || 0,
-          pawn: pawnCount || 0,
-          pawnHistory: pawnHistCount || 0,
-          installment: instCount || 0,
-          installmentHistory: instHistCount || 0,
-        },
-        canForce: (usersCount || 0) === 0, // ลบได้ถ้าไม่มี user (force ลบข้อมูลอื่น)
+        error: `ยังมีพนักงาน ${usersCount} คนในสาขานี้ ย้ายพนักงานออกก่อน`,
       }, { status: 400 });
     }
 
-    // ถ้า force = true → ลบข้อมูลทั้งหมดในสาขาก่อน (อันตราย!)
-    if (force) {
-      // ห้าม force ถ้ามี user ในสาขานี้
-      if ((usersCount || 0) > 0) {
+    // ตารางที่ผูกกับ branch_id ทั้งหมด (ครอบคลุมทุก module)
+    // ✅ รวม receipts, goods_sales, repair_jobs ที่ขาดไป
+    const tablesToMigrate = [
+      'stock',
+      'sales_history',
+      'pawn_stock',
+      'pawn_history',
+      'installment_stock',
+      'installment_history',
+      'goods',
+      'goods_sales',
+      'parts',
+      'repair_jobs',
+      'receipts',
+    ];
+
+    // ตรวจ + เก็บจำนวนทั้งหมด
+    let totalRecords = 0;
+    const counts: Record<string, number> = {};
+    
+    for (const table of tablesToMigrate) {
+      try {
+        const { count } = await adminClient
+          .from(table)
+          .select('*', { count: 'exact', head: true })
+          .eq('branch_id', branchId);
+        const c = count || 0;
+        counts[table] = c;
+        totalRecords += c;
+      } catch (e) {
+        // ตารางไม่มี ข้าม
+        counts[table] = 0;
+      }
+    }
+
+    // ถ้ามีข้อมูล → ต้องระบุสาขาที่จะย้ายไป
+    if (totalRecords > 0 && !moveToBranchId) {
+      // หาสาขาอื่นในร้านเดียวกัน
+      const { data: otherBranches } = await adminClient
+        .from('branches')
+        .select('id, name')
+        .eq('shop_id', profile.shop_id)
+        .neq('id', branchId);
+
+      return NextResponse.json({
+        error: 'สาขานี้มีข้อมูลใช้งานอยู่ ต้องเลือกสาขาที่จะย้ายข้อมูลไป',
+        needsMove: true,
+        totalRecords,
+        details: counts,
+        otherBranches: otherBranches || [],
+      }, { status: 400 });
+    }
+
+    // ถ้าระบุ moveToBranchId → ย้ายข้อมูลทั้งหมด
+    if (moveToBranchId && totalRecords > 0) {
+      // เช็คว่าสาขาที่จะย้ายไปอยู่ใน shop เดียวกัน
+      const { data: targetBranch } = await adminClient
+        .from('branches')
+        .select('id, shop_id')
+        .eq('id', moveToBranchId)
+        .single();
+
+      if (!targetBranch || targetBranch.shop_id !== profile.shop_id) {
         return NextResponse.json({
-          error: 'ยังมีพนักงานในสาขานี้ ย้ายพนักงานก่อน',
+          error: 'สาขาที่จะย้ายไปไม่ถูกต้อง',
         }, { status: 400 });
       }
-      
-      await adminClient.from('stock').delete().eq('branch_id', branchId);
-      await adminClient.from('sales_history').delete().eq('branch_id', branchId);
-      await adminClient.from('pawn_stock').delete().eq('branch_id', branchId);
-      await adminClient.from('pawn_history').delete().eq('branch_id', branchId);
-      await adminClient.from('installment_stock').delete().eq('branch_id', branchId);
-      await adminClient.from('installment_history').delete().eq('branch_id', branchId);
+
+      if (moveToBranchId === branchId) {
+        return NextResponse.json({
+          error: 'ย้ายไปสาขาเดิมไม่ได้',
+        }, { status: 400 });
+      }
+
+      // ย้ายข้อมูลทุกตาราง
+      for (const table of tablesToMigrate) {
+        if (counts[table] > 0) {
+          const { error: moveError } = await adminClient
+            .from(table)
+            .update({ branch_id: moveToBranchId })
+            .eq('branch_id', branchId);
+
+          if (moveError) {
+            console.error(`Move ${table} error:`, moveError);
+            // ข้าม table ที่ error (อาจไม่มี column branch_id)
+          }
+        }
+      }
     }
 
     // ลบสาขา
     const { error } = await adminClient.from('branches').delete().eq('id', branchId);
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ 
+        error: `ลบไม่สำเร็จ: ${error.message}` 
+      }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      moved: totalRecords,
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

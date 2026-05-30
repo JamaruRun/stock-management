@@ -36,15 +36,6 @@ function SettingsPageContent() {
     line_notify_low_stock: true,
     line_notify_parts_low: true,
   });
-
-  // 🆕 ฟอร์มข้อมูลร้านพื้นฐาน
-  const [shopInfoForm, setShopInfoForm] = useState({
-    name: '',
-    owner_name: '',
-    province: '',
-    phone: '',
-  });
-  const [savingShopInfo, setSavingShopInfo] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [otherAdmins, setOtherAdmins] = useState<any[]>([]);
   const [groupIdInput, setGroupIdInput] = useState('');
@@ -86,13 +77,6 @@ function SettingsPageContent() {
             line_notify_low_stock: s.line_notify_low_stock !== false,
             line_notify_parts_low: s.line_notify_parts_low !== false,
           });
-          // 🆕 โหลดข้อมูลร้าน
-          setShopInfoForm({
-            name: s.name || '',
-            owner_name: s.owner_name || '',
-            province: s.province || '',
-            phone: s.phone || '',
-          });
         }
 
         // โหลด admin อื่นในร้านที่ผูก LINE แล้ว (ไม่นับตัวเอง)
@@ -128,38 +112,6 @@ function SettingsPageContent() {
     router.replace('/dashboard/settings');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-
-  // 🆕 บันทึกข้อมูลร้านพื้นฐาน
-  async function handleSaveShopInfo() {
-    if (!shop || !profile) return;
-    if (profile.role !== 'admin') {
-      showToast('ไม่มีสิทธิ์', 'เฉพาะ admin เท่านั้น', 'danger');
-      return;
-    }
-    if (!shopInfoForm.name.trim()) {
-      showToast('กรอกชื่อร้าน', '', 'danger');
-      return;
-    }
-
-    setSavingShopInfo(true);
-    const { error } = await supabase.from('shops').update({
-      name: shopInfoForm.name.trim(),
-      owner_name: shopInfoForm.owner_name.trim() || null,
-      province: shopInfoForm.province.trim() || null,
-      phone: shopInfoForm.phone.trim() || null,
-    }).eq('id', shop.id);
-
-    setSavingShopInfo(false);
-    if (error) {
-      showToast('บันทึกไม่สำเร็จ', error.message, 'danger');
-      return;
-    }
-    showToast('บันทึกสำเร็จ ✓', 'ข้อมูลร้านอัพเดทแล้ว');
-    
-    const { data: s } = await supabase
-      .from('shops').select('*').eq('id', shop.id).single();
-    setShop(s);
-  }
 
   async function handleSaveLine() {
     if (!shop) return;
@@ -384,74 +336,6 @@ function SettingsPageContent() {
       </div>
 
       <div className="form-card">
-        <h3>🏪 ข้อมูลร้าน</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
-          ข้อมูลพื้นฐานของร้านคุณ
-          {profile?.role !== 'admin' && (
-            <span style={{ color: '#f59e0b', display: 'block', marginTop: 6 }}>
-              🔒 เฉพาะ Admin เท่านั้นที่แก้ไขได้
-            </span>
-          )}
-        </p>
-
-        <div className="form-grid">
-          <div className="field full">
-            <label>ชื่อร้าน <span style={{ color: '#ef4444' }}>*</span></label>
-            <input 
-              type="text" 
-              value={shopInfoForm.name}
-              onChange={(e) => setShopInfoForm({ ...shopInfoForm, name: e.target.value })}
-              placeholder="ชื่อร้านของคุณ"
-              disabled={profile?.role !== 'admin'}
-              required
-            />
-          </div>
-          <div className="field">
-            <label>ชื่อเจ้าของร้าน</label>
-            <input 
-              type="text" 
-              value={shopInfoForm.owner_name}
-              onChange={(e) => setShopInfoForm({ ...shopInfoForm, owner_name: e.target.value })}
-              placeholder="ชื่อ-นามสกุล"
-              disabled={profile?.role !== 'admin'}
-            />
-          </div>
-          <div className="field">
-            <label>จังหวัด</label>
-            <input 
-              type="text" 
-              value={shopInfoForm.province}
-              onChange={(e) => setShopInfoForm({ ...shopInfoForm, province: e.target.value })}
-              placeholder="เช่น กรุงเทพ"
-              disabled={profile?.role !== 'admin'}
-            />
-          </div>
-          <div className="field full">
-            <label>เบอร์โทรร้าน</label>
-            <input 
-              type="tel" 
-              value={shopInfoForm.phone}
-              onChange={(e) => setShopInfoForm({ ...shopInfoForm, phone: e.target.value })}
-              placeholder="0812345678"
-              disabled={profile?.role !== 'admin'}
-            />
-          </div>
-        </div>
-
-        {profile?.role === 'admin' && (
-          <div className="form-actions" style={{ marginTop: 14 }}>
-            <button 
-              onClick={handleSaveShopInfo} 
-              className="btn"
-              disabled={savingShopInfo}
-            >
-              {savingShopInfo ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="form-card" style={{ marginTop: 16 }}>
         <h3>🏪 ข้อมูลร้านบนใบเสร็จ</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
           จะแสดงด้านบนของใบเสร็จ PDF
@@ -1003,47 +887,6 @@ function SettingsPageContent() {
             <div>✓ แต่ละ admin ผูก LINE แยกกันได้</div>
           </div>
         )}
-      </div>
-
-      {/* 🆕 ติดต่อทีมงาน */}
-      <div className="form-card" style={{ marginTop: 16 }}>
-        <h3>💬 ช่วยเหลือ / ติดต่อทีมงาน</h3>
-        <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.6 }}>
-          มีปัญหา? อยากเปลี่ยน Username? อยากเสนอฟีเจอร์ใหม่?
-          <br />ติดต่อทีมงานได้เลย ตอบเร็วทุก message
-        </div>
-        <a
-          href="https://www.facebook.com/share/1DNJt1sNyY/"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 20px',
-            background: 'linear-gradient(135deg, #1877f2 0%, #0d5fbb 100%)',
-            color: '#fff',
-            borderRadius: 8,
-            textDecoration: 'none',
-            fontWeight: 600,
-            fontSize: 14,
-            boxShadow: '0 4px 12px rgba(24, 119, 242, 0.3)',
-          }}
-        >
-          📘 ติดต่อทีมงานบน Facebook
-        </a>
-        <div style={{
-          marginTop: 12,
-          padding: 10,
-          background: 'rgba(139, 92, 246, 0.08)',
-          borderLeft: '3px solid #8b5cf6',
-          borderRadius: 6,
-          fontSize: 11,
-          color: 'var(--text-dim)',
-          lineHeight: 1.6,
-        }}>
-          💡 หรือใช้ปุ่ม <strong>💬 Feedback</strong> มุมขวาล่างทุกหน้า — ส่งตรงถึงทีมพัฒนา
-        </div>
       </div>
 
       {toast && <Toast {...toast} />}
