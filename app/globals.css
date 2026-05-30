@@ -2510,3 +2510,22 @@ input:disabled {
     padding-bottom: 100px;
   }
 }
+
+/* ============================================
+   v3 Lucide Icons — เน้น active state
+   ============================================ */
+.v3-sidebar-item svg,
+.v3-bottom-nav-item svg {
+  flex-shrink: 0;
+}
+
+.v3-sidebar-item.active svg {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
+.v3-bottom-nav-item.active svg {
+  transform: scale(1.05);
+  transition: transform 0.15s;
+}
+
+.v3-btn svg { flex-shrink: 0; }
