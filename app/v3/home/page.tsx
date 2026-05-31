@@ -473,24 +473,25 @@ function QuickAction({ Icon, label, href, color }: any) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      padding: '14px 8px',
-      background: 'var(--surface-2)',
+      gap: 8,
+      padding: '16px 8px',
+      background: 'var(--surface)',
       border: '1px solid var(--border)',
-      borderRadius: 12,
+      borderRadius: 14,
       textDecoration: 'none',
       color: 'var(--text)',
-      fontSize: 11,
-      fontWeight: 600,
+      fontSize: 12,
+      fontWeight: 500,
+      transition: 'all 0.15s',
     }}>
       <div style={{
-        width: 38, height: 38,
+        width: 40, height: 40,
         borderRadius: 10,
-        background: `${color}15`,
+        background: `${color}12`,
         color: color,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Icon size={20} strokeWidth={2.2} />
+        <Icon size={22} strokeWidth={2} />
       </div>
       <span style={{ textAlign: 'center' }}>{label}</span>
     </Link>
@@ -504,51 +505,122 @@ function TopProductRow({ rank, brand, model, count }: { rank: number; brand: str
       display: 'flex',
       alignItems: 'center',
       gap: 10,
-      padding: '6px 0',
+      padding: '8px 0',
+      borderBottom: rank < 5 ? '1px solid var(--border)' : 'none',
     }}>
       <span className={`v3-top-rank ${rankClass}`}>{rank}</span>
-      <PhoneThumb brand={brand} />
+      <PhoneThumb brand={brand} model={model} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ 
+          fontSize: 13, 
+          fontWeight: 600, 
+          whiteSpace: 'nowrap', 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis',
+          color: 'var(--text)',
+        }}>
           {model}
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{brand}</div>
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-        <span style={{ color: 'var(--text)', fontWeight: 700 }}>{count}</span> เครื่อง
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+          <span style={{ color: 'var(--text)', fontWeight: 700 }}>{count}</span> เครื่อง
+        </div>
       </div>
     </div>
   );
 }
 
-function PhoneThumb({ brand }: { brand: string }) {
+function PhoneThumb({ brand, model }: { brand: string; model?: string }) {
   const b = (brand || '').toLowerCase();
-  const color =
-    b.includes('iphone') || b.includes('apple') ? '#0f172a' :
-    b.includes('samsung') ? '#1e40af' :
-    b.includes('oppo') ? '#16a34a' :
-    b.includes('vivo') ? '#2563eb' :
-    b.includes('xiaomi') || b.includes('redmi') ? '#ea580c' :
-    b.includes('huawei') ? '#dc2626' :
-    b.includes('realme') ? '#facc15' : '#64748b';
+  const m = (model || '').toLowerCase();
+  
+  // สีหลังกล่อง + สีตัวมือถือตามแบรนด์
+  const bgColor = '#f1f5f9';
+  
+  let bodyColor = '#1e293b';
+  let screenColor = '#0f172a';
+  let hasNotch = false;
+  let hasDynamicIsland = false;
+  let hasCameraGrid = false;
+  
+  if (b.includes('iphone') || b.includes('apple')) {
+    bodyColor = m.includes('pro') ? '#1c1c1e' : m.includes('white') || m.includes('starlight') ? '#f5f5f7' : '#1c1c1e';
+    screenColor = '#000';
+    // iPhone 14+ Pro = Dynamic Island, ก่อนหน้านี้ = notch
+    if (m.match(/1[4-9]|2[0-9]/) && m.includes('pro')) hasDynamicIsland = true;
+    else if (m.match(/x|11|12|13|14|15/)) hasNotch = true;
+    hasCameraGrid = m.includes('pro') || !!m.match(/1[1-9]/);
+  } else if (b.includes('samsung')) {
+    bodyColor = '#1e293b';
+    screenColor = '#000';
+  } else if (b.includes('oppo')) {
+    bodyColor = '#16a34a';
+    screenColor = '#0f172a';
+  } else if (b.includes('vivo')) {
+    bodyColor = '#1d4ed8';
+    screenColor = '#0f172a';
+  } else if (b.includes('xiaomi') || b.includes('redmi')) {
+    bodyColor = '#ea580c';
+    screenColor = '#0f172a';
+  } else if (b.includes('huawei')) {
+    bodyColor = '#7c2d12';
+    screenColor = '#0f172a';
+  } else if (b.includes('realme')) {
+    bodyColor = '#facc15';
+    screenColor = '#0f172a';
+  }
 
   return (
     <div style={{
-      width: 32, height: 38,
-      borderRadius: 6,
-      background: `linear-gradient(180deg, ${color}, ${color}cc)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: 44,
+      height: 56,
+      background: bgColor,
+      borderRadius: 8,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       flexShrink: 0,
-      position: 'relative',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      overflow: 'hidden',
     }}>
-      <div style={{
-        width: 4, height: 4,
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.3)',
-        position: 'absolute', top: 3,
-      }} />
-      <Smartphone size={14} color="rgba(255,255,255,0.5)" strokeWidth={1.5} />
+      <svg width="28" height="44" viewBox="0 0 28 44" xmlns="http://www.w3.org/2000/svg">
+        {/* Body */}
+        <rect
+          x="1" y="1"
+          width="26" height="42"
+          rx="4" ry="4"
+          fill={bodyColor}
+          stroke="rgba(0,0,0,0.1)"
+          strokeWidth="0.5"
+        />
+        {/* Screen */}
+        <rect
+          x="2.5" y="3"
+          width="23" height="38"
+          rx="2.5" ry="2.5"
+          fill={screenColor}
+        />
+        
+        {/* Notch (iPhone X-13) */}
+        {hasNotch && (
+          <rect x="10" y="3" width="8" height="1.5" rx="0.75" fill={bodyColor} />
+        )}
+        
+        {/* Dynamic Island (iPhone 14 Pro+) */}
+        {hasDynamicIsland && (
+          <rect x="11" y="4.5" width="6" height="1.5" rx="0.75" fill="#000" />
+        )}
+        
+        {/* Speaker dot (no notch) */}
+        {!hasNotch && !hasDynamicIsland && (
+          <rect x="12" y="4.5" width="4" height="0.6" rx="0.3" fill="rgba(255,255,255,0.2)" />
+        )}
+        
+        {/* Camera grid (back side hint) - Pro models */}
+        {hasCameraGrid && (
+          <g opacity="0.4">
+            <circle cx="6" cy="8" r="1" fill="rgba(255,255,255,0.3)" />
+          </g>
+        )}
+      </svg>
     </div>
   );
 }
