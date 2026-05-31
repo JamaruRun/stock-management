@@ -2718,3 +2718,122 @@ input:disabled {
     font-size: 11px;
   }
 }
+
+/* ============================================
+   v3 Mobile Hero - Display Control (FIX)
+   ============================================ */
+.v3-mobile-hero { display: none; }
+.v3-desktop-only { display: block; }
+
+@media (max-width: 1024px) {
+  .v3-mobile-hero { display: block !important; }
+  .v3-desktop-only { display: none !important; }
+}
+
+/* ============================================
+   v3 Mobile Refined Layout - ตาม Reference เป๊ะ
+   ============================================ */
+@media (max-width: 1024px) {
+  /* Hero - ปรับให้สวยตาม ref */
+  .v3-mobile-hero {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    color: #fff;
+    padding: 18px;
+    border-radius: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+  }
+
+  .v3-mobile-hero-greet {
+    font-size: 13px;
+    opacity: 0.95;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .v3-mobile-hero-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    font-family: 'Prompt', 'Sarabun', sans-serif;
+    letter-spacing: -0.3px;
+  }
+
+  .v3-mobile-hero-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .v3-mobile-hero-stat {
+    background: rgba(255, 255, 255, 0.18);
+    padding: 10px 12px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .v3-mobile-hero-stat-label {
+    font-size: 10px;
+    opacity: 0.9;
+    margin-bottom: 2px;
+  }
+
+  .v3-mobile-hero-stat-value {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: 'Prompt', 'Sarabun', sans-serif;
+    letter-spacing: -0.3px;
+  }
+
+  /* Mobile Header สวยขึ้น */
+  .v3-mobile-header {
+    background: #ffffff;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  /* KPI Cards บนมือถือ - 2 column */
+  .v3-mobile-content [style*="grid-template-columns"]:first-of-type,
+  .v3-mobile-content > [style*="grid-template-columns"] {
+    /* override inline style for KPI grid */
+  }
+
+  /* Sales chart ปรับขนาด */
+  .v3-card svg[viewBox="0 0 100 60"] {
+    height: 110px !important;
+  }
+
+  /* Mobile content padding */
+  .v3-mobile-content {
+    padding: 14px;
+    padding-bottom: 100px;
+  }
+}
+
+
+/* Mobile KPI + Quick Actions Grid */
+@media (max-width: 1024px) {
+  .v3-kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  
+  .v3-quick-grid {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  
+  /* บนมือถือ ไม่ต้องโชว์ section "สวัสดี" header แบบ desktop */
+  .v3-mobile-content .v3-page-header.v3-desktop-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .v3-quick-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

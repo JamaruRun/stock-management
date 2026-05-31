@@ -189,8 +189,8 @@ export default function V3HomePage() {
 
   return (
     <>
-      {/* Mobile Hero (mobile only, hidden on desktop via media query) */}
-      <div className="v3-mobile-hero" style={{ display: 'block' }}>
+      {/* Mobile Hero - แสดงเฉพาะมือถือ (จัดการด้วย CSS class) */}
+      <div className="v3-mobile-hero">
         <div className="v3-mobile-hero-greet">สวัสดีครับ{userName ? `, ${userName}` : ''} 👋</div>
         <div className="v3-mobile-hero-title">ยินดีต้อนรับกลับมา</div>
         {isAdmin && (
@@ -207,14 +207,8 @@ export default function V3HomePage() {
         )}
       </div>
 
-      <style jsx>{`
-        @media (min-width: 1025px) {
-          :global(.v3-mobile-hero) { display: none !important; }
-        }
-      `}</style>
-
-      {/* Greeting (desktop only) */}
-      <div className="v3-page-header">
+      {/* Greeting (desktop only - hide on mobile) */}
+      <div className="v3-page-header v3-desktop-only">
         <div>
           <h1 className="v3-page-title">
             สวัสดีครับ{userName ? `, ${userName}` : ''} 👋
@@ -224,7 +218,7 @@ export default function V3HomePage() {
       </div>
 
       {/* KPI Cards 5 — ตาม ref */}
-      <div style={{
+      <div className="v3-kpi-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: 12,
@@ -395,7 +389,7 @@ export default function V3HomePage() {
         <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
           ทางลัด (Quick Actions)
         </h2>
-        <div style={{
+        <div className="v3-quick-grid" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
           gap: 8,
