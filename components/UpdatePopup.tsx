@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const APP_VERSION = '3.9.30';
+const APP_VERSION = '3.9.31';
 const VERSION_KEY = 'stock_app_version_seen';
 
 interface UpdateInfo {
