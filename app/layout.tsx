@@ -83,6 +83,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://husbgswmqmlfsijllfxp.supabase.co" />
         <link rel="dns-prefetch" href="https://husbgswmqmlfsijllfxp.supabase.co" />
+        {/* Google Fonts - Sarabun + Prompt */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=Prompt:wght@500;600;700&display=swap"
+          rel="stylesheet"
+        />
         {/* PWA */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

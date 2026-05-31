@@ -2529,3 +2529,192 @@ input:disabled {
 }
 
 .v3-btn svg { flex-shrink: 0; }
+
+/* ============================================
+   v3 Typography — Sarabun (Thai) + Prompt (Display)
+   ใช้เฉพาะใน v3 theme เท่านั้น
+   ============================================ */
+[data-theme="modern-blue"] body,
+[data-theme="dark-pro"] body,
+[data-theme="orange-shop"] body {
+  font-family: 'Sarabun', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="modern-blue"] .v3-page-title,
+[data-theme="dark-pro"] .v3-page-title,
+[data-theme="orange-shop"] .v3-page-title,
+[data-theme="modern-blue"] .v3-sidebar-brand-text,
+[data-theme="dark-pro"] .v3-sidebar-brand-text,
+[data-theme="orange-shop"] .v3-sidebar-brand-text {
+  font-family: 'Prompt', 'Sarabun', sans-serif;
+  letter-spacing: -0.5px;
+}
+
+/* Numbers ตัวเลขใช้ Inter เพื่อให้คมชัด */
+.v3-num {
+  font-family: 'Inter', 'Sarabun', monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+/* === V3 Search with button === */
+.v3-header-search-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* === Mobile Card Cleaner Look === */
+@media (max-width: 1024px) {
+  [data-theme="modern-blue"] .v3-card {
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  }
+}
+
+/* === Sales Chart === */
+.v3-chart-toggle {
+  display: inline-flex;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.v3-chart-toggle button {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.v3-chart-toggle button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* === Top Products List === */
+.v3-top-rank {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.v3-top-rank.gold { background: #fef3c7; color: #92400e; }
+.v3-top-rank.silver { background: #f1f5f9; color: #475569; }
+.v3-top-rank.bronze { background: #fed7aa; color: #9a3412; }
+
+/* ============================================
+   v3 Mobile - หน้าตาตาม Reference
+   ============================================ */
+@media (max-width: 1024px) {
+  /* Mobile Home Hero Card */
+  .v3-mobile-hero {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 14px;
+  }
+
+  .v3-mobile-hero-greet {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 4px;
+  }
+
+  .v3-mobile-hero-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    font-family: 'Prompt', sans-serif;
+  }
+
+  .v3-mobile-hero-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .v3-mobile-hero-stat {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 8px 10px;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+  }
+
+  .v3-mobile-hero-stat-label {
+    font-size: 10px;
+    opacity: 0.85;
+  }
+
+  .v3-mobile-hero-stat-value {
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'Prompt', sans-serif;
+  }
+
+  /* Mobile Header สวยขึ้น */
+  .v3-mobile-header {
+    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+    color: #fff;
+    border-bottom: none;
+    padding: 14px 16px;
+  }
+
+  .v3-mobile-header-title {
+    color: #fff !important;
+  }
+
+  .v3-mobile-header-back {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+    backdrop-filter: blur(10px);
+  }
+  
+  /* Spacing บนมือถือ */
+  .v3-mobile-content > .v3-page-header {
+    display: none; /* ใช้ v3-mobile-hero แทน */
+  }
+
+  .v3-mobile-content .v3-card {
+    border-radius: 16px;
+  }
+
+  /* Hide chart on mobile (เปลืองพื้นที่) */
+  .v3-dash-row > .v3-card:nth-child(2) .v3-chart-toggle button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
