@@ -122,8 +122,14 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: 
             padding: 12,
             marginBottom: 14,
           }}>
-            {isAdmin && item.cost_price && (
-              <PriceRow label="ต้นทุน" value={`฿${Number(item.cost_price).toLocaleString()}`} />
+            {isAdmin && (
+              <PriceRow
+                label="ต้นทุน"
+                value={item.cost_price && Number(item.cost_price) > 0
+                  ? `฿${Number(item.cost_price).toLocaleString()}`
+                  : 'ไม่มี'}
+                muted={!item.cost_price || Number(item.cost_price) === 0}
+              />
             )}
             <PriceRow
               label="ราคาขาย"
@@ -131,11 +137,18 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: 
               big
               color="var(--accent)"
             />
-            {isAdmin && item.cost_price && profit !== 0 && (
+            {isAdmin && (
               <PriceRow
                 label="กำไร"
-                value={`฿${profit.toLocaleString()} (${profitPct}%)`}
-                color={profit > 0 ? '#22c55e' : '#ef4444'}
+                value={item.cost_price && Number(item.cost_price) > 0
+                  ? `฿${profit.toLocaleString()} (${profitPct}%)`
+                  : 'ไม่มี'}
+                color={
+                  !item.cost_price || Number(item.cost_price) === 0
+                    ? undefined
+                    : profit > 0 ? '#22c55e' : profit < 0 ? '#ef4444' : undefined
+                }
+                muted={!item.cost_price || Number(item.cost_price) === 0}
               />
             )}
           </div>
@@ -202,7 +215,7 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: 
   );
 }
 
-function PriceRow({ label, value, big, color }: any) {
+function PriceRow({ label, value, big, color, muted }: any) {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
@@ -214,8 +227,9 @@ function PriceRow({ label, value, big, color }: any) {
       <span style={{
         fontSize: big ? 22 : 14,
         fontWeight: big ? 800 : 600,
-        color: color || 'var(--text)',
+        color: muted ? 'var(--text-muted)' : color || 'var(--text)',
         fontFamily: 'Prompt, Sarabun, sans-serif',
+        fontStyle: muted ? 'italic' : 'normal',
       }}>
         {value}
       </span>

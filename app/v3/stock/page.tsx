@@ -179,27 +179,39 @@ export default function V3StockPage() {
         </button>
       </div>
 
-      {/* Search + Filters */}
-      <div className="v3-card" style={{ marginBottom: 12, padding: 12 }}>
-        <div style={{ position: 'relative', marginBottom: 10 }}>
-          <Search
-            size={16}
-            style={{
-              position: 'absolute', left: 12, top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-muted)', pointerEvents: 'none',
-            }}
-          />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหา IMEI, รุ่น, สี, ลูกค้า..."
-            style={searchInputStyle}
-          />
-        </div>
+      {/* Search + Filters - แถวเดียวเหมือน ref */}
+      <div className="v3-card v3-filter-bar" style={{ marginBottom: 12, padding: 10 }}>
+        <div className="v3-filter-row">
+          {/* Search */}
+          <div className="v3-filter-search">
+            <Search
+              size={16}
+              style={{
+                position: 'absolute', left: 12, top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)', pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ค้นหา IMEI, รุ่น, สี, ลูกค้า..."
+              style={{
+                width: '100%',
+                height: 38,
+                padding: '0 12px 0 36px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                color: 'var(--text)',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                outline: 'none',
+              }}
+            />
+          </div>
 
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
             <option value="">สถานะทั้งหมด</option>
             <option value="new">เครื่องใหม่</option>
@@ -223,13 +235,18 @@ export default function V3StockPage() {
 
           {hasFilters && (
             <button onClick={clearFilters} style={clearBtnStyle}>
-              <X size={12} /> ล้าง
+              <X size={12} /> ล้างตัวกรอง
             </button>
           )}
+        </div>
 
-          <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-dim)' }}>
-            พบ <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong> รายการ
-          </div>
+        {/* count result row */}
+        <div style={{
+          fontSize: 11, color: 'var(--text-dim)',
+          marginTop: 8,
+          textAlign: 'right',
+        }}>
+          พบ <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong> รายการ
         </div>
       </div>
 
@@ -306,6 +323,51 @@ export default function V3StockPage() {
           :global(.v3-stock-grid) {
             grid-template-columns: 1fr;
             gap: 10px;
+          }
+        }
+
+        /* Filter bar - แถวเดียว desktop, wrap mobile */
+        :global(.v3-filter-row) {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: nowrap;
+        }
+        :global(.v3-filter-search) {
+          position: relative;
+          flex: 1;
+          min-width: 200px;
+        }
+        :global(.v3-filter-row select) {
+          flex-shrink: 0;
+        }
+
+        /* Tablet - allow wrap */
+        @media (max-width: 1280px) {
+          :global(.v3-filter-row) {
+            flex-wrap: wrap;
+          }
+          :global(.v3-filter-search) {
+            flex: 1 1 100%;
+            min-width: 100%;
+          }
+        }
+
+        /* Mobile - 2 columns dropdowns */
+        @media (max-width: 640px) {
+          :global(.v3-filter-row) {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+          :global(.v3-filter-search) {
+            grid-column: span 2;
+          }
+          :global(.v3-filter-row select) {
+            width: 100%;
+          }
+          :global(.v3-filter-row > button) {
+            grid-column: span 2;
           }
         }
       `}</style>
@@ -463,15 +525,28 @@ function StockCardV2({ item, isAdmin, onClick, menuOpen, onToggleMenu, onDelete,
 
       {/* Divider */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-        {isAdmin && item.cost_price && (
-          <PriceRow label="ต้นทุน" value={`฿${Number(item.cost_price).toLocaleString()}`} />
+        {isAdmin && (
+          <PriceRow
+            label="ต้นทุน"
+            value={item.cost_price && Number(item.cost_price) > 0
+              ? `฿${Number(item.cost_price).toLocaleString()}`
+              : 'ไม่มี'}
+            muted={!item.cost_price || Number(item.cost_price) === 0}
+          />
         )}
         <PriceRow label="ราคาขาย" value={`฿${Number(item.price).toLocaleString()}`} accent />
-        {isAdmin && item.cost_price && profit !== 0 && (
+        {isAdmin && (
           <PriceRow
             label="กำไร"
-            value={`฿${profit.toLocaleString()}`}
-            color={profit > 0 ? '#22c55e' : '#ef4444'}
+            value={item.cost_price && Number(item.cost_price) > 0
+              ? `฿${profit.toLocaleString()}`
+              : 'ไม่มี'}
+            color={
+              !item.cost_price || Number(item.cost_price) === 0
+                ? undefined
+                : profit > 0 ? '#22c55e' : profit < 0 ? '#ef4444' : undefined
+            }
+            muted={!item.cost_price || Number(item.cost_price) === 0}
           />
         )}
       </div>
@@ -498,7 +573,7 @@ function StockCardV2({ item, isAdmin, onClick, menuOpen, onToggleMenu, onDelete,
   );
 }
 
-function PriceRow({ label, value, accent, color }: any) {
+function PriceRow({ label, value, accent, color, muted }: any) {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between',
@@ -508,7 +583,10 @@ function PriceRow({ label, value, accent, color }: any) {
       <span style={{ color: 'var(--text-dim)' }}>{label}</span>
       <span style={{
         fontWeight: accent ? 700 : 600,
-        color: color || (accent ? 'var(--accent)' : 'var(--text)'),
+        color: muted
+          ? 'var(--text-muted)'
+          : color || (accent ? 'var(--accent)' : 'var(--text)'),
+        fontStyle: muted ? 'italic' : 'normal',
       }}>
         {value}
       </span>
@@ -636,29 +714,33 @@ const searchInputStyle: React.CSSProperties = {
 };
 
 const selectStyle: React.CSSProperties = {
-  padding: '7px 24px 7px 10px',
+  padding: '0 24px 0 10px',
+  height: 38,
   fontSize: 12,
   background: 'var(--surface-2)',
   border: '1px solid var(--border)',
-  borderRadius: 8,
+  borderRadius: 10,
   cursor: 'pointer',
   color: 'var(--text)',
   fontFamily: 'inherit',
   outline: 'none',
+  minWidth: 110,
 };
 
 const clearBtnStyle: React.CSSProperties = {
-  padding: '6px 10px',
+  padding: '0 12px',
+  height: 38,
   fontSize: 11,
   background: 'var(--surface-2)',
   border: '1px solid var(--border)',
-  borderRadius: 8,
+  borderRadius: 10,
   cursor: 'pointer',
   color: 'var(--text-dim)',
   fontFamily: 'inherit',
   display: 'inline-flex',
   alignItems: 'center',
   gap: 4,
+  whiteSpace: 'nowrap',
 };
 
 const menuLinkStyle: React.CSSProperties = {
