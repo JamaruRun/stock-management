@@ -4,10 +4,13 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import {
-  Plus, Search, Filter, Smartphone, Eye, Edit2, Tag,
-  Package, CheckCircle2, Clock, Ban, ShoppingCart,
-  ChevronDown, X,
+  Plus, Search, Filter, Smartphone, X, MoreVertical,
+  Package, CheckCircle2, Clock, ShoppingCart, Tag,
+  Edit2, Trash2, Eye, Printer, Copy, Calendar,
+  ChevronDown, ArrowLeft,
 } from 'lucide-react';
+import StockAddModal from './StockAddModal';
+import StockDetailModal from './StockDetailModal';
 
 interface StockItem {
   id: string;
@@ -19,50 +22,82 @@ interface StockItem {
   cost_price?: number | null;
   device_condition?: string | null;
   added_date?: string;
+  added_by_name?: string | null;
   branch_id?: string;
+  supplier_id?: string | null;
   branches?: any;
+  suppliers?: any;
 }
 
 export default function V3StockPage() {
   const supabase = createClient();
   const [items, setItems] = useState<StockItem[]>([]);
+  const [soldCount, setSoldCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [search, setSearch] = useState('');
-  const [filterCondition, setFilterCondition] = useState<string>(''); // 'new' | 'used' | ''
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterBrand, setFilterBrand] = useState<string>('');
   const [filterModel, setFilterModel] = useState<string>('');
   const [filterColor, setFilterColor] = useState<string>('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [detailItem, setDetailItem] = useState<StockItem | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, is_super_admin')
+        .eq('id', user.id)
+        .single();
+
+      setIsAdmin(profile?.role === 'admin' || profile?.is_super_admin);
+
+      const [stockRes, salesRes] = await Promise.all([
+        supabase
+          .from('stock')
+          .select('*, branches(name), suppliers(name)')
+          .order('added_date', { ascending: false }),
+        supabase
+          .from('sales_history')
+          .select('id', { count: 'exact', head: true }),
+      ]);
+
+      setItems((stockRes.data || []) as StockItem[]);
+      setSoldCount(salesRes.count || 0);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, is_super_admin')
-          .eq('id', user.id)
-          .single();
-
-        setIsAdmin(profile?.role === 'admin' || profile?.is_super_admin);
-
-        const { data } = await supabase
-          .from('stock')
-          .select('*, branches(name)')
-          .order('added_date', { ascending: false });
-
-        setItems((data || []) as StockItem[]);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    }
     load();
   }, []);
+
+  // Derived data
+  const brands = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach(i => {
+      const b = detectBrand(i.model);
+      if (b) set.add(b);
+    });
+    return Array.from(set).sort();
+  }, [items]);
+
+  const uniqueModels = useMemo(() => {
+    return Array.from(new Set(items.map(i => i.model).filter(Boolean))).sort();
+  }, [items]);
+
+  const uniqueColors = useMemo(() => {
+    return Array.from(new Set(items.map(i => i.color).filter(Boolean) as string[])).sort();
+  }, [items]);
 
   // Filtered
   const filtered = useMemo(() => {
@@ -76,62 +111,61 @@ export default function V3StockPage() {
           (it.spec && it.spec.toLowerCase().includes(s));
         if (!hit) return false;
       }
-      if (filterCondition && it.device_condition !== filterCondition) return false;
-      if (filterModel && !it.model.toLowerCase().includes(filterModel.toLowerCase())) return false;
-      if (filterColor && it.color && !it.color.toLowerCase().includes(filterColor.toLowerCase())) return false;
+      if (filterStatus === 'new' && it.device_condition !== 'new') return false;
+      if (filterStatus === 'used' && it.device_condition !== 'used') return false;
+      if (filterBrand) {
+        const b = detectBrand(it.model);
+        if (b !== filterBrand) return false;
+      }
+      if (filterModel && it.model !== filterModel) return false;
+      if (filterColor && it.color !== filterColor) return false;
       return true;
     });
-  }, [items, search, filterCondition, filterModel, filterColor]);
+  }, [items, search, filterStatus, filterBrand, filterModel, filterColor]);
 
-  // Summary stats
+  // Stats (5 cards ตาม ref)
   const stats = useMemo(() => {
     const total = items.length;
     const totalValue = items.reduce((s, i) => s + Number(i.price || 0), 0);
-    const newCount = items.filter(i => i.device_condition === 'new').length;
-    const usedCount = items.filter(i => i.device_condition === 'used').length;
-    return { total, totalValue, newCount, usedCount };
-  }, [items]);
-
-  // Unique models/colors for filter
-  const uniqueModels = useMemo(() => {
-    const set = new Set(items.map(i => i.model).filter(Boolean));
-    return Array.from(set).sort();
-  }, [items]);
-
-  const uniqueColors = useMemo(() => {
-    const set = new Set(items.map(i => i.color).filter(Boolean) as string[]);
-    return Array.from(set).sort();
+    const ready = items.length; // stock ทั้งหมด = พร้อมขาย
+    return { total, totalValue, ready };
   }, [items]);
 
   function clearFilters() {
     setSearch('');
-    setFilterCondition('');
+    setFilterStatus('');
+    setFilterBrand('');
     setFilterModel('');
     setFilterColor('');
   }
+  const hasFilters = !!(search || filterStatus || filterBrand || filterModel || filterColor);
 
-  const hasFilters = !!(search || filterCondition || filterModel || filterColor);
+  async function handleDelete(item: StockItem) {
+    if (!confirm(`ลบเครื่อง ${item.model} (IMEI: ${item.imei})?\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
+    const { error } = await supabase.from('stock').delete().eq('id', item.id);
+    if (error) {
+      alert('ลบไม่สำเร็จ: ' + error.message);
+      return;
+    }
+    setMenuOpenId(null);
+    load();
+  }
 
   return (
     <>
-      {/* Header */}
+      {/* Desktop Page Header */}
       <div className="v3-page-header v3-desktop-only">
         <div>
-          <h1 className="v3-page-title">📱 สต๊อกเครื่อง</h1>
+          <h1 className="v3-page-title">สต๊อกเครื่อง</h1>
           <p className="v3-page-subtitle">เครื่องในสต๊อกทั้งหมด {stats.total} เครื่อง</p>
         </div>
-        <Link href="/dashboard/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={() => setShowAddModal(true)} className="v3-btn v3-btn-primary">
           <Plus size={16} strokeWidth={2.5} /> เพิ่มเครื่องใหม่
-        </Link>
+        </button>
       </div>
 
       {/* Mobile mini-header */}
-      <div className="v3-mobile-only" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-      }}>
+      <div className="v3-mobile-only" style={mobileHeaderStyle}>
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>
             สต๊อกเครื่อง
@@ -140,20 +174,13 @@ export default function V3StockPage() {
             ทั้งหมด {stats.total} เครื่อง
           </p>
         </div>
-        <Link href="/dashboard/add" style={{
-          width: 40, height: 40,
-          borderRadius: 10,
-          background: 'var(--accent)',
-          color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          textDecoration: 'none',
-        }}>
+        <button onClick={() => setShowAddModal(true)} style={mobileAddBtnStyle}>
           <Plus size={20} strokeWidth={2.5} />
-        </Link>
+        </button>
       </div>
 
       {/* Search + Filters */}
-      <div className="v3-card" style={{ marginBottom: 14, padding: 12 }}>
+      <div className="v3-card" style={{ marginBottom: 12, padding: 12 }}>
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <Search
             size={16}
@@ -167,75 +194,35 @@ export default function V3StockPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหา IMEI, รุ่น, สี..."
-            style={{
-              width: '100%',
-              height: 40,
-              padding: '0 12px 0 36px',
-              background: 'var(--surface-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 10,
-              color: 'var(--text)',
-              fontSize: 13,
-              fontFamily: 'inherit',
-              outline: 'none',
-            }}
+            placeholder="ค้นหา IMEI, รุ่น, สี, ลูกค้า..."
+            style={searchInputStyle}
           />
         </div>
 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Condition */}
-          <select
-            value={filterCondition}
-            onChange={(e) => setFilterCondition(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">สภาพทั้งหมด</option>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
+            <option value="">สถานะทั้งหมด</option>
             <option value="new">เครื่องใหม่</option>
             <option value="used">เครื่องมือสอง</option>
           </select>
 
-          {/* Model */}
-          <select
-            value={filterModel}
-            onChange={(e) => setFilterModel(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">รุ่นทั้งหมด</option>
-            {uniqueModels.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
+          <select value={filterBrand} onChange={(e) => setFilterBrand(e.target.value)} style={selectStyle}>
+            <option value="">ยี่ห้อ</option>
+            {brands.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
 
-          {/* Color */}
-          <select
-            value={filterColor}
-            onChange={(e) => setFilterColor(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">สีทั้งหมด</option>
-            {uniqueColors.map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+          <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} style={selectStyle}>
+            <option value="">รุ่น</option>
+            {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+
+          <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)} style={selectStyle}>
+            <option value="">สี</option>
+            {uniqueColors.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
           {hasFilters && (
-            <button
-              onClick={clearFilters}
-              style={{
-                padding: '6px 10px',
-                fontSize: 11,
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                color: 'var(--text-dim)',
-                fontFamily: 'inherit',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
+            <button onClick={clearFilters} style={clearBtnStyle}>
               <X size={12} /> ล้าง
             </button>
           )}
@@ -246,39 +233,20 @@ export default function V3StockPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div style={{
+      {/* Summary 5 cards */}
+      <div className="v3-summary-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
         gap: 10,
-        marginBottom: 16,
+        marginBottom: 14,
       }}>
-        <SummaryCard
-          Icon={Package}
-          label="ทั้งหมด"
-          value={`${stats.total} เครื่อง`}
-          color="#3b82f6"
-        />
+        <SummaryCard Icon={Package} label="เครื่องทั้งหมด" value={`${stats.total}`} unit="เครื่อง" color="#3b82f6" />
         {isAdmin && (
-          <SummaryCard
-            Icon={Tag}
-            label="มูลค่าสต๊อก"
-            value={`฿${stats.totalValue.toLocaleString()}`}
-            color="#22c55e"
-          />
+          <SummaryCard Icon={Tag} label="มูลค่าสต๊อก" value={`฿${stats.totalValue.toLocaleString()}`} unit="" color="#22c55e" />
         )}
-        <SummaryCard
-          Icon={CheckCircle2}
-          label="เครื่องใหม่"
-          value={`${stats.newCount} เครื่อง`}
-          color="#06b6d4"
-        />
-        <SummaryCard
-          Icon={Clock}
-          label="เครื่องมือสอง"
-          value={`${stats.usedCount} เครื่อง`}
-          color="#f59e0b"
-        />
+        <SummaryCard Icon={CheckCircle2} label="พร้อมขาย" value={`${stats.ready}`} unit="เครื่อง" color="#10b981" />
+        <SummaryCard Icon={ShoppingCart} label="ขายแล้ว" value={`${soldCount}`} unit="เครื่อง" color="#f59e0b" />
+        <SummaryCard Icon={Clock} label="รอตรวจสภาพ" value="0" unit="เครื่อง" color="#ef4444" />
       </div>
 
       {/* Stock Grid */}
@@ -287,30 +255,40 @@ export default function V3StockPage() {
           กำลังโหลด...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
-          <Smartphone size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-            {hasFilters ? 'ไม่พบเครื่องตามที่ค้นหา' : 'ยังไม่มีเครื่องในสต๊อก'}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
-            {hasFilters ? 'ลองล้างตัวกรอง' : 'เริ่มต้นโดยการเพิ่มเครื่องใหม่'}
-          </div>
-          {hasFilters ? (
-            <button onClick={clearFilters} className="v3-btn v3-btn-secondary">
-              <X size={14} /> ล้างตัวกรอง
-            </button>
-          ) : (
-            <Link href="/dashboard/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
-              <Plus size={14} /> เพิ่มเครื่อง
-            </Link>
-          )}
-        </div>
+        <EmptyState hasFilters={hasFilters} onClear={clearFilters} onAdd={() => setShowAddModal(true)} />
       ) : (
         <div className="v3-stock-grid">
           {filtered.map(item => (
-            <StockCard key={item.id} item={item} isAdmin={isAdmin} />
+            <StockCardV2
+              key={item.id}
+              item={item}
+              isAdmin={isAdmin}
+              onClick={() => setDetailItem(item)}
+              menuOpen={menuOpenId === item.id}
+              onToggleMenu={() => setMenuOpenId(menuOpenId === item.id ? null : item.id)}
+              onDelete={() => handleDelete(item)}
+              onClose={() => setMenuOpenId(null)}
+            />
           ))}
         </div>
+      )}
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <StockAddModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => { setShowAddModal(false); load(); }}
+        />
+      )}
+
+      {/* Detail Modal */}
+      {detailItem && (
+        <StockDetailModal
+          item={detailItem}
+          isAdmin={isAdmin}
+          onClose={() => setDetailItem(null)}
+          onDeleted={() => { setDetailItem(null); load(); }}
+        />
       )}
 
       <style jsx>{`
@@ -321,12 +299,12 @@ export default function V3StockPage() {
 
         :global(.v3-stock-grid) {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           gap: 12px;
         }
         @media (max-width: 640px) {
           :global(.v3-stock-grid) {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 10px;
           }
         }
@@ -335,10 +313,330 @@ export default function V3StockPage() {
   );
 }
 
-/* ============ Helper Components ============ */
+/* =========================================================
+   Components
+========================================================= */
+
+function SummaryCard({ Icon, label, value, unit, color }: any) {
+  return (
+    <div className="v3-card" style={{ padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          width: 36, height: 36,
+          borderRadius: 10,
+          background: `${color}15`,
+          color,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Icon size={18} strokeWidth={2.2} />
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 1 }}>{label}</div>
+          <div style={{
+            fontSize: 16, fontWeight: 700,
+            fontFamily: 'Prompt, Sarabun, sans-serif',
+            letterSpacing: '-0.3px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {value}{unit && <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4, fontWeight: 500 }}>{unit}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StockCardV2({ item, isAdmin, onClick, menuOpen, onToggleMenu, onDelete, onClose }: any) {
+  const profit = (Number(item.price) || 0) - (Number(item.cost_price) || 0);
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: 14,
+        position: 'relative',
+        transition: 'all 0.15s',
+        cursor: 'pointer',
+      }}
+      onClick={onClick}
+    >
+      {/* Top row: image + info + menu */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+        {/* Phone image */}
+        <div style={{
+          width: 64,
+          height: 80,
+          background: '#f8fafc',
+          borderRadius: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <PhoneSVG model={item.model} color={item.color} />
+        </div>
+
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 15,
+            fontWeight: 700,
+            fontFamily: 'Prompt, Sarabun, sans-serif',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            paddingRight: 24,
+          }}>
+            {item.model}
+          </div>
+          {item.spec && (
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 1 }}>{item.spec}</div>
+          )}
+          {item.color && (
+            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{item.color}</div>
+          )}
+          <div style={{
+            fontSize: 9,
+            fontFamily: 'monospace',
+            color: 'var(--text-muted)',
+            marginTop: 4,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            IMEI: {item.imei}
+          </div>
+        </div>
+
+        {/* Menu button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleMenu(); }}
+          style={{
+            position: 'absolute',
+            top: 8, right: 8,
+            width: 28, height: 28,
+            background: 'transparent',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+            color: 'var(--text-dim)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <MoreVertical size={16} />
+        </button>
+
+        {menuOpen && (
+          <>
+            <div
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              style={{ position: 'fixed', inset: 0, zIndex: 19 }}
+            />
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                top: 38, right: 8,
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                boxShadow: 'var(--shadow-lg)',
+                minWidth: 140,
+                padding: 4,
+                zIndex: 20,
+              }}
+            >
+              <MenuItem Icon={Eye} label="ดูรายละเอียด" onClick={() => { onClose(); onClick(); }} />
+              <Link
+                href={`/dashboard/sell?imei=${encodeURIComponent(item.imei)}`}
+                style={menuLinkStyle}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ShoppingCart size={14} /> ขายเครื่องนี้
+              </Link>
+              <MenuItem Icon={Trash2} label="ลบ" onClick={onDelete} danger />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+        {isAdmin && item.cost_price && (
+          <PriceRow label="ต้นทุน" value={`฿${Number(item.cost_price).toLocaleString()}`} />
+        )}
+        <PriceRow label="ราคาขาย" value={`฿${Number(item.price).toLocaleString()}`} accent />
+        {isAdmin && item.cost_price && profit !== 0 && (
+          <PriceRow
+            label="กำไร"
+            value={`฿${profit.toLocaleString()}`}
+            color={profit > 0 ? '#22c55e' : '#ef4444'}
+          />
+        )}
+      </div>
+
+      {/* Bottom: Status badge */}
+      <div style={{
+        marginTop: 10,
+        paddingTop: 10,
+        borderTop: '1px solid var(--border)',
+      }}>
+        <span style={{
+          display: 'inline-block',
+          padding: '4px 12px',
+          background: '#dcfce7',
+          color: '#166534',
+          fontSize: 11,
+          fontWeight: 600,
+          borderRadius: 100,
+        }}>
+          พร้อมขาย
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PriceRow({ label, value, accent, color }: any) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between',
+      fontSize: 12,
+      marginBottom: 4,
+    }}>
+      <span style={{ color: 'var(--text-dim)' }}>{label}</span>
+      <span style={{
+        fontWeight: accent ? 700 : 600,
+        color: color || (accent ? 'var(--accent)' : 'var(--text)'),
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function MenuItem({ Icon, label, onClick, danger }: any) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 10px',
+        width: '100%',
+        background: 'transparent',
+        border: 'none',
+        borderRadius: 6,
+        color: danger ? 'var(--danger)' : 'var(--text)',
+        fontSize: 12,
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        textAlign: 'left',
+      }}
+    >
+      <Icon size={14} /> {label}
+    </button>
+  );
+}
+
+function EmptyState({ hasFilters, onClear, onAdd }: any) {
+  return (
+    <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
+      <Smartphone size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+        {hasFilters ? 'ไม่พบเครื่องตามที่ค้นหา' : 'ยังไม่มีเครื่องในสต๊อก'}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+        {hasFilters ? 'ลองล้างตัวกรอง' : 'เริ่มต้นโดยการเพิ่มเครื่องใหม่'}
+      </div>
+      {hasFilters ? (
+        <button onClick={onClear} className="v3-btn v3-btn-secondary">
+          <X size={14} /> ล้างตัวกรอง
+        </button>
+      ) : (
+        <button onClick={onAdd} className="v3-btn v3-btn-primary">
+          <Plus size={14} /> เพิ่มเครื่อง
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* Phone SVG */
+function PhoneSVG({ model, color }: { model: string; color?: string | null }) {
+  const m = (model || '').toLowerCase();
+  const c = (color || '').toLowerCase();
+  let bodyColor = '#1c1c1e';
+  let hasNotch = false;
+  let hasDynamicIsland = false;
+  if (c.includes('white') || c.includes('starlight') || c.includes('silver')) bodyColor = '#f5f5f7';
+  else if (c.includes('blue') || c.includes('sierra')) bodyColor = '#1e40af';
+  else if (c.includes('red')) bodyColor = '#dc2626';
+  else if (c.includes('green')) bodyColor = '#16a34a';
+  else if (c.includes('purple') || c.includes('violet')) bodyColor = '#7c3aed';
+  else if (c.includes('pink') || c.includes('rose')) bodyColor = '#ec4899';
+  else if (c.includes('gold')) bodyColor = '#f59e0b';
+  else if (c.includes('midnight') || c.includes('black') || c.includes('graphite')) bodyColor = '#0f172a';
+  if (m.match(/iphone\s*1[4-9]|iphone\s*2[0-9]/) && m.includes('pro')) hasDynamicIsland = true;
+  else if (m.match(/iphone\s*(x|11|12|13|14|15)/)) hasNotch = true;
+
+  return (
+    <svg width="40" height="60" viewBox="0 0 40 60">
+      <rect x="2" y="2" width="36" height="56" rx="6" fill={bodyColor} stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+      <rect x="4" y="5" width="32" height="50" rx="4" fill="#000" />
+      {hasNotch && <rect x="14" y="5" width="12" height="2" rx="1" fill={bodyColor} />}
+      {hasDynamicIsland && <rect x="16" y="7" width="8" height="2" rx="1" fill="#000" />}
+    </svg>
+  );
+}
+
+function detectBrand(model: string): string {
+  const m = (model || '').toLowerCase();
+  if (m.includes('iphone') || m.includes('ipad') || m.includes('apple')) return 'Apple';
+  if (m.includes('samsung') || m.match(/galaxy|a\d{2}|s\d{2}/i)) return 'Samsung';
+  if (m.includes('oppo')) return 'OPPO';
+  if (m.includes('vivo')) return 'Vivo';
+  if (m.includes('xiaomi') || m.includes('redmi') || m.includes('mi ')) return 'Xiaomi';
+  if (m.includes('realme')) return 'Realme';
+  if (m.includes('huawei')) return 'Huawei';
+  return 'อื่นๆ';
+}
+
+/* Styles */
+const mobileHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 12,
+};
+
+const mobileAddBtnStyle: React.CSSProperties = {
+  width: 40, height: 40,
+  borderRadius: 10,
+  background: 'var(--accent)',
+  color: '#fff',
+  border: 'none',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  cursor: 'pointer',
+};
+
+const searchInputStyle: React.CSSProperties = {
+  width: '100%',
+  height: 40,
+  padding: '0 12px 0 36px',
+  background: 'var(--surface-2)',
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+  color: 'var(--text)',
+  fontSize: 13,
+  fontFamily: 'inherit',
+  outline: 'none',
+};
 
 const selectStyle: React.CSSProperties = {
-  padding: '6px 24px 6px 10px',
+  padding: '7px 24px 7px 10px',
   fontSize: 12,
   background: 'var(--surface-2)',
   border: '1px solid var(--border)',
@@ -349,199 +647,27 @@ const selectStyle: React.CSSProperties = {
   outline: 'none',
 };
 
-function SummaryCard({ Icon, label, value, color }: any) {
-  return (
-    <div className="v3-card" style={{ padding: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
-          width: 32, height: 32,
-          borderRadius: 8,
-          background: `${color}15`,
-          color,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <Icon size={16} strokeWidth={2.2} />
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{label}</div>
-          <div style={{
-            fontSize: 15, fontWeight: 700,
-            fontFamily: 'Prompt, Sarabun, sans-serif',
-            letterSpacing: '-0.3px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {value}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const clearBtnStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  fontSize: 11,
+  background: 'var(--surface-2)',
+  border: '1px solid var(--border)',
+  borderRadius: 8,
+  cursor: 'pointer',
+  color: 'var(--text-dim)',
+  fontFamily: 'inherit',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+};
 
-function StockCard({ item, isAdmin }: { item: StockItem; isAdmin: boolean }) {
-  const profit = (Number(item.price) || 0) - (Number(item.cost_price) || 0);
-  const profitPct = item.cost_price ? ((profit / Number(item.cost_price)) * 100) : 0;
-
-  return (
-    <Link
-      href={`/dashboard/stock`}
-      style={{
-        display: 'block',
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 14,
-        padding: 12,
-        textDecoration: 'none',
-        color: 'var(--text)',
-        transition: 'all 0.15s',
-      }}
-    >
-      {/* Phone Image Area */}
-      <div style={{
-        background: '#f8fafc',
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 10,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 110,
-        position: 'relative',
-      }}>
-        <PhoneBigSVG model={item.model} color={item.color} />
-        <span style={{
-          position: 'absolute',
-          top: 6, right: 6,
-          fontSize: 9,
-          fontWeight: 700,
-          padding: '2px 6px',
-          borderRadius: 100,
-          background: item.device_condition === 'new' ? '#dcfce7' : '#fef3c7',
-          color: item.device_condition === 'new' ? '#166534' : '#92400e',
-        }}>
-          {item.device_condition === 'new' ? 'ใหม่' : 'มือ2'}
-        </span>
-      </div>
-
-      {/* Info */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{
-          fontSize: 14, fontWeight: 700,
-          fontFamily: 'Prompt, Sarabun, sans-serif',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {item.model}
-        </div>
-        {item.spec && (
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 1 }}>
-            {item.spec}{item.color ? ` • ${item.color}` : ''}
-          </div>
-        )}
-      </div>
-
-      {/* IMEI */}
-      <div style={{
-        fontSize: 9,
-        fontFamily: 'monospace',
-        color: 'var(--text-muted)',
-        background: 'var(--surface-2)',
-        padding: '4px 8px',
-        borderRadius: 6,
-        marginBottom: 10,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}>
-        IMEI: {item.imei}
-      </div>
-
-      {/* Price details */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
-        {isAdmin && item.cost_price && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-dim)' }}>
-            <span>ต้นทุน</span>
-            <span style={{ fontWeight: 600 }}>฿{Number(item.cost_price).toLocaleString()}</span>
-          </div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: 'var(--text-dim)' }}>ราคาขาย</span>
-          <span style={{ fontWeight: 700, color: 'var(--accent)' }}>
-            ฿{Number(item.price).toLocaleString()}
-          </span>
-        </div>
-        {isAdmin && item.cost_price && profit !== 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--text-dim)' }}>กำไร</span>
-            <span style={{
-              fontWeight: 700,
-              color: profit > 0 ? '#22c55e' : '#ef4444',
-            }}>
-              ฿{profit.toLocaleString()} {profitPct ? `(${profitPct.toFixed(0)}%)` : ''}
-            </span>
-          </div>
-        )}
-      </div>
-    </Link>
-  );
-}
-
-function PhoneBigSVG({ model, color }: { model: string; color?: string | null }) {
-  const m = (model || '').toLowerCase();
-  const c = (color || '').toLowerCase();
-  
-  let bodyColor = '#1c1c1e';
-  let screenColor = '#000';
-  let hasDynamicIsland = false;
-  let hasNotch = false;
-  
-  // Color from color field first
-  if (c.includes('white') || c.includes('starlight') || c.includes('silver')) bodyColor = '#f5f5f7';
-  else if (c.includes('blue') || c.includes('sierra')) bodyColor = '#1e40af';
-  else if (c.includes('red')) bodyColor = '#dc2626';
-  else if (c.includes('green')) bodyColor = '#16a34a';
-  else if (c.includes('purple') || c.includes('violet')) bodyColor = '#7c3aed';
-  else if (c.includes('pink') || c.includes('rose')) bodyColor = '#ec4899';
-  else if (c.includes('gold')) bodyColor = '#f59e0b';
-  else if (c.includes('midnight') || c.includes('black') || c.includes('graphite')) bodyColor = '#0f172a';
-  
-  // Notch/island detection from model
-  if (m.match(/iphone\s*1[4-9]|iphone\s*2[0-9]/)) {
-    if (m.includes('pro')) hasDynamicIsland = true;
-    else hasNotch = true;
-  } else if (m.match(/iphone\s*(x|11|12|13)/)) {
-    hasNotch = true;
-  }
-
-  return (
-    <svg width="56" height="86" viewBox="0 0 56 86" xmlns="http://www.w3.org/2000/svg">
-      <rect
-        x="2" y="2"
-        width="52" height="82"
-        rx="8" ry="8"
-        fill={bodyColor}
-        stroke="rgba(0,0,0,0.1)"
-        strokeWidth="0.5"
-      />
-      <rect
-        x="5" y="6"
-        width="46" height="74"
-        rx="5" ry="5"
-        fill={screenColor}
-      />
-      {hasNotch && (
-        <rect x="20" y="6" width="16" height="3" rx="1.5" fill={bodyColor} />
-      )}
-      {hasDynamicIsland && (
-        <rect x="22" y="9" width="12" height="3" rx="1.5" fill="#000" />
-      )}
-      {!hasNotch && !hasDynamicIsland && (
-        <rect x="24" y="9" width="8" height="1.2" rx="0.6" fill="rgba(255,255,255,0.2)" />
-      )}
-    </svg>
-  );
-}
+const menuLinkStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '8px 10px',
+  borderRadius: 6,
+  color: 'var(--text)',
+  fontSize: 12,
+  textDecoration: 'none',
+};
