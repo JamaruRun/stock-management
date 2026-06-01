@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { X, Plus, Smartphone, Barcode } from 'lucide-react';
+import { X, Plus, Smartphone, Barcode, ImageIcon, Sparkles, Link as LinkIcon, Check, Loader2 } from 'lucide-react';
+import { fetchWikipediaImage } from '@/lib/wikipedia-image';
 
 interface Props {
   onClose: () => void;
@@ -15,6 +16,14 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
   const [branches, setBranches] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
+
+  // Image state
+  const [imageUrl, setImageUrl] = useState('');
+  const [autoFetching, setAutoFetching] = useState(false);
+  const [autoFetchHint, setAutoFetchHint] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInputValue, setUrlInputValue] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
 
   const [form, setForm] = useState({
     imei: '',
@@ -52,6 +61,60 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
     }
     init();
   }, []);
+
+  // Auto-fetch image จาก Wikipedia เมื่อ user หยุดพิมพ์ 700ms
+  useEffect(() => {
+    const m = form.model.trim();
+    if (m.length < 3) {
+      setAutoFetchHint(null);
+      return;
+    }
+    if (imageUrl) return; // มีรูปแล้ว ไม่ต้อง fetch
+
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    const timer = setTimeout(async () => {
+      setAutoFetching(true);
+      setAutoFetchHint(null);
+      try {
+        const result = await fetchWikipediaImage(m, ctrl.signal);
+        if (ctrl.signal.aborted) return;
+        if (result?.thumbnail) {
+          setImageUrl(result.thumbnail);
+          setAutoFetchHint(`พบรูปจาก Wikipedia ✓`);
+        } else {
+          setAutoFetchHint('ไม่พบรูปอัตโนมัติ — สามารถวาง URL เองได้');
+        }
+      } catch (e) {
+        if (!ctrl.signal.aborted) {
+          setAutoFetchHint('ดึงรูปไม่ได้ — ใช้ icon แทน');
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setAutoFetching(false);
+      }
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [form.model, imageUrl]);
+
+  function clearImage() {
+    setImageUrl('');
+    setAutoFetchHint(null);
+  }
+
+  function applyUrlInput() {
+    if (urlInputValue.trim()) {
+      setImageUrl(urlInputValue.trim());
+      setShowUrlInput(false);
+      setUrlInputValue('');
+      setAutoFetchHint('ใช้รูปจาก URL ที่วาง ✓');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,6 +157,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
         branch_id: form.branchId,
         device_condition: form.deviceCondition,
         shop_id: profile?.shop_id,
+        image_url: imageUrl || null,
       });
 
       if (error) {
@@ -195,6 +259,191 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
               />
             </FormField>
           </div>
+
+          {/* Image Preview Section */}
+          <FormField label="รูปเครื่อง">
+            <div style={{
+              border: '1px dashed var(--border)',
+              borderRadius: 12,
+              padding: imageUrl ? 8 : 16,
+              background: 'var(--surface-2)',
+              transition: 'all 0.15s',
+            }}>
+              {imageUrl ? (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <img
+                    src={imageUrl}
+                    alt="preview"
+                    style={{
+                      width: 70, height: 70,
+                      objectFit: 'contain',
+                      background: '#fff',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                    }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      setAutoFetchHint('ไม่สามารถโหลดรูปได้');
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {autoFetchHint && (
+                      <div style={{
+                        fontSize: 11,
+                        color: autoFetchHint.includes('✓') ? '#16a34a' : 'var(--text-dim)',
+                        marginBottom: 4,
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}>
+                        {autoFetchHint.includes('✓') && <Check size={12} />}
+                        {autoFetchHint}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={clearImage}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 11,
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          color: 'var(--text-dim)',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                        }}
+                      >
+                        <X size={11} /> ลบรูป
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowUrlInput(true)}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 11,
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          color: 'var(--text-dim)',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                        }}
+                      >
+                        <LinkIcon size={11} /> เปลี่ยน URL
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  {autoFetching ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-dim)', fontSize: 12 }}>
+                      <Loader2 size={16} className="v3-spin" />
+                      กำลังค้นหารูปจาก Wikipedia...
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        gap: 6, marginBottom: 8,
+                        color: 'var(--text-dim)', fontSize: 12,
+                      }}>
+                        <Sparkles size={14} />
+                        {form.model.length >= 3
+                          ? (autoFetchHint || 'ระบบจะค้นหารูปจาก Wikipedia อัตโนมัติ')
+                          : 'กรอกชื่อรุ่นเครื่อง — ระบบจะหาให้อัตโนมัติ'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowUrlInput(true)}
+                        style={{
+                          padding: '6px 14px',
+                          fontSize: 12,
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          color: 'var(--text)',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                        }}
+                      >
+                        <LinkIcon size={12} /> วาง URL รูปเอง
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* URL input modal-like */}
+              {showUrlInput && (
+                <div style={{
+                  marginTop: 10,
+                  padding: 10,
+                  background: 'var(--surface)',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+                    วาง URL ของรูปเครื่อง (.jpg, .png, .webp)
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="url"
+                      value={urlInputValue}
+                      onChange={(e) => setUrlInputValue(e.target.value)}
+                      placeholder="https://..."
+                      style={{ ...inputStyle, fontSize: 12, height: 34 }}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          applyUrlInput();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={applyUrlInput}
+                      style={{
+                        padding: '0 14px',
+                        height: 34,
+                        background: 'var(--accent)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      ใช้
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowUrlInput(false); setUrlInputValue(''); }}
+                      style={{
+                        padding: '0 10px',
+                        height: 34,
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        color: 'var(--text-dim)',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      ยกเลิก
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </FormField>
 
           {/* Spec */}
           <FormField label="ความจุ / สเปก">

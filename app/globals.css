@@ -2836,3 +2836,12 @@ html[data-theme="modern-blue"] [style*="Prompt"] {
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* Spinner animation for image loading */
+@keyframes v3-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.v3-spin {
+  animation: v3-spin 1s linear infinite;
+}

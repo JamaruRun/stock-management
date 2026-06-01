@@ -25,6 +25,7 @@ interface StockItem {
   added_by_name?: string | null;
   branch_id?: string;
   supplier_id?: string | null;
+  image_url?: string | null;
   branches?: any;
   suppliers?: any;
 }
@@ -441,8 +442,30 @@ function StockCardV2({ item, isAdmin, onClick, menuOpen, onToggleMenu, onDelete,
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
+          overflow: 'hidden',
         }}>
-          <PhoneSVG model={item.model} color={item.color} />
+          {item.image_url ? (
+            <img
+              src={item.image_url}
+              alt={item.model}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                padding: 4,
+              }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent && !parent.querySelector('svg')) {
+                  // Fallback ก็ใช้ SVG ก็จะถูก render โดย React lifecycle
+                }
+              }}
+            />
+          ) : (
+            <PhoneSVG model={item.model} color={item.color} />
+          )}
         </div>
 
         {/* Info */}

@@ -58,7 +58,20 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: 
           textAlign: 'center',
           position: 'relative',
         }}>
-          <PhoneSVGLarge model={item.model} color={item.color} />
+          {item.image_url ? (
+            <img
+              src={item.image_url}
+              alt={item.model}
+              style={{
+                width: 130,
+                height: 160,
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))',
+              }}
+            />
+          ) : (
+            <PhoneSVGLarge model={item.model} color={item.color} />
+          )}
           <h2 style={{
             fontSize: 22,
             fontWeight: 800,
