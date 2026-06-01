@@ -153,6 +153,7 @@ function V3SellContent() {
         device_condition: item.device_condition,
         payment_type: paymentType === 'installment' ? 'installment' : 'cash',
         shop_id: profile.shop_id,
+        image_url: item.image_url || null,
       });
 
       if (insertError) {

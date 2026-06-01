@@ -66,7 +66,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
     init();
   }, []);
 
-  // Auto-fetch image - Hybrid (Wikipedia → Google CSE)
+  // Auto-fetch image - Smart Reuse (DB → Wikipedia)
   useEffect(() => {
     const m = form.model.trim();
     if (m.length < 3) {
@@ -74,6 +74,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
       return;
     }
     if (imageUrl && imageSource !== null) return; // มีรูปแล้ว
+    if (!profile?.shop_id) return; // รอ profile
 
     abortRef.current?.abort();
     const ctrl = new AbortController();
@@ -83,15 +84,23 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
       setAutoFetching(true);
       setAutoFetchHint(null);
       try {
-        const result = await searchImage(m, ctrl.signal);
+        const result = await searchImage(m, profile.shop_id, ctrl.signal);
         if (ctrl.signal.aborted) return;
         if (result?.url) {
           setImageUrl(result.url);
-          setImageSource(result.source);
-          const sourceLabel = result.source === 'wikipedia' ? 'Wikipedia' : 'Google';
-          setAutoFetchHint(`พบรูปจาก ${sourceLabel} ✓`);
+          setImageSource(result.source as any);
+          if (result.source === 'db_reuse') {
+            const count = result.reuseCount || 1;
+            setAutoFetchHint(`ใช้รูปจากเครื่องในร้าน (มีทั้งหมด ${count} ตัว) ✓`);
+          } else if (result.source === 'cache') {
+            setAutoFetchHint('ใช้รูปที่บันทึกไว้ ✓');
+          } else if (result.source === 'wikipedia') {
+            setAutoFetchHint('พบรูปจาก Wikipedia ✓');
+          } else {
+            setAutoFetchHint('พบรูป ✓');
+          }
         } else {
-          setAutoFetchHint('ไม่พบรูป — อัปโหลดเองหรือวาง URL ได้');
+          setAutoFetchHint('ไม่พบรูป — อัปโหลดเอง / วาง URL ได้');
         }
       } catch (e) {
         if (!ctrl.signal.aborted) {
@@ -106,7 +115,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [form.model, imageUrl, imageSource]);
+  }, [form.model, imageUrl, imageSource, profile?.shop_id]);
 
   function clearImage() {
     setImageUrl('');
