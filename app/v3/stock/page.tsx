@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Filter, Smartphone, X, MoreVertical,
@@ -31,6 +32,16 @@ interface StockItem {
 }
 
 export default function V3StockPage() {
+  return (
+    <Suspense fallback={<div className="v3-card" style={{ padding: 40, textAlign: 'center' }}>กำลังโหลด...</div>}>
+      <V3StockContent />
+    </Suspense>
+  );
+}
+
+function V3StockContent() {
+  const searchParams = useSearchParams();
+  const autoAdd = searchParams.get('add') === '1';
   const supabase = createClient();
   const [items, setItems] = useState<StockItem[]>([]);
   const [soldCount, setSoldCount] = useState(0);
@@ -42,7 +53,7 @@ export default function V3StockPage() {
   const [filterBrand, setFilterBrand] = useState<string>('');
   const [filterModel, setFilterModel] = useState<string>('');
   const [filterColor, setFilterColor] = useState<string>('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(autoAdd);
   const [detailItem, setDetailItem] = useState<StockItem | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 

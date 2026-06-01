@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Home, Smartphone, Wrench, ShoppingBag, ShoppingCart, Hammer, Coins, CreditCard,
   Users, BarChart3, Settings, Menu, Bell, MapPin, Search,
-  Package, Camera, ChevronDown, X, LogOut, Building2, Crown,
+  Package, Camera, ChevronDown, X, LogOut, Building2, Crown, Plus,
 } from 'lucide-react';
 
 interface Profile {
@@ -352,62 +352,169 @@ export default function V3Shell({
           <Camera size={26} strokeWidth={2.2} />
         </button>
 
-        {/* Scan Modal */}
+        {/* Action Sheet - Quick Actions */}
         {showScanModal && (
           <div
             onClick={() => setShowScanModal(false)}
-            style={{
-              position: 'fixed', inset: 0,
-              background: 'rgba(0,0,0,0.6)',
-              zIndex: 100,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 20,
-            }}
+            className="v3-action-sheet-overlay"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="v3-card"
-              style={{ maxWidth: 380, width: '100%', textAlign: 'center', position: 'relative' }}
+              className="v3-action-sheet"
             >
-              <button
-                onClick={() => setShowScanModal(false)}
-                style={{
-                  position: 'absolute', top: 12, right: 12,
-                  width: 32, height: 32, borderRadius: 8,
-                  background: 'var(--surface-2)', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: 'var(--text)',
-                }}
-              >
-                <X size={18} />
-              </button>
-              <div style={{
-                width: 80, height: 80,
-                margin: '0 auto 16px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff',
-              }}>
-                <Camera size={40} strokeWidth={2} />
+              {/* Drag handle (mobile only) */}
+              <div className="v3-action-sheet-handle" />
+
+              <div style={{ padding: '8px 20px 20px' }}>
+                <h3 style={{
+                  fontSize: 16, fontWeight: 700,
+                  fontFamily: 'Prompt, Sarabun, sans-serif',
+                  textAlign: 'center',
+                  marginBottom: 4,
+                  color: 'var(--text)',
+                }}>
+                  เลือกสิ่งที่จะทำ
+                </h3>
+                <p style={{
+                  fontSize: 11,
+                  color: 'var(--text-dim)',
+                  textAlign: 'center',
+                  marginBottom: 18,
+                }}>
+                  ทางลัดสำหรับสแกน / เพิ่มเครื่อง
+                </p>
+
+                {/* Section: เครื่อง */}
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--text-dim)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.6,
+                  marginBottom: 8,
+                }}>
+                  📱 มือถือ / เครื่อง
+                </div>
+                <div className="v3-action-grid">
+                  <ActionTile
+                    Icon={ShoppingCart}
+                    label="ขายเครื่อง"
+                    color="#22c55e"
+                    href="/v3/sell"
+                    onClick={() => setShowScanModal(false)}
+                  />
+                  <ActionTile
+                    Icon={Plus}
+                    label="เพิ่มเครื่อง"
+                    color="#3b82f6"
+                    href="/v3/stock?add=1"
+                    onClick={() => setShowScanModal(false)}
+                  />
+                  <ActionTile
+                    Icon={Coins}
+                    label="รับจำนำ"
+                    color="#f59e0b"
+                    href="/dashboard/pawn/add"
+                    onClick={() => setShowScanModal(false)}
+                  />
+                  <ActionTile
+                    Icon={CreditCard}
+                    label="ผ่อนเครื่อง"
+                    color="#8b5cf6"
+                    href="/dashboard/installment/add"
+                    onClick={() => setShowScanModal(false)}
+                  />
+                </div>
+
+                {/* Section: สต๊อกของ */}
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--text-dim)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.6,
+                  marginTop: 16,
+                  marginBottom: 8,
+                }}>
+                  📦 อุปกรณ์เสริม / อะไหล่
+                </div>
+                <div className="v3-action-grid">
+                  <ActionTile
+                    Icon={ShoppingBag}
+                    label="ขายของ"
+                    color="#06b6d4"
+                    href="/dashboard/goods/sell"
+                    onClick={() => setShowScanModal(false)}
+                  />
+                  <ActionTile
+                    Icon={Package}
+                    label="ขายอะไหล่"
+                    color="#ef4444"
+                    href="/dashboard/parts/sell"
+                    onClick={() => setShowScanModal(false)}
+                  />
+                </div>
+
+                {/* Cancel button */}
+                <button
+                  onClick={() => setShowScanModal(false)}
+                  style={{
+                    width: '100%',
+                    marginTop: 18,
+                    padding: '13px',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 12,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--text-dim)',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  ยกเลิก
+                </button>
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>สแกน Barcode</h3>
-              <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 16 }}>
-                จะเชื่อมกับระบบสแกนจริงในรอบถัดไป
-              </p>
-              <button 
-                className="v3-btn v3-btn-secondary" 
-                style={{ width: '100%' }}
-                onClick={() => setShowScanModal(false)}
-              >
-                ปิด
-              </button>
             </div>
           </div>
         )}
       </div>
     </>
+  );
+}
+
+function ActionTile({ Icon, label, color, href, onClick }: any) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        padding: '14px 8px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        textDecoration: 'none',
+        color: 'var(--text)',
+        fontSize: 12,
+        fontWeight: 600,
+        transition: 'all 0.15s',
+      }}
+    >
+      <div style={{
+        width: 44, height: 44,
+        borderRadius: 12,
+        background: `${color}15`,
+        color: color,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={22} strokeWidth={2.2} />
+      </div>
+      <span style={{ textAlign: 'center' }}>{label}</span>
+    </Link>
   );
 }
