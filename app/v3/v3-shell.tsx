@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import {
-  Home, Smartphone, Wrench, ShoppingBag, Hammer, Coins, CreditCard,
+  Home, Smartphone, Wrench, ShoppingBag, ShoppingCart, Hammer, Coins, CreditCard,
   Users, BarChart3, Settings, Menu, Bell, MapPin, Search,
   Package, Camera, ChevronDown, X, LogOut, Building2, Crown,
 } from 'lucide-react';
@@ -25,6 +25,7 @@ interface Profile {
 const MENU = [
   { Icon: Home, label: 'หน้าหลัก', path: '/v3/home' },
   { Icon: Smartphone, label: 'สต๊อกเครื่อง', path: '/v3/stock' },
+  { Icon: ShoppingCart, label: 'ขายสินค้า', path: '/v3/sell' },
   { Icon: Wrench, label: 'อะไหล่ซ่อม', path: '/v3/parts' },
   { Icon: Hammer, label: 'ใบงานซ่อม', path: '/v3/repair' },
   { Icon: ShoppingBag, label: 'อุปกรณ์เสริม', path: '/v3/goods' },
