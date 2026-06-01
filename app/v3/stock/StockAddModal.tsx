@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { X, Plus, Smartphone, Barcode, ImageIcon, Sparkles, Link as LinkIcon, Check, Loader2 } from 'lucide-react';
-import { fetchWikipediaImage } from '@/lib/wikipedia-image';
+import { X, Plus, Smartphone, Barcode, ImageIcon, Sparkles, Link as LinkIcon, Check, Loader2, Upload } from 'lucide-react';
+import { searchImage } from '@/lib/image-search';
+import { uploadStockImage } from '@/lib/image-upload';
 
 interface Props {
   onClose: () => void;
@@ -16,11 +17,14 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
   const [branches, setBranches] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Image state
   const [imageUrl, setImageUrl] = useState('');
+  const [imageSource, setImageSource] = useState<'wikipedia' | 'google' | 'upload' | 'manual' | null>(null);
   const [autoFetching, setAutoFetching] = useState(false);
   const [autoFetchHint, setAutoFetchHint] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState('');
   const abortRef = useRef<AbortController | null>(null);
@@ -62,14 +66,14 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
     init();
   }, []);
 
-  // Auto-fetch image จาก Wikipedia เมื่อ user หยุดพิมพ์ 700ms
+  // Auto-fetch image - Hybrid (Wikipedia → Google CSE)
   useEffect(() => {
     const m = form.model.trim();
     if (m.length < 3) {
       setAutoFetchHint(null);
       return;
     }
-    if (imageUrl) return; // มีรูปแล้ว ไม่ต้อง fetch
+    if (imageUrl && imageSource !== null) return; // มีรูปแล้ว
 
     abortRef.current?.abort();
     const ctrl = new AbortController();
@@ -79,17 +83,19 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
       setAutoFetching(true);
       setAutoFetchHint(null);
       try {
-        const result = await fetchWikipediaImage(m, ctrl.signal);
+        const result = await searchImage(m, ctrl.signal);
         if (ctrl.signal.aborted) return;
-        if (result?.thumbnail) {
-          setImageUrl(result.thumbnail);
-          setAutoFetchHint(`พบรูปจาก Wikipedia ✓`);
+        if (result?.url) {
+          setImageUrl(result.url);
+          setImageSource(result.source);
+          const sourceLabel = result.source === 'wikipedia' ? 'Wikipedia' : 'Google';
+          setAutoFetchHint(`พบรูปจาก ${sourceLabel} ✓`);
         } else {
-          setAutoFetchHint('ไม่พบรูปอัตโนมัติ — สามารถวาง URL เองได้');
+          setAutoFetchHint('ไม่พบรูป — อัปโหลดเองหรือวาง URL ได้');
         }
       } catch (e) {
         if (!ctrl.signal.aborted) {
-          setAutoFetchHint('ดึงรูปไม่ได้ — ใช้ icon แทน');
+          setAutoFetchHint('ดึงรูปไม่ได้');
         }
       } finally {
         if (!ctrl.signal.aborted) setAutoFetching(false);
@@ -100,19 +106,44 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [form.model, imageUrl]);
+  }, [form.model, imageUrl, imageSource]);
 
   function clearImage() {
     setImageUrl('');
+    setImageSource(null);
     setAutoFetchHint(null);
   }
 
   function applyUrlInput() {
     if (urlInputValue.trim()) {
       setImageUrl(urlInputValue.trim());
+      setImageSource('manual');
       setShowUrlInput(false);
       setUrlInputValue('');
       setAutoFetchHint('ใช้รูปจาก URL ที่วาง ✓');
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!profile?.shop_id) {
+      alert('โปรไฟล์ยังไม่พร้อม');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await uploadStockImage(file, profile.shop_id);
+      setImageUrl(url);
+      setImageSource('upload');
+      setAutoFetchHint('อัปโหลดสำเร็จ ✓');
+    } catch (err: any) {
+      alert(err.message || 'อัปโหลดไม่สำเร็จ');
+    } finally {
+      setUploading(false);
+      // reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
 
@@ -318,6 +349,25 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
                       </button>
                       <button
                         type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 11,
+                          background: 'var(--accent-light)',
+                          border: '1px solid var(--accent)',
+                          borderRadius: 6,
+                          cursor: uploading ? 'wait' : 'pointer',
+                          color: 'var(--accent-strong)',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <Upload size={11} /> {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลดรูปเอง'}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setShowUrlInput(true)}
                         style={{
                           padding: '5px 10px',
@@ -331,7 +381,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
                           display: 'inline-flex', alignItems: 'center', gap: 3,
                         }}
                       >
-                        <LinkIcon size={11} /> เปลี่ยน URL
+                        <LinkIcon size={11} /> วาง URL
                       </button>
                     </div>
                   </div>
@@ -341,41 +391,71 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
                   {autoFetching ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--text-dim)', fontSize: 12 }}>
                       <Loader2 size={16} className="v3-spin" />
-                      กำลังค้นหารูปจาก Wikipedia...
+                      กำลังค้นหารูป...
                     </div>
                   ) : (
                     <>
                       <div style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        gap: 6, marginBottom: 8,
+                        gap: 6, marginBottom: 10,
                         color: 'var(--text-dim)', fontSize: 12,
                       }}>
                         <Sparkles size={14} />
                         {form.model.length >= 3
-                          ? (autoFetchHint || 'ระบบจะค้นหารูปจาก Wikipedia อัตโนมัติ')
-                          : 'กรอกชื่อรุ่นเครื่อง — ระบบจะหาให้อัตโนมัติ'}
+                          ? (autoFetchHint || 'ระบบจะค้นหารูปอัตโนมัติ')
+                          : 'กรอกชื่อรุ่น — ระบบจะหารูปอัตโนมัติ'}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowUrlInput(true)}
-                        style={{
-                          padding: '6px 14px',
-                          fontSize: 12,
-                          background: 'var(--surface)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 8,
-                          cursor: 'pointer',
-                          color: 'var(--text)',
-                          fontFamily: 'inherit',
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                        }}
-                      >
-                        <LinkIcon size={12} /> วาง URL รูปเอง
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                          style={{
+                            padding: '8px 14px',
+                            fontSize: 12,
+                            background: 'var(--accent)',
+                            border: 'none',
+                            borderRadius: 8,
+                            cursor: uploading ? 'wait' : 'pointer',
+                            color: '#fff',
+                            fontFamily: 'inherit',
+                            fontWeight: 600,
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                          }}
+                        >
+                          <Upload size={13} /> {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลดรูปเอง'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowUrlInput(true)}
+                          style={{
+                            padding: '8px 14px',
+                            fontSize: 12,
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            color: 'var(--text)',
+                            fontFamily: 'inherit',
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                          }}
+                        >
+                          <LinkIcon size={13} /> วาง URL
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>
               )}
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
 
               {/* URL input modal-like */}
               {showUrlInput && (
