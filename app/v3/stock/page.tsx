@@ -310,8 +310,10 @@ export default function V3StockPage() {
 
       <style jsx>{`
         :global(.v3-mobile-only) { display: none; }
+        :global(.v3-desktop-only) { display: flex; }
         @media (max-width: 1024px) {
           :global(.v3-mobile-only) { display: flex !important; }
+          :global(.v3-desktop-only) { display: none !important; }
         }
 
         :global(.v3-stock-grid) {

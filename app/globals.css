@@ -2753,3 +2753,27 @@ input:disabled {
     grid-template-columns: 1fr 1fr !important;
   }
 }
+
+/* ============================================
+   v3 Visibility Helpers - HIGH SPECIFICITY OVERRIDE
+   ============================================ */
+.v3-app .v3-desktop-only,
+.v3-content .v3-desktop-only,
+.v3-mobile-content .v3-desktop-only { display: flex !important; }
+
+.v3-app .v3-mobile-only,
+.v3-content .v3-mobile-only,
+.v3-mobile-content .v3-mobile-only { display: none !important; }
+
+@media (max-width: 1024px) {
+  .v3-app .v3-desktop-only,
+  .v3-content .v3-desktop-only,
+  .v3-mobile-content .v3-desktop-only { display: none !important; }
+  
+  .v3-app .v3-mobile-only,
+  .v3-content .v3-mobile-only,
+  .v3-mobile-content .v3-mobile-only { display: flex !important; }
+}
+
+/* Override flex-wrap ที่อาจทำให้เลยขอบ */
+.v3-mobile-content > div { max-width: 100%; }
