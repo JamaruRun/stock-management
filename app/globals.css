@@ -2777,3 +2777,62 @@ input:disabled {
 
 /* Override flex-wrap ที่อาจทำให้เลยขอบ */
 .v3-mobile-content > div { max-width: 100%; }
+
+/* ============================================
+   v3 Font - Force Apply Everywhere
+   ============================================ */
+html[data-theme="modern-blue"],
+html[data-theme="modern-blue"] body,
+html[data-theme="modern-blue"] *,
+html[data-theme="dark-pro"],
+html[data-theme="dark-pro"] body,
+html[data-theme="dark-pro"] *,
+html[data-theme="orange-shop"],
+html[data-theme="orange-shop"] body,
+html[data-theme="orange-shop"] * {
+  font-family: 'Sarabun', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+}
+
+/* Exception: monospace (IMEI, etc) */
+html[data-theme="modern-blue"] code,
+html[data-theme="modern-blue"] [style*="monospace"],
+html[data-theme="modern-blue"] [style*="JetBrains"],
+html[data-theme="dark-pro"] code,
+html[data-theme="orange-shop"] code {
+  font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+}
+
+/* Display font - Prompt */
+html[data-theme="modern-blue"] h1,
+html[data-theme="modern-blue"] h2,
+html[data-theme="modern-blue"] h3,
+html[data-theme="modern-blue"] .v3-page-title,
+html[data-theme="modern-blue"] .v3-sidebar-brand-text,
+html[data-theme="modern-blue"] .v3-mobile-header-title,
+html[data-theme="dark-pro"] h1,
+html[data-theme="dark-pro"] h2,
+html[data-theme="dark-pro"] .v3-page-title,
+html[data-theme="orange-shop"] h1,
+html[data-theme="orange-shop"] h2,
+html[data-theme="orange-shop"] .v3-page-title {
+  font-family: 'Prompt', 'Sarabun', sans-serif !important;
+  letter-spacing: -0.3px;
+}
+
+/* Numbers tabular */
+html[data-theme="modern-blue"] .v3-num,
+html[data-theme="modern-blue"] [style*="Prompt"] {
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile: ensure font loads */
+@media (max-width: 1024px) {
+  html[data-theme="modern-blue"] body,
+  html[data-theme="dark-pro"] body,
+  html[data-theme="orange-shop"] body {
+    font-family: 'Sarabun', sans-serif !important;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+}
