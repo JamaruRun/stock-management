@@ -8,7 +8,7 @@ import {
   Home, Smartphone, Wrench, ShoppingBag, ShoppingCart, Hammer, Coins, CreditCard,
   Users, BarChart3, Settings, Menu, Bell, MapPin, Search,
   Package, Camera, ChevronDown, X, LogOut, Building2, Crown, Plus, TrendingUp,
-  Wallet,
+  Wallet, Truck,
 } from 'lucide-react';
 
 interface Profile {
@@ -36,6 +36,7 @@ const MENU = [
   { Icon: TrendingUp, label: 'รายงาน', path: '/v3/reports' },
   { Icon: Users, label: 'ลูกค้า', path: '/v3/customers' },
   { Icon: Wallet, label: 'การเงิน', path: '/v3/finance', adminOnly: true },
+  { Icon: Truck, label: 'ซัพพลายเออร์', path: '/v3/suppliers', adminOnly: true },
   { Icon: Building2, label: 'จัดการผู้ใช้', path: '/v3/users', adminOnly: true },
   { Icon: Settings, label: 'ตั้งค่า', path: '/v3/settings' },
 ];
