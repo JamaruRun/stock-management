@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Home, Smartphone, Wrench, ShoppingBag, ShoppingCart, Hammer, Coins, CreditCard,
   Users, BarChart3, Settings, Menu, Bell, MapPin, Search,
-  Package, Camera, ChevronDown, X, LogOut, Building2, Crown, Plus,
+  Package, Camera, ChevronDown, X, LogOut, Building2, Crown, Plus, TrendingUp,
 } from 'lucide-react';
 
 interface Profile {
@@ -32,6 +32,7 @@ const MENU = [
   { Icon: Coins, label: 'รับจำนำ', path: '/v3/pawn' },
   { Icon: CreditCard, label: 'ผ่อนชำระ', path: '/v3/installment' },
   { Icon: BarChart3, label: 'ประวัติทั้งหมด', path: '/v3/history' },
+  { Icon: TrendingUp, label: 'รายงาน', path: '/v3/reports' },
   { Icon: Building2, label: 'จัดการผู้ใช้', path: '/v3/users', adminOnly: true },
   { Icon: Settings, label: 'ตั้งค่า', path: '/v3/settings' },
 ];
