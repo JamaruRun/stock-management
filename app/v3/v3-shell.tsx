@@ -33,6 +33,7 @@ const MENU = [
   { Icon: CreditCard, label: 'ผ่อนชำระ', path: '/v3/installment' },
   { Icon: BarChart3, label: 'ประวัติทั้งหมด', path: '/v3/history' },
   { Icon: TrendingUp, label: 'รายงาน', path: '/v3/reports' },
+  { Icon: Users, label: 'ลูกค้า', path: '/v3/customers' },
   { Icon: Building2, label: 'จัดการผู้ใช้', path: '/v3/users', adminOnly: true },
   { Icon: Settings, label: 'ตั้งค่า', path: '/v3/settings' },
 ];
