@@ -37,6 +37,15 @@ export default function V3SettingsPage() {
 
   // Shop form
   const [shopForm, setShopForm] = useState({
+    name: '',
+    owner_name: '',
+    owner_phone: '',
+    shop_email: '',
+    description: '',
+    province: '',
+    district: '',
+    postal_code: '',
+    social_link: '',
     receipt_address: '',
     receipt_phone: '',
     receipt_tax_id: '',
@@ -75,6 +84,15 @@ export default function V3SettingsPage() {
         setShop(s);
         if (s) {
           setShopForm({
+            name: s.name || '',
+            owner_name: s.owner_name || '',
+            owner_phone: s.owner_phone || '',
+            shop_email: s.shop_email || '',
+            description: s.description || '',
+            province: s.province || '',
+            district: s.district || '',
+            postal_code: s.postal_code || '',
+            social_link: s.social_link || '',
             receipt_address: s.receipt_address || '',
             receipt_phone: s.receipt_phone || '',
             receipt_tax_id: s.receipt_tax_id || '',
@@ -412,96 +430,213 @@ function ShopTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
   }
 
   return (
-    <div className="v3-card" style={{ padding: 20 }}>
-      <SectionTitle Icon={Building2} label="ข้อมูลใบเสร็จ" color="#22c55e" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Section 1: ข้อมูลร้าน */}
+      <div className="v3-card" style={{ padding: 20 }}>
+        <SectionTitle Icon={Building2} label="ข้อมูลร้าน" color="#22c55e" />
 
-      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
-        ข้อมูลที่จะแสดงในใบเสร็จเมื่อขายสินค้าหรือพิมพ์ใบงาน
-      </div>
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+          ข้อมูลทั่วไปของร้าน — ใช้แสดงในระบบและใบเสร็จ
+        </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <FormField label="ที่อยู่ร้าน" Icon={MapPin}>
-          <textarea
-            value={form.receipt_address}
-            onChange={(e) => setForm({ ...form, receipt_address: e.target.value })}
-            placeholder="123/45 ถ. สุขุมวิท..."
-            rows={2}
-            style={{
-              ...textareaStyle,
-              minHeight: 60,
-            }}
-          />
-        </FormField>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <FormField label="เบอร์โทร" Icon={Phone}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <FormField label="ชื่อร้าน" Icon={Building2}>
             <input
               type="text"
-              value={form.receipt_phone}
-              onChange={(e) => setForm({ ...form, receipt_phone: e.target.value })}
-              placeholder="0xx-xxx-xxxx"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="เช่น ร้านมือถือสมาร์ทเซอร์วิส"
               style={inputStyle}
             />
           </FormField>
-          <FormField label="เลขประจำตัวผู้เสียภาษี" Icon={Hash}>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <FormField label="ชื่อเจ้าของร้าน" Icon={User}>
+              <input
+                type="text"
+                value={form.owner_name}
+                onChange={(e) => setForm({ ...form, owner_name: e.target.value })}
+                placeholder="ชื่อ-นามสกุล"
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="เบอร์เจ้าของ" Icon={Phone}>
+              <input
+                type="text"
+                value={form.owner_phone}
+                onChange={(e) => setForm({ ...form, owner_phone: e.target.value })}
+                placeholder="0xx-xxx-xxxx"
+                style={inputStyle}
+              />
+            </FormField>
+          </div>
+
+          <FormField label="อีเมลร้าน" Icon={Mail}>
+            <input
+              type="email"
+              value={form.shop_email}
+              onChange={(e) => setForm({ ...form, shop_email: e.target.value })}
+              placeholder="shop@example.com"
+              style={inputStyle}
+            />
+          </FormField>
+
+          <FormField label="คำอธิบายร้าน" Icon={FileText}>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="ร้านขาย ซ่อม รับจำนำมือถือทุกรุ่น..."
+              rows={2}
+              style={{ ...textareaStyle, minHeight: 60 }}
+            />
+          </FormField>
+
+          <FormField label="Facebook / LINE OA" Icon={MessageSquare}>
             <input
               type="text"
-              value={form.receipt_tax_id}
-              onChange={(e) => setForm({ ...form, receipt_tax_id: e.target.value })}
-              placeholder="0-1234-56789-01-1"
+              value={form.social_link}
+              onChange={(e) => setForm({ ...form, social_link: e.target.value })}
+              placeholder="@yourpage หรือ facebook.com/yourpage"
               style={inputStyle}
             />
           </FormField>
         </div>
-
-        <FormField label="รหัสนำหน้าใบเสร็จ" Icon={FileText}>
-          <input
-            type="text"
-            value={form.receipt_prefix}
-            onChange={(e) => setForm({ ...form, receipt_prefix: e.target.value.toUpperCase().slice(0, 6) })}
-            placeholder="INV"
-            maxLength={6}
-            style={inputStyle}
-          />
-        </FormField>
-
-        <FormField label="ข้อความท้ายใบเสร็จ" Icon={MessageSquare}>
-          <textarea
-            value={form.receipt_footer}
-            onChange={(e) => setForm({ ...form, receipt_footer: e.target.value })}
-            placeholder="ขอบคุณที่ใช้บริการ"
-            rows={2}
-            style={{
-              ...textareaStyle,
-              minHeight: 50,
-            }}
-          />
-        </FormField>
-
-        <button
-          onClick={onSave}
-          disabled={saving}
-          style={{
-            marginTop: 8,
-            padding: '12px',
-            background: saving ? 'var(--surface-2)' : 'linear-gradient(135deg, #22c55e, #16a34a)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 10,
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: saving ? 'wait' : 'pointer',
-            fontFamily: 'inherit',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-        >
-          <Save size={15} />
-          {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-        </button>
       </div>
+
+      {/* Section 2: ที่ตั้งร้าน */}
+      <div className="v3-card" style={{ padding: 20 }}>
+        <SectionTitle Icon={MapPin} label="ที่ตั้งร้าน" color="#3b82f6" />
+
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+          ที่อยู่ของร้าน — ใช้แสดงในใบเสร็จและรายงาน
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <FormField label="ที่อยู่" Icon={MapPin}>
+            <textarea
+              value={form.receipt_address}
+              onChange={(e) => setForm({ ...form, receipt_address: e.target.value })}
+              placeholder="123/45 ถ. สุขุมวิท ตำบล/แขวง..."
+              rows={2}
+              style={{ ...textareaStyle, minHeight: 60 }}
+            />
+          </FormField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <FormField label="อำเภอ / เขต" Icon={MapPin}>
+              <input
+                type="text"
+                value={form.district}
+                onChange={(e) => setForm({ ...form, district: e.target.value })}
+                placeholder="เช่น บางนา"
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="จังหวัด" Icon={MapPin}>
+              <input
+                type="text"
+                value={form.province}
+                onChange={(e) => setForm({ ...form, province: e.target.value })}
+                placeholder="เช่น กรุงเทพมหานคร"
+                style={inputStyle}
+              />
+            </FormField>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <FormField label="รหัสไปรษณีย์" Icon={Hash}>
+              <input
+                type="text"
+                value={form.postal_code}
+                onChange={(e) => setForm({ ...form, postal_code: e.target.value.replace(/\D/g, '').slice(0, 5) })}
+                placeholder="10260"
+                maxLength={5}
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="เบอร์โทรร้าน" Icon={Phone}>
+              <input
+                type="text"
+                value={form.receipt_phone}
+                onChange={(e) => setForm({ ...form, receipt_phone: e.target.value })}
+                placeholder="0xx-xxx-xxxx"
+                style={inputStyle}
+              />
+            </FormField>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 3: ใบเสร็จ */}
+      <div className="v3-card" style={{ padding: 20 }}>
+        <SectionTitle Icon={FileText} label="ตั้งค่าใบเสร็จ" color="#f59e0b" />
+
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+          การตั้งค่าสำหรับการพิมพ์ใบเสร็จ
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <FormField label="เลขประจำตัวผู้เสียภาษี" Icon={Hash}>
+              <input
+                type="text"
+                value={form.receipt_tax_id}
+                onChange={(e) => setForm({ ...form, receipt_tax_id: e.target.value })}
+                placeholder="0-1234-56789-01-1"
+                style={inputStyle}
+              />
+            </FormField>
+            <FormField label="รหัสนำหน้าใบเสร็จ" Icon={FileText}>
+              <input
+                type="text"
+                value={form.receipt_prefix}
+                onChange={(e) => setForm({ ...form, receipt_prefix: e.target.value.toUpperCase().slice(0, 6) })}
+                placeholder="INV"
+                maxLength={6}
+                style={inputStyle}
+              />
+            </FormField>
+          </div>
+
+          <FormField label="ข้อความท้ายใบเสร็จ" Icon={MessageSquare}>
+            <textarea
+              value={form.receipt_footer}
+              onChange={(e) => setForm({ ...form, receipt_footer: e.target.value })}
+              placeholder="ขอบคุณที่ใช้บริการ"
+              rows={2}
+              style={{ ...textareaStyle, minHeight: 50 }}
+            />
+          </FormField>
+        </div>
+      </div>
+
+      {/* Save button - ใหญ่ ติดกัน save ทุก section */}
+      <button
+        onClick={onSave}
+        disabled={saving}
+        style={{
+          padding: '14px',
+          background: saving ? 'var(--surface-2)' : 'linear-gradient(135deg, #22c55e, #16a34a)',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 12,
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: saving ? 'wait' : 'pointer',
+          fontFamily: 'inherit',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          boxShadow: saving ? 'none' : '0 4px 12px rgba(34, 197, 94, 0.25)',
+          position: 'sticky',
+          bottom: 76,
+          zIndex: 5,
+        }}
+      >
+        <Save size={16} />
+        {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูลทั้งหมด'}
+      </button>
     </div>
   );
 }

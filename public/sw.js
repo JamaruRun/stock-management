@@ -2,7 +2,7 @@
 // Strategy: Cache-first for static, Stale-While-Revalidate for pages
 // → เปิดเร็วกว่าเดิม 3-5 เท่า
 
-const CACHE_VERSION = 'v3.9.48';
+const CACHE_VERSION = 'v3.9.49';
 const STATIC_CACHE = `stock-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `stock-pages-${CACHE_VERSION}`;
 
