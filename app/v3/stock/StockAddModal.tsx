@@ -117,6 +117,70 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
     };
   }, [form.model, imageUrl, imageSource, profile?.shop_id]);
 
+  // Auto-fill color/spec/price จากเครื่องในสต๊อกที่รุ่นเดียวกัน
+  const [autoFilledHint, setAutoFilledHint] = useState<string | null>(null);
+  useEffect(() => {
+    const m = form.model.trim();
+    if (m.length < 3 || !profile?.shop_id) {
+      setAutoFilledHint(null);
+      return;
+    }
+    // ไม่ overwrite ถ้า user กรอกแล้ว
+    if (form.color || form.spec || form.price) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        // 1. ลองหาใน stock ปัจจุบันก่อน
+        const { data: stockData } = await supabase
+          .from('stock')
+          .select('color, spec, price, cost_price')
+          .eq('shop_id', profile.shop_id)
+          .ilike('model', m)
+          .not('color', 'is', null)
+          .order('added_date', { ascending: false })
+          .limit(5);
+
+        let source: any = null;
+        let from = '';
+
+        if (stockData && stockData.length > 0) {
+          source = stockData[0];
+          from = 'สต๊อก';
+        } else {
+          // 2. หาใน sales_history
+          const { data: salesData } = await supabase
+            .from('sales_history')
+            .select('color, spec, price, cost_price')
+            .eq('shop_id', profile.shop_id)
+            .ilike('model', m)
+            .not('color', 'is', null)
+            .order('sold_date', { ascending: false })
+            .limit(5);
+
+          if (salesData && salesData.length > 0) {
+            source = salesData[0];
+            from = 'ประวัติขาย';
+          }
+        }
+
+        if (source) {
+          setForm(prev => ({
+            ...prev,
+            color: prev.color || source.color || '',
+            spec: prev.spec || source.spec || '',
+            price: prev.price || (source.price ? String(source.price) : ''),
+            costPrice: prev.costPrice || (source.cost_price ? String(source.cost_price) : ''),
+          }));
+          setAutoFilledHint(`เติมข้อมูลจาก${from}อัตโนมัติ ✓ (แก้ไขได้)`);
+        }
+      } catch (e) {
+        console.error('autofill error:', e);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [form.model, profile?.shop_id]);
+
   function clearImage() {
     setImageUrl('');
     setImageSource(null);
@@ -299,6 +363,26 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
               />
             </FormField>
           </div>
+
+          {/* Auto-fill hint */}
+          {autoFilledHint && (
+            <div style={{
+              padding: '6px 10px',
+              background: '#dcfce7',
+              border: '1px solid #86efac',
+              borderRadius: 8,
+              fontSize: 11,
+              color: '#166534',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginTop: -4,
+            }}>
+              <Sparkles size={12} />
+              {autoFilledHint}
+            </div>
+          )}
 
           {/* Image Preview Section */}
           <FormField label="รูปเครื่อง">

@@ -1,26 +1,79 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import {
   X, Edit2, Trash2, ShoppingCart, Printer, Copy, Calendar,
   Smartphone, Tag, MapPin, Truck, CheckCircle2,
+  Upload, Image as ImageIcon, Link as LinkIcon, Loader2, Camera,
 } from 'lucide-react';
+import { uploadStockImage } from '@/lib/image-upload';
 
 interface Props {
   item: any;
   isAdmin: boolean;
   onClose: () => void;
   onDeleted: () => void;
+  onRefresh?: () => void;
 }
 
-export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: Props) {
+export default function StockDetailModal({ item, isAdmin, onClose, onDeleted, onRefresh }: Props) {
   const supabase = createClient();
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [showImageMenu, setShowImageMenu] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(item.image_url || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const profit = (Number(item.price) || 0) - (Number(item.cost_price) || 0);
   const profitPct = item.cost_price ? ((profit / Number(item.cost_price)) * 100).toFixed(1) : '0';
+
+  async function updateImageInDB(newUrl: string | null) {
+    const { error } = await supabase
+      .from('stock')
+      .update({ image_url: newUrl })
+      .eq('id', item.id);
+    if (error) {
+      alert('บันทึกไม่สำเร็จ: ' + error.message);
+      return false;
+    }
+    setCurrentImageUrl(newUrl);
+    setShowImageMenu(false);
+    onRefresh?.();
+    return true;
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!item.shop_id) {
+      alert('ไม่พบ shop_id');
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadStockImage(file, item.shop_id);
+      await updateImageInDB(url);
+    } catch (err: any) {
+      alert(err.message || 'อัปโหลดไม่สำเร็จ');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function handlePasteUrl() {
+    const url = prompt('วาง URL ของรูป (.jpg, .png, .webp):');
+    if (!url || !url.trim()) return;
+    await updateImageInDB(url.trim());
+  }
+
+  async function handleRemoveImage() {
+    if (!confirm('ลบรูปออกจากเครื่องนี้?')) return;
+    await updateImageInDB(null);
+  }
+
 
   async function handleDelete() {
     if (!confirm(`ลบเครื่อง ${item.model} (IMEI: ${item.imei})?\n\nการลบนี้ย้อนกลับไม่ได้`)) return;
@@ -48,7 +101,7 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: 
           <X size={18} />
         </button>
 
-        {/* Hero - phone image */}
+        {/* Hero - phone image (clickable to edit) */}
         <div style={{
           background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
           padding: '32px 20px 20px',
@@ -58,20 +111,120 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted }: 
           textAlign: 'center',
           position: 'relative',
         }}>
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.model}
-              style={{
-                width: 130,
-                height: 160,
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))',
-              }}
-            />
-          ) : (
-            <PhoneSVGLarge model={item.model} color={item.color} />
+          <div
+            style={{
+              position: 'relative',
+              cursor: 'pointer',
+              borderRadius: 12,
+              padding: 4,
+              transition: 'all 0.15s',
+            }}
+            onClick={() => !uploading && setShowImageMenu(true)}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.6)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            {currentImageUrl ? (
+              <img
+                src={currentImageUrl}
+                alt={item.model}
+                style={{
+                  width: 130,
+                  height: 160,
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))',
+                  opacity: uploading ? 0.5 : 1,
+                }}
+              />
+            ) : (
+              <div style={{ opacity: uploading ? 0.5 : 1 }}>
+                <PhoneSVGLarge model={item.model} color={item.color} />
+              </div>
+            )}
+
+            {/* Edit camera badge overlay */}
+            <div style={{
+              position: 'absolute',
+              bottom: 8,
+              right: 8,
+              width: 32, height: 32,
+              borderRadius: 16,
+              background: '#fff',
+              border: '2px solid var(--accent)',
+              color: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}>
+              {uploading ? (
+                <Loader2 size={14} className="v3-spin" />
+              ) : (
+                <Camera size={14} strokeWidth={2.4} />
+              )}
+            </div>
+          </div>
+
+          {/* Image edit menu */}
+          {showImageMenu && (
+            <>
+              <div onClick={() => setShowImageMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 14,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                padding: 8,
+                minWidth: 220,
+                zIndex: 51,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', padding: '6px 10px', fontWeight: 600 }}>
+                  เปลี่ยนรูปเครื่อง
+                </div>
+                <button
+                  onClick={() => { setShowImageMenu(false); fileInputRef.current?.click(); }}
+                  style={imgMenuBtnStyle}
+                >
+                  <Upload size={14} /> อัปโหลดรูปจากเครื่อง
+                </button>
+                <button
+                  onClick={handlePasteUrl}
+                  style={imgMenuBtnStyle}
+                >
+                  <LinkIcon size={14} /> วาง URL รูป
+                </button>
+                {currentImageUrl && (
+                  <button
+                    onClick={handleRemoveImage}
+                    style={{ ...imgMenuBtnStyle, color: 'var(--danger)' }}
+                  >
+                    <Trash2 size={14} /> ลบรูปออก
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowImageMenu(false)}
+                  style={{ ...imgMenuBtnStyle, justifyContent: 'center', borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 8, color: 'var(--text-dim)' }}
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            </>
           )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+
           <h2 style={{
             fontSize: 22,
             fontWeight: 800,
@@ -397,4 +550,21 @@ const dangerBtnStyle: React.CSSProperties = {
   fontWeight: 600,
   cursor: 'pointer',
   fontFamily: 'inherit',
+};
+
+const imgMenuBtnStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 12px',
+  background: 'transparent',
+  border: 'none',
+  borderRadius: 8,
+  cursor: 'pointer',
+  color: 'var(--text)',
+  fontSize: 13,
+  fontFamily: 'inherit',
+  textAlign: 'left',
+  width: '100%',
+  fontWeight: 500,
 };

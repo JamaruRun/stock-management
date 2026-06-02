@@ -317,6 +317,7 @@ function V3StockContent() {
           isAdmin={isAdmin}
           onClose={() => setDetailItem(null)}
           onDeleted={() => { setDetailItem(null); load(); }}
+          onRefresh={() => load()}
         />
       )}
 
