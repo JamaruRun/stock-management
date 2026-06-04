@@ -143,39 +143,54 @@ export default function LoginPage() {
               <div className="login-v3-form-subtitle">ระบบจัดการสต็อกร้านมือถือ + ร้านซ่อม</div>
             </div>
 
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="login-v3-label">ชื่อผู้ใช้</label>
-                <div className="login-v3-input-wrap">
-                  <User size={18} className="login-v3-input-icon" />
+                <label style={loginLabelStyle}>ชื่อผู้ใช้</label>
+                <div style={loginInputWrapStyle}>
+                  <User size={18} style={loginInputIconStyle} />
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="กรอกชื่อผู้ใช้"
                     autoComplete="username"
-                    className="login-v3-input"
+                    style={loginInputStyle}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#3b82f6';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e2e8f0';
+                      e.target.style.boxShadow = 'none';
+                    }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="login-v3-label">รหัสผ่าน</label>
-                <div className="login-v3-input-wrap">
-                  <Lock size={18} className="login-v3-input-icon" />
+                <label style={loginLabelStyle}>รหัสผ่าน</label>
+                <div style={loginInputWrapStyle}>
+                  <Lock size={18} style={loginInputIconStyle} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="กรอกรหัสผ่าน"
                     autoComplete="current-password"
-                    className="login-v3-input"
-                    style={{ paddingRight: 44 }}
+                    style={{ ...loginInputStyle, paddingRight: 44 }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#3b82f6';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e2e8f0';
+                      e.target.style.boxShadow = 'none';
+                    }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="login-v3-eye"
+                    style={loginEyeBtnStyle}
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -331,60 +346,12 @@ export default function LoginPage() {
           margin-top: 8px;
           line-height: 1.5;
         }
-        .login-v3-label {
-          display: block;
-          font-size: 12px;
-          font-weight: 600;
-          color: #475569;
-          margin-bottom: 6px;
-        }
-        .login-v3-input-wrap {
-          position: relative;
-        }
-        .login-v3-input-icon {
-          position: absolute;
-          left: 14px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #94a3b8;
-          pointer-events: none;
-        }
-        .login-v3-input {
-          width: 100%;
-          height: 48px;
-          padding: 0 12px 0 44px;
-          background: #fff;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 12px;
-          color: #1e293b;
-          font-size: 14px;
-          font-family: inherit;
-          outline: none;
-          transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .login-v3-input:focus {
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
+        .login-v3-label,
+        .login-v3-input,
+        .login-v3-input-icon,
+        .login-v3-input-wrap,
         .login-v3-eye {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 32px;
-          height: 32px;
-          background: transparent;
-          border: none;
-          color: #94a3b8;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 6px;
-        }
-        .login-v3-eye:hover {
-          background: #f1f5f9;
-          color: #475569;
+          /* deprecated - using inline styles now */
         }
         .login-v3-error {
           padding: 10px 12px;
@@ -617,6 +584,60 @@ function FeatureItem({ Icon, title, desc }: any) {
     </div>
   );
 }
+
+/* Inline styles - guaranteed to work */
+const loginLabelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#475569',
+  marginBottom: 8,
+};
+
+const loginInputWrapStyle: React.CSSProperties = {
+  position: 'relative',
+};
+
+const loginInputIconStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 14,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  color: '#94a3b8',
+  pointerEvents: 'none',
+};
+
+const loginInputStyle: React.CSSProperties = {
+  width: '100%',
+  height: 48,
+  padding: '0 12px 0 44px',
+  background: '#fff',
+  border: '1.5px solid #e2e8f0',
+  borderRadius: 12,
+  color: '#1e293b',
+  fontSize: 14,
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const loginEyeBtnStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: 12,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  width: 32,
+  height: 32,
+  background: 'transparent',
+  border: 'none',
+  color: '#94a3b8',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 6,
+  padding: 0,
+};
 
 /* SVG Hero - Desktop (laptop + phone with charts) */
 function HeroIllustration() {
