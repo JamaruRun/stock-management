@@ -440,17 +440,17 @@ export default function LoginPage() {
           .login-v3-mobile { display: none; }
           .login-v3-desktop { display: block; }
           .login-v3-container {
-            grid-template-columns: 1fr 1fr;
-            max-width: 1400px;
+            grid-template-columns: 1.1fr 0.9fr;
+            max-width: 1280px;
             margin: 0 auto;
             min-height: 100vh;
             align-items: center;
-            padding: 32px;
-            gap: 32px;
+            padding: 24px;
+            gap: 20px;
           }
           .login-v3-hero {
             display: block;
-            padding: 40px;
+            padding: 36px;
             background: linear-gradient(180deg, #eff6ff 0%, #f0f9ff 100%);
             border-radius: 24px;
             min-height: 600px;
@@ -510,12 +510,15 @@ export default function LoginPage() {
           }
           .login-v3-formwrap {
             padding: 0;
+            justify-content: flex-end;
+            align-self: center;
           }
           .login-v3-form {
-            max-width: 460px;
+            max-width: 440px;
+            width: 100%;
             border-radius: 24px;
             min-height: auto;
-            padding: 40px;
+            padding: 32px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
             justify-content: center;
           }

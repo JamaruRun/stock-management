@@ -176,12 +176,12 @@ export default function RegisterPage() {
               <Link href="/login" className="reg-v3-back">
                 <ArrowLeft size={20} />
               </Link>
-              <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: 22, fontWeight: 800, fontFamily: 'Prompt, sans-serif' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ fontSize: 22, fontWeight: 800, fontFamily: 'Prompt, sans-serif', lineHeight: 1.1 }}>
                   สมัครสมาชิก
                 </h2>
-                <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                  สร้างบัญชีเพื่อเริ่มใช้งาน Stock Manager
+                <p style={{ fontSize: 11, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+                  สร้างบัญชีเพื่อเริ่มใช้งาน<br />Stock Manager
                 </p>
               </div>
               <div className="reg-v3-mobile-illust">
@@ -235,7 +235,7 @@ export default function RegisterPage() {
                     Icon={Phone}
                     value={form.phone}
                     onChange={(v) => update('phone', v.replace(/[^\d-]/g, ''))}
-                    placeholder="09xxxxxxxx"
+                    placeholder="09x-xxx-xxxx"
                     type="tel"
                   />
                 </Field>
@@ -244,7 +244,7 @@ export default function RegisterPage() {
                     Icon={Mail}
                     value={form.email}
                     onChange={(v) => update('email', v)}
-                    placeholder="example@mail.com"
+                    placeholder="email@mail.com"
                     type="email"
                   />
                 </Field>
@@ -256,7 +256,7 @@ export default function RegisterPage() {
                   <PasswordInput
                     value={form.password}
                     onChange={(v) => update('password', v)}
-                    placeholder="อย่างน้อย 6 ตัวอักษร"
+                    placeholder="อย่างน้อย 6 ตัว"
                     show={showPassword}
                     onToggle={() => setShowPassword(!showPassword)}
                   />
@@ -265,7 +265,7 @@ export default function RegisterPage() {
                   <PasswordInput
                     value={form.confirm_password}
                     onChange={(v) => update('confirm_password', v)}
-                    placeholder="ยืนยันรหัสผ่านอีกครั้ง"
+                    placeholder="ยืนยันอีกครั้ง"
                     show={showConfirmPassword}
                     onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
                   />
@@ -463,8 +463,8 @@ const styles = `
           flex-shrink: 0;
         }
         .reg-v3-mobile-illust {
-          width: 64px;
-          height: 64px;
+          width: 78px;
+          height: 78px;
           flex-shrink: 0;
         }
         .reg-v3-grid-2 {
@@ -600,18 +600,18 @@ const styles = `
           .reg-v3-mobile { display: none; }
           .reg-v3-desktop { display: block; }
           .reg-v3-container {
-            grid-template-columns: 1fr 1fr;
-            max-width: 1400px;
+            grid-template-columns: 1fr 1.2fr;
+            max-width: 1280px;
             margin: 0 auto;
             min-height: 100vh;
             align-items: stretch;
-            padding: 32px;
-            gap: 32px;
+            padding: 24px;
+            gap: 20px;
           }
           .reg-v3-hero {
             display: flex !important;
             flex-direction: column;
-            padding: 36px;
+            padding: 32px;
             background: linear-gradient(180deg, #eff6ff 0%, #f0f9ff 100%);
             border-radius: 24px;
             overflow: hidden;
@@ -682,11 +682,13 @@ const styles = `
             margin-top: auto;
           }
           .reg-v3-form {
-            max-width: 600px;
+            max-width: 100%;
+            width: 100%;
             border-radius: 24px;
             min-height: auto;
-            padding: 36px;
+            padding: 32px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            align-self: center;
           }
           .reg-v3-form-header {
             display: flex !important;
@@ -704,10 +706,10 @@ function Field({ label, required, children }: any) {
     <div>
       <label style={{
         display: 'block',
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 600,
         color: '#475569',
-        marginBottom: 6,
+        marginBottom: 5,
       }}>
         {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
       </label>
@@ -719,9 +721,9 @@ function Field({ label, required, children }: any) {
 function Input({ Icon, value, onChange, placeholder, type = 'text' }: any) {
   return (
     <div style={{ position: 'relative' }}>
-      <Icon size={17} style={{
+      <Icon size={16} style={{
         position: 'absolute',
-        left: 14, top: '50%',
+        left: 12, top: '50%',
         transform: 'translateY(-50%)',
         color: '#94a3b8',
         pointerEvents: 'none',
@@ -733,15 +735,16 @@ function Input({ Icon, value, onChange, placeholder, type = 'text' }: any) {
         placeholder={placeholder}
         style={{
           width: '100%',
-          height: 46,
-          padding: '0 12px 0 42px',
+          height: 44,
+          padding: '0 10px 0 38px',
           background: '#fff',
           border: '1.5px solid #e2e8f0',
-          borderRadius: 12,
+          borderRadius: 10,
           color: '#1e293b',
           fontSize: 13,
           fontFamily: 'inherit',
           outline: 'none',
+          boxSizing: 'border-box',
         }}
         onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
         onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
@@ -753,9 +756,9 @@ function Input({ Icon, value, onChange, placeholder, type = 'text' }: any) {
 function PasswordInput({ value, onChange, placeholder, show, onToggle }: any) {
   return (
     <div style={{ position: 'relative' }}>
-      <Lock size={17} style={{
+      <Lock size={16} style={{
         position: 'absolute',
-        left: 14, top: '50%',
+        left: 12, top: '50%',
         transform: 'translateY(-50%)',
         color: '#94a3b8',
         pointerEvents: 'none',
@@ -767,15 +770,16 @@ function PasswordInput({ value, onChange, placeholder, show, onToggle }: any) {
         placeholder={placeholder}
         style={{
           width: '100%',
-          height: 46,
-          padding: '0 44px 0 42px',
+          height: 44,
+          padding: '0 38px 0 38px',
           background: '#fff',
           border: '1.5px solid #e2e8f0',
-          borderRadius: 12,
+          borderRadius: 10,
           color: '#1e293b',
           fontSize: 13,
           fontFamily: 'inherit',
           outline: 'none',
+          boxSizing: 'border-box',
         }}
         onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'; }}
         onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
@@ -786,9 +790,9 @@ function PasswordInput({ value, onChange, placeholder, show, onToggle }: any) {
         tabIndex={-1}
         style={{
           position: 'absolute',
-          right: 8, top: '50%',
+          right: 6, top: '50%',
           transform: 'translateY(-50%)',
-          width: 30, height: 30,
+          width: 28, height: 28,
           background: 'transparent',
           border: 'none',
           color: '#94a3b8',
@@ -797,9 +801,10 @@ function PasswordInput({ value, onChange, placeholder, show, onToggle }: any) {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: 6,
+          padding: 0,
         }}
       >
-        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        {show ? <EyeOff size={15} /> : <Eye size={15} />}
       </button>
     </div>
   );
@@ -808,9 +813,9 @@ function PasswordInput({ value, onChange, placeholder, show, onToggle }: any) {
 function SelectInput({ Icon, value, onChange, children }: any) {
   return (
     <div style={{ position: 'relative' }}>
-      <Icon size={16} style={{
+      <Icon size={15} style={{
         position: 'absolute',
-        left: 14, top: '50%',
+        left: 12, top: '50%',
         transform: 'translateY(-50%)',
         color: '#94a3b8',
         pointerEvents: 'none',
@@ -820,11 +825,11 @@ function SelectInput({ Icon, value, onChange, children }: any) {
         onChange={(e) => onChange(e.target.value)}
         style={{
           width: '100%',
-          height: 46,
-          padding: '0 12px 0 42px',
+          height: 44,
+          padding: '0 28px 0 38px',
           background: '#fff',
           border: '1.5px solid #e2e8f0',
-          borderRadius: 12,
+          borderRadius: 10,
           color: '#1e293b',
           fontSize: 13,
           fontFamily: 'inherit',
@@ -834,7 +839,8 @@ function SelectInput({ Icon, value, onChange, children }: any) {
           WebkitAppearance: 'none',
           backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>")`,
           backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'right 14px center',
+          backgroundPosition: 'right 10px center',
+          boxSizing: 'border-box',
         }}
       >
         {children}
