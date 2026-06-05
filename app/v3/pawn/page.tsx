@@ -8,6 +8,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, Calendar, User,
   RotateCcw, FileText, Eye, Trash2,
 } from 'lucide-react';
+import PawnAddModal from './PawnAddModal';
 
 interface PawnItem {
   id: string;
@@ -50,6 +51,7 @@ export default function V3PawnPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   async function load() {
     try {
@@ -111,9 +113,9 @@ export default function V3PawnPage() {
           <h1 className="v3-page-title">รับจำนำเครื่อง</h1>
           <p className="v3-page-subtitle">ทั้งหมด {counts.all} รายการ · มูลค่ารวม ฿{counts.totalValue.toLocaleString()}</p>
         </div>
-        <Link href="/v3/pawn/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={() => setShowAdd(true)} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={16} strokeWidth={2.5} /> รับจำนำใหม่
-        </Link>
+        </button>
       </div>
 
       <div className="v3-mobile-only" style={{
@@ -130,16 +132,17 @@ export default function V3PawnPage() {
             ทั้งหมด {counts.all} รายการ
           </p>
         </div>
-        <Link href="/v3/pawn/add" style={{
+        <button onClick={() => setShowAdd(true)} style={{
           width: 40, height: 40,
           borderRadius: 10,
           background: 'var(--accent)',
           color: '#fff',
+          border: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          textDecoration: 'none',
+          cursor: 'pointer',
         }}>
           <Plus size={20} strokeWidth={2.5} />
-        </Link>
+        </button>
       </div>
 
       <div className="v3-pawn-stats" style={{
@@ -160,7 +163,7 @@ export default function V3PawnPage() {
         gap: 8,
         marginBottom: 14,
       }}>
-        <ActionBtn Icon={Plus} label="รับจำนำใหม่" href="/v3/pawn/add" primary />
+        <ActionBtn Icon={Plus} label="รับจำนำใหม่" onClick={() => setShowAdd(true)} primary />
         <ActionBtn Icon={RotateCcw} label="ไถ่คืนเครื่อง" href="/dashboard/pawn/redeem" />
         <ActionBtn Icon={Calendar} label="ต่ออายุจำนำ" href="/dashboard/pawn/stock" />
         <ActionBtn Icon={FileText} label="ประวัติจำนำ" href="/dashboard/pawn/history" />
@@ -227,6 +230,13 @@ export default function V3PawnPage() {
         </div>
       )}
 
+      {showAdd && (
+        <PawnAddModal
+          onClose={() => setShowAdd(false)}
+          onSuccess={() => { setShowAdd(false); load(); }}
+        />
+      )}
+
       <style jsx>{`
         @media (max-width: 640px) {
           :global(.v3-pawn-stats) {
@@ -267,24 +277,34 @@ function StatCard({ label, value, sub, color, Icon }: any) {
   );
 }
 
-function ActionBtn({ Icon, label, href, primary }: any) {
+function ActionBtn({ Icon, label, href, onClick, primary }: any) {
+  const style: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: '12px',
+    background: primary ? 'var(--accent)' : 'var(--surface)',
+    color: primary ? '#fff' : 'var(--text)',
+    border: primary ? 'none' : '1px solid var(--border)',
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    textDecoration: 'none',
+    fontFamily: 'inherit',
+    width: '100%',
+  };
+  if (onClick) {
+    return (
+      <button onClick={onClick} style={style}>
+        <Icon size={14} strokeWidth={2.2} />
+        {label}
+      </button>
+    );
+  }
   return (
-    <Link href={href} style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      padding: '12px',
-      background: primary ? 'var(--accent)' : 'var(--surface)',
-      color: primary ? '#fff' : 'var(--text)',
-      border: primary ? 'none' : '1px solid var(--border)',
-      borderRadius: 12,
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer',
-      textDecoration: 'none',
-      fontFamily: 'inherit',
-    }}>
+    <Link href={href} style={style}>
       <Icon size={14} strokeWidth={2.2} />
       {label}
     </Link>
