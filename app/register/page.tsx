@@ -125,7 +125,7 @@ export default function RegisterPage() {
         <div className="reg-v3-hero reg-v3-desktop">
           <div className="reg-v3-brand">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <img src="/icon-192.png" alt="" style={{ width: 52, height: 52, borderRadius: 12 }} />
+              <img src="/assets/auth/logo.webp" alt="" style={{ width: 52, height: 52, borderRadius: 12 }} />
               <div>
                 <div className="reg-v3-brand-title">STOCK <span style={{ color: '#3b82f6' }}>MANAGER</span></div>
                 <div className="reg-v3-brand-sub">ระบบจัดการร้านมือถือ + ร้านซ่อม</div>
@@ -156,7 +156,11 @@ export default function RegisterPage() {
 
           {/* Illustration */}
           <div className="reg-v3-illust">
-            <RegIllustration />
+            <img
+              src="/assets/auth/register-hero-desktop.webp"
+              alt="Stock Manager"
+              style={{ width: '100%', height: 'auto', maxHeight: 260, objectFit: 'contain' }}
+            />
           </div>
 
           <div className="reg-v3-trust">
@@ -185,7 +189,11 @@ export default function RegisterPage() {
                 </p>
               </div>
               <div className="reg-v3-mobile-illust">
-                <RegMobileIllust />
+                <img
+                  src="/assets/auth/mobile-register-hero.webp"
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
               </div>
             </div>
 
@@ -877,86 +885,5 @@ function FeatureRow({ Icon, title, desc, color }: any) {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ===== Illustrations ===== */
-
-function RegIllustration() {
-  return (
-    <svg viewBox="0 0 320 240" style={{ width: '100%', height: 'auto', maxHeight: 240 }}>
-      <defs>
-        <linearGradient id="r-box" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-      
-      {/* Box with phone & tools */}
-      <g transform="translate(60, 60)">
-        <rect x="0" y="60" width="200" height="120" rx="10" fill="url(#r-box)" />
-        <rect x="-5" y="55" width="210" height="10" rx="3" fill="#1e40af" />
-        
-        {/* Phone in box */}
-        <rect x="40" y="20" width="60" height="100" rx="8" fill="#fff" stroke="#cbd5e1" strokeWidth="1.5" />
-        <rect x="44" y="24" width="52" height="86" rx="4" fill="#0f172a" />
-        <rect x="48" y="32" width="44" height="6" rx="2" fill="#3b82f6" opacity="0.7" />
-        <circle cx="50" cy="50" r="6" fill="#3b82f6" />
-        <rect x="60" y="46" width="32" height="3" rx="1" fill="#cbd5e1" />
-        <rect x="60" y="52" width="20" height="2" rx="1" fill="#64748b" />
-        
-        {/* Tools */}
-        <g transform="translate(115, 25)">
-          {/* Wrench */}
-          <path d="M0 0 L30 30 L36 24 L40 28 L34 34 L40 40 L34 46 L28 40 L24 36 L30 30" fill="#475569" />
-          <path d="M-2 -8 L8 2 L4 6 L-6 -4 Z" fill="#64748b" />
-          
-          {/* Screwdriver */}
-          <rect x="20" y="50" width="6" height="40" rx="1" fill="#3b82f6" />
-          <rect x="18" y="86" width="10" height="14" rx="2" fill="#fbbf24" />
-        </g>
-      </g>
-
-      {/* Small boxes */}
-      <g transform="translate(40, 180)">
-        <rect width="50" height="40" rx="3" fill="#fbbf24" />
-        <rect y="18" width="50" height="3" fill="#fff" opacity="0.5" />
-      </g>
-      <g transform="translate(220, 180)">
-        <rect width="40" height="30" rx="3" fill="#f97316" />
-      </g>
-
-      {/* Plant */}
-      <g transform="translate(150, 200)">
-        <rect x="0" y="20" width="20" height="16" rx="2" fill="#92400e" />
-        <ellipse cx="5" cy="14" rx="4" ry="10" fill="#22c55e" transform="rotate(-20 5 14)" />
-        <ellipse cx="10" cy="8" rx="5" ry="14" fill="#16a34a" />
-        <ellipse cx="15" cy="14" rx="4" ry="10" fill="#22c55e" transform="rotate(20 15 14)" />
-      </g>
-
-      {/* Dots */}
-      <circle cx="20" cy="40" r="3" fill="#dbeafe" />
-      <circle cx="300" cy="60" r="3" fill="#bfdbfe" />
-      <circle cx="290" cy="200" r="3" fill="#dbeafe" />
-    </svg>
-  );
-}
-
-function RegMobileIllust() {
-  return (
-    <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-      <defs>
-        <linearGradient id="rm-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-      <rect x="20" y="35" width="60" height="50" rx="6" fill="url(#rm-grad)" />
-      <rect x="18" y="33" width="64" height="6" rx="2" fill="#1e40af" />
-      <rect x="35" y="15" width="30" height="32" rx="4" fill="#fff" stroke="#cbd5e1" />
-      <rect x="38" y="18" width="24" height="26" rx="2" fill="#0f172a" />
-      <circle cx="50" cy="29" r="3" fill="#3b82f6" />
-      <text x="68" y="20" fontSize="14" fill="#fbbf24">✨</text>
-    </svg>
   );
 }

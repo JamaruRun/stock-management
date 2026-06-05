@@ -80,7 +80,7 @@ export default function LoginPage() {
             {/* Logo + brand */}
             <div className="login-v3-brand">
               <div className="login-v3-brand-icon">
-                <img src="/icon-192.png" alt="" style={{ width: 56, height: 56, borderRadius: 12 }} />
+                <img src="/assets/auth/logo.webp" alt="" style={{ width: 56, height: 56, borderRadius: 12 }} />
               </div>
               <div>
                 <div className="login-v3-brand-title">STOCK <span style={{ color: '#3b82f6' }}>MANAGER</span></div>
@@ -97,9 +97,13 @@ export default function LoginPage() {
               ช่วยให้ธุรกิจของคุณทำงานได้อย่างมีประสิทธิภาพ
             </p>
 
-            {/* Hero illustration SVG */}
+            {/* Hero illustration */}
             <div className="login-v3-illust">
-              <HeroIllustration />
+              <img
+                src="/assets/auth/login-hero-desktop.webp"
+                alt="Stock Manager Dashboard"
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
             </div>
 
             {/* Features 4 icons */}
@@ -121,7 +125,11 @@ export default function LoginPage() {
                 🎁 Beta ฟรี 30 วัน
               </div>
               <div className="login-v3-mobile-illust">
-                <HeroMobile />
+                <img
+                  src="/assets/auth/mobile-login-mascot.webp"
+                  alt="Stock Manager"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
               </div>
               <div className="login-v3-mobile-title">
                 Stock Manager
@@ -135,7 +143,7 @@ export default function LoginPage() {
             {/* Desktop title */}
             <div className="login-v3-desktop" style={{ textAlign: 'center', marginBottom: 24 }}>
               <div className="login-v3-form-logo">
-                <img src="/icon-192.png" alt="" style={{ width: 72, height: 72, borderRadius: 16, boxShadow: '0 8px 20px rgba(59, 130, 246, 0.25)' }} />
+                <img src="/assets/auth/logo.webp" alt="" style={{ width: 72, height: 72, borderRadius: 16 }} />
               </div>
               <div className="login-v3-form-brand">STOCK <span style={{ color: '#3b82f6' }}>MANAGER</span></div>
               <div className="login-v3-form-brand-sub">Inventory & Stock Control System</div>
@@ -267,6 +275,15 @@ export default function LoginPage() {
               </div>
             </form>
 
+            {/* Mobile footer hero illustration */}
+            <div className="login-v3-mobile login-v3-mobile-footer">
+              <img
+                src="/assets/auth/mobile-login-footer-hero.webp"
+                alt=""
+                style={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </div>
+
             {/* Desktop footer */}
             <div className="login-v3-desktop login-v3-foot">
               <Shield size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: '-2px' }} />
@@ -345,13 +362,6 @@ export default function LoginPage() {
           color: #64748b;
           margin-top: 8px;
           line-height: 1.5;
-        }
-        .login-v3-label,
-        .login-v3-input,
-        .login-v3-input-icon,
-        .login-v3-input-wrap,
-        .login-v3-eye {
-          /* deprecated - using inline styles now */
         }
         .login-v3-error {
           padding: 10px 12px;
@@ -434,6 +444,10 @@ export default function LoginPage() {
           color: #94a3b8;
           margin-top: auto;
           padding-top: 30px;
+        }
+        .login-v3-mobile-footer {
+          margin-top: 24px;
+          margin-bottom: -20px;
         }
 
         @media (min-width: 1024px) {
@@ -642,139 +656,3 @@ const loginEyeBtnStyle: React.CSSProperties = {
   padding: 0,
 };
 
-/* SVG Hero - Desktop (laptop + phone with charts) */
-function HeroIllustration() {
-  return (
-    <svg viewBox="0 0 500 360" style={{ width: '100%', height: 'auto' }}>
-      <defs>
-        <linearGradient id="lap-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-        <linearGradient id="box-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#bfdbfe" />
-          <stop offset="100%" stopColor="#60a5fa" />
-        </linearGradient>
-      </defs>
-      
-      {/* Laptop */}
-      <g>
-        {/* Screen */}
-        <rect x="80" y="80" width="280" height="180" rx="12" fill="#1e293b" />
-        <rect x="90" y="90" width="260" height="160" rx="6" fill="#f1f5f9" />
-        {/* Top bar */}
-        <rect x="90" y="90" width="260" height="20" fill="#fff" />
-        <circle cx="100" cy="100" r="3" fill="#cbd5e1" />
-        {/* Cards */}
-        <rect x="100" y="120" width="60" height="30" rx="4" fill="#dcfce7" />
-        <text x="105" y="135" fontSize="10" fill="#16a34a" fontWeight="700">12,500</text>
-        <rect x="170" y="120" width="60" height="30" rx="4" fill="#dbeafe" />
-        <text x="175" y="135" fontSize="10" fill="#2563eb" fontWeight="700">8,250</text>
-        <rect x="240" y="120" width="60" height="30" rx="4" fill="#fef3c7" />
-        <text x="245" y="135" fontSize="10" fill="#d97706" fontWeight="700">2,350</text>
-        {/* Chart */}
-        <rect x="100" y="160" width="200" height="80" rx="4" fill="#fff" />
-        <polyline points="105,225 130,205 155,215 180,190 205,195 230,170 255,180 285,165" fill="none" stroke="#3b82f6" strokeWidth="2" />
-        <polyline points="105,235 130,225 155,230 180,215 205,220 230,210 255,215 285,205" fill="none" stroke="#22c55e" strokeWidth="2" strokeDasharray="2 2" />
-        
-        {/* Laptop base */}
-        <path d="M70 260 L370 260 L390 280 L50 280 Z" fill="#cbd5e1" />
-      </g>
-
-      {/* Phone */}
-      <g transform="translate(330, 140)">
-        <rect width="80" height="140" rx="10" fill="#0f172a" />
-        <rect x="4" y="4" width="72" height="132" rx="8" fill="#fff" />
-        <rect x="10" y="18" width="60" height="20" rx="3" fill="#dbeafe" />
-        <text x="15" y="32" fontSize="9" fill="#2563eb" fontWeight="700">฿12,500</text>
-        <rect x="10" y="44" width="60" height="20" rx="3" fill="#dcfce7" />
-        <text x="15" y="58" fontSize="9" fill="#16a34a" fontWeight="700">฿8,250</text>
-        <polyline points="10,90 25,80 40,85 55,70 70,75" fill="none" stroke="#3b82f6" strokeWidth="1.5" />
-      </g>
-
-      {/* Boxes (left) */}
-      <g transform="translate(20, 200)">
-        <rect x="0" y="20" width="60" height="60" rx="4" fill="url(#box-grad)" />
-        <rect x="10" y="40" width="40" height="3" fill="#fff" opacity="0.6" />
-        <rect x="20" y="0" width="50" height="50" rx="4" fill="url(#box-grad)" opacity="0.9" />
-      </g>
-      <g transform="translate(420, 240)">
-        <rect width="50" height="50" rx="4" fill="url(#box-grad)" />
-        <rect x="5" y="20" width="40" height="3" fill="#fff" opacity="0.6" />
-      </g>
-
-      {/* Scanner */}
-      <g transform="translate(200, 280)">
-        <rect x="0" y="0" width="40" height="40" rx="6" fill="#475569" />
-        <rect x="6" y="6" width="28" height="20" rx="2" fill="#1e293b" />
-        <line x1="10" y1="11" x2="30" y2="11" stroke="#ef4444" strokeWidth="1" />
-        <line x1="10" y1="15" x2="30" y2="15" stroke="#ef4444" strokeWidth="1" />
-        <line x1="10" y1="19" x2="30" y2="19" stroke="#ef4444" strokeWidth="1" />
-      </g>
-
-      {/* Decoration dots */}
-      <circle cx="40" cy="50" r="3" fill="#dbeafe" />
-      <circle cx="460" cy="80" r="3" fill="#bfdbfe" />
-      <circle cx="450" cy="320" r="3" fill="#dbeafe" />
-    </svg>
-  );
-}
-
-/* SVG Hero - Mobile (mascot + boxes) */
-function HeroMobile() {
-  return (
-    <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%' }}>
-      <defs>
-        <linearGradient id="mascot-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-        <linearGradient id="box-m" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#bfdbfe" />
-          <stop offset="100%" stopColor="#60a5fa" />
-        </linearGradient>
-      </defs>
-
-      {/* Mascot (cute box character) */}
-      <g transform="translate(60, 50)">
-        {/* Body */}
-        <rect x="0" y="20" width="80" height="70" rx="8" fill="url(#mascot-grad)" />
-        {/* Lid */}
-        <rect x="-4" y="14" width="88" height="10" rx="4" fill="#1e40af" />
-        {/* Handle */}
-        <rect x="32" y="0" width="16" height="18" rx="3" fill="none" stroke="#1e40af" strokeWidth="3" />
-        {/* Face */}
-        <circle cx="22" cy="50" r="5" fill="#fff" />
-        <circle cx="22" cy="51" r="2.5" fill="#1e293b" />
-        <circle cx="58" cy="50" r="5" fill="#fff" />
-        <circle cx="58" cy="51" r="2.5" fill="#1e293b" />
-        {/* Smile */}
-        <path d="M28 68 Q40 78, 52 68" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        {/* Cheek */}
-        <circle cx="15" cy="62" r="3" fill="#f87171" opacity="0.6" />
-        <circle cx="65" cy="62" r="3" fill="#f87171" opacity="0.6" />
-      </g>
-
-      {/* Boxes around */}
-      <g transform="translate(10, 130)">
-        <rect width="40" height="40" rx="4" fill="url(#box-m)" />
-        <rect x="0" y="18" width="40" height="3" fill="#fff" opacity="0.7" />
-      </g>
-      <g transform="translate(155, 140)">
-        <rect width="35" height="35" rx="4" fill="url(#box-m)" />
-      </g>
-
-      {/* Sparkles */}
-      <text x="35" y="50" fontSize="14" fill="#fbbf24">✨</text>
-      <text x="160" y="60" fontSize="14" fill="#fbbf24">✨</text>
-      
-      {/* Plant */}
-      <g transform="translate(155, 100)">
-        <rect x="2" y="20" width="18" height="14" rx="2" fill="#92400e" />
-        <ellipse cx="6" cy="18" rx="4" ry="8" fill="#22c55e" transform="rotate(-20 6 18)" />
-        <ellipse cx="11" cy="14" rx="4" ry="9" fill="#16a34a" />
-        <ellipse cx="16" cy="18" rx="4" ry="8" fill="#22c55e" transform="rotate(20 16 18)" />
-      </g>
-    </svg>
-  );
-}
