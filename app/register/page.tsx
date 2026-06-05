@@ -429,7 +429,11 @@ const styles = `
           min-height: 100vh;
           display: flex;
           background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 60%);
+          overflow-x: hidden;
+          max-width: 100vw;
         }
+        .reg-v3 :global(img) { max-width: 100%; }
+        .reg-v3 * { min-width: 0; }
         .reg-v3-container {
           width: 100%;
           display: grid;
