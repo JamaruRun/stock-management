@@ -391,13 +391,15 @@ function ProfileTab({ profile, onChangePassword, onLogout }: any) {
 
       {/* Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-        <ActionRow
-          Icon={KeyRound}
-          label="เปลี่ยนรหัสผ่าน"
-          desc="ตั้งรหัสผ่านใหม่สำหรับบัญชีนี้"
-          color="#3b82f6"
-          onClick={onChangePassword}
-        />
+        {isAdmin && (
+          <ActionRow
+            Icon={KeyRound}
+            label="เปลี่ยนรหัสผ่าน"
+            desc="ตั้งรหัสผ่านใหม่สำหรับบัญชีนี้"
+            color="#3b82f6"
+            onClick={onChangePassword}
+          />
+        )}
         <ActionRow
           Icon={LogOut}
           label="ออกจากระบบ"
@@ -406,6 +408,11 @@ function ProfileTab({ profile, onChangePassword, onLogout }: any) {
           onClick={onLogout}
         />
       </div>
+      {!isAdmin && (
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10, textAlign: 'center' }}>
+          การเปลี่ยนรหัสผ่านต้องให้แอดมินดำเนินการให้
+        </p>
+      )}
     </div>
   );
 }

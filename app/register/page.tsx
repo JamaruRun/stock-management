@@ -125,7 +125,7 @@ export default function RegisterPage() {
         <div className="reg-v3-hero reg-v3-desktop">
           <div className="reg-v3-brand">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <img src="/assets/auth/logo.webp" alt="" style={{ width: 52, height: 52, borderRadius: 12 }} />
+              <img src="/assets/auth/logo.webp" alt="" style={{ width: 52, height: 52, objectFit: "contain", borderRadius: 12 }} />
               <div>
                 <div className="reg-v3-brand-title">STOCK <span style={{ color: '#3b82f6' }}>MANAGER</span></div>
                 <div className="reg-v3-brand-sub">ระบบจัดการร้านมือถือ + ร้านซ่อม</div>

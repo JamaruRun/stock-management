@@ -80,7 +80,7 @@ export default function LoginPage() {
             {/* Logo + brand */}
             <div className="login-v3-brand">
               <div className="login-v3-brand-icon">
-                <img src="/assets/auth/logo.webp" alt="" style={{ width: 56, height: 56, borderRadius: 12 }} />
+                <img src="/assets/auth/logo.webp" alt="" style={{ width: 56, height: 56, objectFit: "contain", borderRadius: 12 }} />
               </div>
               <div>
                 <div className="login-v3-brand-title">STOCK <span style={{ color: '#3b82f6' }}>MANAGER</span></div>
@@ -143,7 +143,7 @@ export default function LoginPage() {
             {/* Desktop title */}
             <div className="login-v3-desktop" style={{ textAlign: 'center', marginBottom: 24 }}>
               <div className="login-v3-form-logo">
-                <img src="/assets/auth/logo.webp" alt="" style={{ width: 72, height: 72, borderRadius: 16 }} />
+                <img src="/assets/auth/logo.webp" alt="" style={{ width: 72, height: 72, objectFit: "contain", borderRadius: 16 }} />
               </div>
               <div className="login-v3-form-brand">STOCK <span style={{ color: '#3b82f6' }}>MANAGER</span></div>
               <div className="login-v3-form-brand-sub">Inventory & Stock Control System</div>
