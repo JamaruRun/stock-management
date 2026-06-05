@@ -111,7 +111,7 @@ export default function V3PawnPage() {
           <h1 className="v3-page-title">รับจำนำเครื่อง</h1>
           <p className="v3-page-subtitle">ทั้งหมด {counts.all} รายการ · มูลค่ารวม ฿{counts.totalValue.toLocaleString()}</p>
         </div>
-        <Link href="/dashboard/pawn/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <Link href="/v3/pawn/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
           <Plus size={16} strokeWidth={2.5} /> รับจำนำใหม่
         </Link>
       </div>
@@ -130,7 +130,7 @@ export default function V3PawnPage() {
             ทั้งหมด {counts.all} รายการ
           </p>
         </div>
-        <Link href="/dashboard/pawn/add" style={{
+        <Link href="/v3/pawn/add" style={{
           width: 40, height: 40,
           borderRadius: 10,
           background: 'var(--accent)',
@@ -160,7 +160,7 @@ export default function V3PawnPage() {
         gap: 8,
         marginBottom: 14,
       }}>
-        <ActionBtn Icon={Plus} label="รับจำนำใหม่" href="/dashboard/pawn/add" primary />
+        <ActionBtn Icon={Plus} label="รับจำนำใหม่" href="/v3/pawn/add" primary />
         <ActionBtn Icon={RotateCcw} label="ไถ่คืนเครื่อง" href="/dashboard/pawn/redeem" />
         <ActionBtn Icon={Calendar} label="ต่ออายุจำนำ" href="/dashboard/pawn/stock" />
         <ActionBtn Icon={FileText} label="ประวัติจำนำ" href="/dashboard/pawn/history" />
@@ -536,7 +536,7 @@ function EmptyState({ hasFilters }: any) {
         {hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการรับจำนำใหม่'}
       </div>
       {!hasFilters && (
-        <Link href="/dashboard/pawn/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <Link href="/v3/pawn/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
           <Plus size={14} /> รับจำนำใหม่
         </Link>
       )}
