@@ -140,7 +140,7 @@ export default function V3Shell({
             })}
 
             {profile.is_super_admin && (
-              <Link href="/super-admin" className="v3-sidebar-item">
+              <Link href="/v3/super-admin" className="v3-sidebar-item">
                 <Crown size={20} strokeWidth={2} />
                 <span>Super Admin</span>
               </Link>
