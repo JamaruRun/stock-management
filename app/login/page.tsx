@@ -156,7 +156,7 @@ export default function LoginPage() {
         </form>
 
         <div style={{ textAlign: 'center', fontSize: 10, color: '#cbd5e1', marginTop: 18 }}>
-          StockCare v3.9.65
+          StockCare v3.9.66
         </div>
       </div>
     </div>

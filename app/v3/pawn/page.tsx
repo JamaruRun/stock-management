@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Coins, Smartphone, MoreVertical, Phone,
   CheckCircle2, Clock, AlertTriangle, Calendar, User,
-  RotateCcw, FileText, Eye, Trash2,
+  RotateCcw, FileText, Eye, Trash2, RefreshCw,
 } from 'lucide-react';
 import PawnAddModal from './PawnAddModal';
+import { PawnRedeemModal, PawnRenewModal } from './PawnActionModals';
 
 interface PawnItem {
   id: string;
@@ -52,6 +53,8 @@ export default function V3PawnPage() {
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [redeemItem, setRedeemItem] = useState<PawnItem | null>(null);
+  const [renewItem, setRenewItem] = useState<PawnItem | null>(null);
 
   async function load() {
     try {
@@ -164,8 +167,6 @@ export default function V3PawnPage() {
         marginBottom: 14,
       }}>
         <ActionBtn Icon={Plus} label="รับจำนำใหม่" onClick={() => setShowAdd(true)} primary />
-        <ActionBtn Icon={RotateCcw} label="ไถ่คืนเครื่อง" href="/dashboard/pawn/redeem" />
-        <ActionBtn Icon={Calendar} label="ต่ออายุจำนำ" href="/dashboard/pawn/stock" />
         <ActionBtn Icon={FileText} label="ประวัติจำนำ" href="/dashboard/pawn/history" />
       </div>
 
@@ -225,6 +226,8 @@ export default function V3PawnPage() {
               onToggleMenu={() => setMenuOpenId(menuOpenId === item.id ? null : item.id)}
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(item)}
+              onRedeem={() => { setMenuOpenId(null); setRedeemItem(item); }}
+              onRenew={() => { setMenuOpenId(null); setRenewItem(item); }}
             />
           ))}
         </div>
@@ -234,6 +237,20 @@ export default function V3PawnPage() {
         <PawnAddModal
           onClose={() => setShowAdd(false)}
           onSuccess={() => { setShowAdd(false); load(); }}
+        />
+      )}
+      {redeemItem && (
+        <PawnRedeemModal
+          item={redeemItem}
+          onClose={() => setRedeemItem(null)}
+          onSuccess={() => { setRedeemItem(null); load(); }}
+        />
+      )}
+      {renewItem && (
+        <PawnRenewModal
+          item={renewItem}
+          onClose={() => setRenewItem(null)}
+          onSuccess={() => { setRenewItem(null); load(); }}
         />
       )}
 
@@ -347,7 +364,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete }: any) {
+function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, onRenew }: any) {
   const status = getStatusOf(item);
   const info = STATUS_COLORS[status];
   const StatusIcon = info.Icon;
@@ -432,12 +449,12 @@ function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete }: any) {
                       padding: 4,
                       zIndex: 20,
                     }}>
-                      <Link href={`/dashboard/pawn/stock`} style={menuLinkStyle}>
-                        <Eye size={14} /> ดูรายละเอียด
-                      </Link>
-                      <Link href={`/dashboard/pawn/redeem?imei=${encodeURIComponent(item.imei)}`} style={menuLinkStyle}>
+                      <button onClick={onRenew} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                        <RefreshCw size={14} /> ต่อดอก
+                      </button>
+                      <button onClick={onRedeem} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                         <RotateCcw size={14} /> ไถ่คืนเครื่อง
-                      </Link>
+                      </button>
                       {item.customer_phone && (
                         <a href={`tel:${item.customer_phone}`} style={menuLinkStyle}>
                           <Phone size={14} /> โทรหาลูกค้า
