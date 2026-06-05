@@ -8,6 +8,7 @@ import {
   Package, AlertTriangle, Tag, Eye, Trash2, ShoppingCart,
   TrendingUp, Edit2, Box,
 } from 'lucide-react';
+import GoodsAddModal from './GoodsAddModal';
 
 interface GoodsItem {
   id: string;
@@ -32,6 +33,7 @@ export default function V3GoodsPage() {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   async function load() {
     try {
@@ -115,9 +117,9 @@ export default function V3GoodsPage() {
           <Link href="/dashboard/goods/sell" className="v3-btn v3-btn-secondary" style={{ textDecoration: 'none' }}>
             <ShoppingCart size={16} /> ขาย
           </Link>
-          <Link href="/dashboard/goods/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+          <button onClick={() => setShowAdd(true)} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
             <Plus size={16} strokeWidth={2.5} /> เพิ่มสินค้า
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -147,16 +149,17 @@ export default function V3GoodsPage() {
           }}>
             <ShoppingCart size={18} />
           </Link>
-          <Link href="/dashboard/goods/add" style={{
+          <button onClick={() => setShowAdd(true)} style={{
             width: 40, height: 40,
             borderRadius: 10,
             background: 'var(--accent)',
             color: '#fff',
+            border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textDecoration: 'none',
+            cursor: 'pointer',
           }}>
             <Plus size={20} strokeWidth={2.5} />
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -242,6 +245,10 @@ export default function V3GoodsPage() {
             />
           ))}
         </div>
+      )}
+
+      {showAdd && (
+        <GoodsAddModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); load(); }} />
       )}
 
       <style jsx>{`
