@@ -171,7 +171,7 @@ export default function RegisterPage() {
           </div>
         </form>
 
-        <div style={{ textAlign: 'center', fontSize: 10, color: '#cbd5e1', marginTop: 16 }}>StockCare v3.9.66</div>
+        <div style={{ textAlign: 'center', fontSize: 10, color: '#cbd5e1', marginTop: 16 }}>StockCare v3.9.67</div>
       </div>
     </div>
   );

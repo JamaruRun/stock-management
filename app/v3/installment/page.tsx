@@ -8,6 +8,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, Calendar, User,
   TrendingUp, FileText, Eye, Trash2, DollarSign,
 } from 'lucide-react';
+import { InstallmentAddModal, InstallmentPayModal } from './InstallmentModals';
 
 interface InstallmentItem {
   id: string;
@@ -68,6 +69,8 @@ export default function V3InstallmentPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [payItem, setPayItem] = useState<any>(null);
 
   async function load() {
     try {
@@ -147,9 +150,9 @@ export default function V3InstallmentPage() {
           <h1 className="v3-page-title">ผ่อนชำระ</h1>
           <p className="v3-page-subtitle">ทั้งหมด {counts.all} รายการ · มูลค่ารวม ฿{counts.totalValue.toLocaleString()}</p>
         </div>
-        <Link href="/dashboard/installment/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={() => setShowAdd(true)} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={16} strokeWidth={2.5} /> เพิ่มเครื่องผ่อนใหม่
-        </Link>
+        </button>
       </div>
 
       <div className="v3-mobile-only" style={{
@@ -166,16 +169,17 @@ export default function V3InstallmentPage() {
             ทั้งหมด {counts.all} รายการ
           </p>
         </div>
-        <Link href="/dashboard/installment/add" style={{
+        <button onClick={() => setShowAdd(true)} style={{
           width: 40, height: 40,
           borderRadius: 10,
           background: 'var(--accent)',
           color: '#fff',
+          border: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          textDecoration: 'none',
+          cursor: 'pointer',
         }}>
           <Plus size={20} strokeWidth={2.5} />
-        </Link>
+        </button>
       </div>
 
       {/* 4 KPI cards */}
@@ -198,8 +202,7 @@ export default function V3InstallmentPage() {
         gap: 8,
         marginBottom: 14,
       }}>
-        <ActionBtn Icon={Plus} label="เพิ่มเครื่องผ่อน" href="/dashboard/installment/add" primary />
-        <ActionBtn Icon={DollarSign} label="รับชำระงวด" href="/dashboard/installment/stock" />
+        <ActionBtn Icon={Plus} label="เพิ่มเครื่องผ่อน" onClick={() => setShowAdd(true)} primary />
         <ActionBtn Icon={FileText} label="ประวัติผ่อน" href="/dashboard/installment/history" />
       </div>
 
@@ -262,9 +265,17 @@ export default function V3InstallmentPage() {
               onToggleMenu={() => setMenuOpenId(menuOpenId === item.id ? null : item.id)}
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(item)}
+              onPay={() => { setMenuOpenId(null); setPayItem(item); }}
             />
           ))}
         </div>
+      )}
+
+      {showAdd && (
+        <InstallmentAddModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); load(); }} />
+      )}
+      {payItem && (
+        <InstallmentPayModal item={payItem} onClose={() => setPayItem(null)} onSuccess={() => { setPayItem(null); load(); }} />
       )}
 
       <style jsx>{`
@@ -307,28 +318,17 @@ function StatCard({ label, value, sub, color, Icon }: any) {
   );
 }
 
-function ActionBtn({ Icon, label, href, primary }: any) {
-  return (
-    <Link href={href} style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      padding: '12px',
-      background: primary ? 'var(--accent)' : 'var(--surface)',
-      color: primary ? '#fff' : 'var(--text)',
-      border: primary ? 'none' : '1px solid var(--border)',
-      borderRadius: 12,
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer',
-      textDecoration: 'none',
-      fontFamily: 'inherit',
-    }}>
-      <Icon size={14} strokeWidth={2.2} />
-      {label}
-    </Link>
-  );
+function ActionBtn({ Icon, label, href, onClick, primary }: any) {
+  const style: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px',
+    background: primary ? 'var(--accent)' : 'var(--surface)', color: primary ? '#fff' : 'var(--text)',
+    border: primary ? 'none' : '1px solid var(--border)', borderRadius: 12, fontSize: 12, fontWeight: 600,
+    cursor: 'pointer', textDecoration: 'none', fontFamily: 'inherit', width: '100%',
+  };
+  if (onClick) {
+    return <button onClick={onClick} style={style}><Icon size={14} strokeWidth={2.2} />{label}</button>;
+  }
+  return <Link href={href} style={style}><Icon size={14} strokeWidth={2.2} />{label}</Link>;
 }
 
 function Tab({ active, onClick, label, count, color }: any) {
@@ -367,7 +367,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete }: any) {
+function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onPay }: any) {
   const status = getStatusOf(item);
   const info = STATUS_COLORS[status];
   const StatusIcon = info.Icon;
@@ -464,9 +464,9 @@ function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete }: an
                       <Link href={`/dashboard/installment/detail?id=${item.id}`} style={menuLinkStyle}>
                         <Eye size={14} /> ดูรายละเอียด
                       </Link>
-                      <Link href={`/dashboard/installment/detail?id=${item.id}`} style={menuLinkStyle}>
+                      <button onClick={onPay} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                         <DollarSign size={14} /> รับชำระงวด
-                      </Link>
+                      </button>
                       {item.customer_phone && (
                         <a href={`tel:${item.customer_phone}`} style={menuLinkStyle}>
                           <Phone size={14} /> โทรหาลูกค้า
