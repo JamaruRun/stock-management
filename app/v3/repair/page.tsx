@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import { REPAIR_STATUSES, getStatusInfo, type RepairStatus } from '@/lib/repair-constants';
+import RepairNewModal from './RepairNewModal';
 import {
   Plus, Search, Hammer, Smartphone, X, MoreVertical,
   Clock, Wrench, Package, CheckCircle2, Truck, Ban,
@@ -47,6 +48,7 @@ export default function V3RepairPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
 
   async function load() {
     try {
@@ -135,9 +137,9 @@ export default function V3RepairPage() {
           <h1 className="v3-page-title">ใบงานซ่อม</h1>
           <p className="v3-page-subtitle">งานซ่อมทั้งหมด {jobs.length} ใบ · งานค้าง {activeJobs} ใบ</p>
         </div>
-        <Link href="/dashboard/repair/new" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={() => setShowNew(true)} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={16} strokeWidth={2.5} /> รับงานซ่อมใหม่
-        </Link>
+        </button>
       </div>
 
       {/* Mobile mini-header */}
@@ -155,16 +157,17 @@ export default function V3RepairPage() {
             {jobs.length} ใบ · ค้าง {activeJobs} ใบ
           </p>
         </div>
-        <Link href="/dashboard/repair/new" style={{
+        <button onClick={() => setShowNew(true)} style={{
           width: 40, height: 40,
           borderRadius: 10,
           background: 'var(--accent)',
           color: '#fff',
+          border: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          textDecoration: 'none',
+          cursor: 'pointer',
         }}>
           <Plus size={20} strokeWidth={2.5} />
-        </Link>
+        </button>
       </div>
 
       {/* Purple Hero Summary - เป๊ะ ref */}
@@ -299,7 +302,7 @@ export default function V3RepairPage() {
           กำลังโหลด...
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState search={search} activeStatus={activeStatus} />
+        <EmptyState search={search} activeStatus={activeStatus} onNew={() => setShowNew(true)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(job => (
@@ -314,6 +317,10 @@ export default function V3RepairPage() {
             />
           ))}
         </div>
+      )}
+
+      {showNew && (
+        <RepairNewModal onClose={() => setShowNew(false)} onSuccess={() => { setShowNew(false); load(); }} />
       )}
     </>
   );
@@ -553,7 +560,7 @@ function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete }: an
   );
 }
 
-function EmptyState({ search, activeStatus }: any) {
+function EmptyState({ search, activeStatus, onNew }: any) {
   const isFiltered = search || activeStatus !== 'all';
   return (
     <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
@@ -565,9 +572,9 @@ function EmptyState({ search, activeStatus }: any) {
         {isFiltered ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการรับงานซ่อมใหม่'}
       </div>
       {!isFiltered && (
-        <Link href="/dashboard/repair/new" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={onNew} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={14} /> รับงานซ่อมใหม่
-        </Link>
+        </button>
       )}
     </div>
   );
