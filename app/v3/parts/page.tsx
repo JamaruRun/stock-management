@@ -9,6 +9,8 @@ import {
   TrendingUp, Edit2, Box,
 } from 'lucide-react';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getGradeInfo } from '@/lib/parts-constants';
+import PartAddModal from './PartAddModal';
+import PartSellModal from './PartSellModal';
 
 interface PartItem {
   id: string;
@@ -35,6 +37,8 @@ export default function V3PartsPage() {
   const [activeGrade, setActiveGrade] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showSell, setShowSell] = useState(false);
 
   async function load() {
     try {
@@ -116,12 +120,12 @@ export default function V3PartsPage() {
           <p className="v3-page-subtitle">{stats.totalSkus} รายการ · {stats.totalQty} ชิ้น · มูลค่า ฿{stats.totalValue.toLocaleString()}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/dashboard/parts/sell" className="v3-btn v3-btn-secondary" style={{ textDecoration: 'none' }}>
+          <button onClick={() => setShowSell(true)} className="v3-btn v3-btn-secondary" style={{ border: 'none', cursor: 'pointer' }}>
             <ShoppingCart size={16} /> ขาย
-          </Link>
-          <Link href="/dashboard/parts/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+          </button>
+          <button onClick={() => setShowAdd(true)} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
             <Plus size={16} strokeWidth={2.5} /> เพิ่มอะไหล่
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -140,27 +144,28 @@ export default function V3PartsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <Link href="/dashboard/parts/sell" style={{
+          <button onClick={() => setShowSell(true)} style={{
             width: 40, height: 40,
             borderRadius: 10,
             background: 'var(--surface)',
             border: '1px solid var(--border)',
             color: 'var(--text)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textDecoration: 'none',
+            cursor: 'pointer',
           }}>
             <ShoppingCart size={18} />
-          </Link>
-          <Link href="/dashboard/parts/add" style={{
+          </button>
+          <button onClick={() => setShowAdd(true)} style={{
             width: 40, height: 40,
             borderRadius: 10,
             background: 'var(--accent)',
             color: '#fff',
+            border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            textDecoration: 'none',
+            cursor: 'pointer',
           }}>
             <Plus size={20} strokeWidth={2.5} />
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -268,7 +273,7 @@ export default function V3PartsPage() {
           กำลังโหลด...
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState hasFilters={!!(search || activeCategory !== 'all' || activeGrade !== 'all')} />
+        <EmptyState hasFilters={!!(search || activeCategory !== 'all' || activeGrade !== 'all')} onAdd={() => setShowAdd(true)} />
       ) : (
         <div className="v3-parts-grid">
           {filtered.map(item => (
@@ -280,9 +285,17 @@ export default function V3PartsPage() {
               onToggleMenu={() => setMenuOpenId(menuOpenId === item.id ? null : item.id)}
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(item)}
+              onSell={() => { setMenuOpenId(null); setShowSell(true); }}
             />
           ))}
         </div>
+      )}
+
+      {showAdd && (
+        <PartAddModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); load(); }} />
+      )}
+      {showSell && (
+        <PartSellModal onClose={() => setShowSell(false)} onSuccess={() => { setShowSell(false); load(); }} />
       )}
 
       <style jsx>{`
@@ -369,7 +382,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete }: any) {
+function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell }: any) {
   const qty = Number(item.stock_qty || 0);
   const lowAlert = Number(item.low_stock_alert || 2);
   const isOut = qty === 0;
@@ -434,9 +447,9 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete }: 
               padding: 4,
               zIndex: 20,
             }}>
-              <Link href={`/dashboard/parts/sell`} style={menuLinkStyle}>
+              <button onClick={onSell} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                 <ShoppingCart size={13} /> ขาย
-              </Link>
+              </button>
               <Link href={`/dashboard/parts/edit?id=${item.id}`} style={menuLinkStyle}>
                 <Edit2 size={13} /> แก้ไข
               </Link>
@@ -561,7 +574,7 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete }: 
   );
 }
 
-function EmptyState({ hasFilters }: any) {
+function EmptyState({ hasFilters, onAdd }: any) {
   return (
     <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
       <Wrench size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
@@ -572,9 +585,9 @@ function EmptyState({ hasFilters }: any) {
         {hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการเพิ่มอะไหล่ใหม่'}
       </div>
       {!hasFilters && (
-        <Link href="/dashboard/parts/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={onAdd} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={14} /> เพิ่มอะไหล่
-        </Link>
+        </button>
       )}
     </div>
   );
