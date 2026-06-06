@@ -341,30 +341,28 @@ function V3StockContent() {
           }
         }
 
-        /* Filter bar - แถวเดียว desktop, wrap mobile */
+        /* Filter bar - ค้นหาเต็มแถว, dropdown ขึ้นบรรทัดใหม่ได้เสมอ (กันล้นกรอบ) */
         :global(.v3-filter-row) {
           display: flex;
           gap: 8px;
           align-items: center;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
         }
         :global(.v3-filter-search) {
           position: relative;
-          flex: 1;
-          min-width: 200px;
+          flex: 1 1 100%;
+          min-width: 0;
         }
         :global(.v3-filter-row select) {
-          flex-shrink: 0;
+          flex: 1 1 120px;
+          min-width: 0;
+          max-width: 100%;
         }
 
-        /* Tablet - allow wrap */
         @media (max-width: 1280px) {
-          :global(.v3-filter-row) {
-            flex-wrap: wrap;
-          }
           :global(.v3-filter-search) {
             flex: 1 1 100%;
-            min-width: 100%;
+            min-width: 0;
           }
         }
 
@@ -761,7 +759,11 @@ const selectStyle: React.CSSProperties = {
   color: 'var(--text)',
   fontFamily: 'inherit',
   outline: 'none',
-  minWidth: 110,
+  width: '100%',
+  minWidth: 0,
+  maxWidth: '100%',
+  textOverflow: 'ellipsis',
+  boxSizing: 'border-box',
 };
 
 const clearBtnStyle: React.CSSProperties = {
