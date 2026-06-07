@@ -167,7 +167,7 @@ export default function V3PawnPage() {
         marginBottom: 14,
       }}>
         <ActionBtn Icon={Plus} label="รับจำนำใหม่" onClick={() => setShowAdd(true)} primary />
-        <ActionBtn Icon={FileText} label="ประวัติจำนำ" href="/dashboard/pawn/history" />
+        <ActionBtn Icon={FileText} label="ประวัติจำนำ" href="/v3/pawn/history" />
       </div>
 
       <div className="v3-card" style={{ marginBottom: 12, padding: 10 }}>

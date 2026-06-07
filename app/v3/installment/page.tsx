@@ -203,7 +203,7 @@ export default function V3InstallmentPage() {
         marginBottom: 14,
       }}>
         <ActionBtn Icon={Plus} label="เพิ่มเครื่องผ่อน" onClick={() => setShowAdd(true)} primary />
-        <ActionBtn Icon={FileText} label="ประวัติผ่อน" href="/dashboard/installment/history" />
+        <ActionBtn Icon={FileText} label="ประวัติผ่อน" href="/v3/installment/history" />
       </div>
 
       {/* Search + Tabs */}

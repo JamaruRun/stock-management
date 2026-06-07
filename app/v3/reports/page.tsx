@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   TrendingUp, DollarSign, ShoppingCart, Smartphone,
   Award, BarChart3, PieChart, ShoppingBag, Wrench,
-  Loader2,
+  Loader2, Lock,
 } from 'lucide-react';
 
 type RangeId = 'today' | '7days' | '30days' | '90days' | 'all';
@@ -191,6 +191,16 @@ export default function V3ReportsPage() {
       { label: 'ขายอะไหล่', value: sums.parts, pct: total ? sums.parts / total * 100 : 0, color: '#ef4444', Icon: Wrench },
     ];
   }, [filtered]);
+
+  if (!loading && profile && !isAdmin) {
+    return (
+      <div className="v3-card" style={{ padding: 40, textAlign: 'center' }}>
+        <Lock size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>เฉพาะแอดมิน</h2>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>หน้ารายงานจำกัดให้แอดมินเท่านั้น</p>
+      </div>
+    );
+  }
 
   return (
     <>
