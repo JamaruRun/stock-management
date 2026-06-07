@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+// import Image from 'next/image'; // เปิดใช้เมื่อมีไฟล์ asset จริง
 import {
   User, Phone, Mail, Lock, Eye, EyeOff, Building2, Users as UsersIcon,
-  Smartphone, FileSpreadsheet, AlertCircle, Loader2, UserPlus, Shield,
-  CheckCircle2, Sparkles, ArrowLeft,
+  Smartphone, FileSpreadsheet, AlertCircle, Loader2, CheckCircle2, Sparkles, Shield, Check,
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -58,200 +58,261 @@ export default function RegisterPage() {
     }
   }
 
+  /* ===================== SUCCESS ===================== */
   if (submitted) {
     return (
-      <div style={page}>
-        <div style={{ ...card, textAlign: 'center' }}>
-          <div style={{ width: 84, height: 84, margin: '0 auto 16px', background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: '#fff', borderRadius: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 12px 32px rgba(34,197,94,0.3)' }}>
-            <CheckCircle2 size={52} strokeWidth={2.2} />
-          </div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, fontFamily: 'Prompt, sans-serif', margin: '0 0 8px' }}>สมัครสมาชิกสำเร็จ! 🎉</h2>
-          <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, margin: '0 0 16px' }}>
-            ทีมงานจะติดต่อกลับเพื่อยืนยันบัญชีภายใน <strong>24 ชั่วโมง</strong> ผ่านเบอร์ {form.phone}
-          </p>
-          <div style={{ padding: '10px 14px', background: '#fef3c7', borderRadius: 100, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#78350f' }}>
-            <Sparkles size={14} style={{ color: '#f59e0b' }} /> ทดลองใช้ฟรี 30 วัน
-          </div>
-          <Link href="/login" style={{ ...primaryBtn, textDecoration: 'none', marginTop: 20 }}>
-            <Shield size={16} /> กลับไปหน้าเข้าสู่ระบบ
-          </Link>
+      <div className="auth-wrap">
+        <div className="auth-card success-card">
+          <div className="suc-ico"><CheckCircle2 size={52} strokeWidth={2.2} /></div>
+          <h2 className="suc-title">สมัครสมาชิกสำเร็จ! 🎉</h2>
+          <p className="suc-desc">ทีมงานจะติดต่อกลับเพื่อยืนยันบัญชีภายใน <strong>24 ชั่วโมง</strong> ผ่านเบอร์ {form.phone}</p>
+          <div className="suc-badge"><Sparkles size={14} /> ทดลองใช้ฟรี 30 วัน</div>
+          <Link href="/login" className="btn-primary suc-btn"><Shield size={16} /> กลับไปหน้าเข้าสู่ระบบ</Link>
         </div>
+        <style dangerouslySetInnerHTML={{ __html: wrapCss + successCss }} />
       </div>
     );
   }
 
+  const benefits = [
+    'จัดการสต๊อก / IMEI ไม่จำกัด',
+    'ระบบซ่อม • จำนำ • ผ่อน ครบ',
+    'แจ้งเตือนผ่าน LINE อัตโนมัติ',
+    'รายงานกำไร–ขาดทุน เรียลไทม์',
+  ];
+
   return (
-    <div style={page}>
-      <div style={{ ...card, maxWidth: 460 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-          <Link href="/login" style={{ width: 38, height: 38, borderRadius: 10, background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
-            <ArrowLeft size={20} />
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 46, height: 46, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-              <img src="/assets/auth/logo.webp" alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    <div className="auth-wrap">
+      <div className="auth-card">
+        {/* ===================== MARKETING (ซ้าย) ===================== */}
+        <aside className="mkt">
+          <div className="mkt-pattern" aria-hidden />
+          <div className="mkt-glow mkt-glow-1" aria-hidden />
+          <div className="mkt-glow mkt-glow-2" aria-hidden />
+          <div className="mkt-inner">
+            <div className="mkt-brand">
+              {/* <Image src="/assets/logo.png" alt="StockCare" width={40} height={40} /> */}
+              <div className="mkt-logo">S</div>
+              <div>
+                <div className="mkt-logo-name">StockCare</div>
+                <div className="mkt-logo-sub">POS & MANAGEMENT</div>
+              </div>
             </div>
-            <div>
-              <h2 style={{ fontSize: 20, fontWeight: 800, fontFamily: 'Prompt, sans-serif', margin: 0 }}>สมัครสมาชิก</h2>
-              <p style={{ fontSize: 11, color: '#64748b', margin: '2px 0 0' }}>เริ่มใช้งานฟรี 30 วัน</p>
+
+            <h2 className="mkt-title">เริ่มต้นใช้งาน<br /><b>ฟรี 30 วัน</b></h2>
+            <p className="mkt-desc">สมัครวันนี้ ใช้ครบทุกฟีเจอร์<br />ไม่ต้องผูกบัตรเครดิต</p>
+
+            {/* mockup */}
+            <div className="mockup">
+              {/* <Image src="/assets/login-dashboard-mockup.webp" alt="" fill style={{objectFit:'contain'}} /> */}
+              <div className="laptop">
+                <div className="laptop-screen">
+                  <div className="ls-row"><span /><span /><span /></div>
+                  <div className="ls-bars"><i style={{ height: '60%' }} /><i style={{ height: '85%' }} /><i style={{ height: '45%' }} /><i style={{ height: '95%' }} /><i style={{ height: '70%' }} /></div>
+                </div>
+                <div className="laptop-base" />
+              </div>
+              <div className="phone">
+                <div className="phone-notch" />
+                <div className="phone-card" /><div className="phone-card short" /><div className="phone-card" />
+              </div>
+              <div className="float float-spark"><Sparkles size={20} /></div>
+            </div>
+
+            {/* benefits checklist */}
+            <div className="benefits">
+              {benefits.map((b) => (
+                <div className="benefit" key={b}><span className="bcheck"><Check size={13} strokeWidth={3} /></span>{b}</div>
+              ))}
             </div>
           </div>
-        </div>
+        </aside>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <Field label="ชื่อร้าน / ชื่อธุรกิจ" req>
-            <Inp Icon={Building2} value={form.shop_name} onChange={(v: string) => update('shop_name', v)} placeholder="เช่น ร้านเอกโมบาย" />
-          </Field>
-          <Field label="ชื่อผู้ติดต่อ" req>
-            <Inp Icon={User} value={form.contact_name} onChange={(v: string) => update('contact_name', v)} placeholder="ชื่อ-นามสกุล" />
-          </Field>
-          <Field label="เบอร์โทรศัพท์" req>
-            <Inp Icon={Phone} type="tel" value={form.phone} onChange={(v: string) => update('phone', v.replace(/[^\d-]/g, ''))} placeholder="09xxxxxxxx" />
-          </Field>
-          <Field label="อีเมล" req>
-            <Inp Icon={Mail} type="email" value={form.email} onChange={(v: string) => update('email', v)} placeholder="example@mail.com" />
-          </Field>
-          <Field label="รหัสผ่าน" req>
-            <Pwd value={form.password} onChange={(v: string) => update('password', v)} placeholder="อย่างน้อย 6 ตัวอักษร" show={showPassword} onToggle={() => setShowPassword(!showPassword)} />
-          </Field>
-          <Field label="ยืนยันรหัสผ่าน" req>
-            <Pwd value={form.confirm_password} onChange={(v: string) => update('confirm_password', v)} placeholder="ยืนยันอีกครั้ง" show={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} />
-          </Field>
-          <Field label="ประเภทธุรกิจ" req>
-            <Sel Icon={Building2} value={form.business_type} onChange={(v: string) => update('business_type', v)}>
-              <option value="mobile_shop">ร้านขายมือถือ</option>
-              <option value="repair_shop">ร้านซ่อมมือถือ</option>
-              <option value="both">ขาย + ซ่อม</option>
-              <option value="other">อื่นๆ</option>
-            </Sel>
-          </Field>
-          <Field label="ขนาดร้าน">
-            <Sel Icon={UsersIcon} value={form.shop_size} onChange={(v: string) => update('shop_size', v)}>
-              <option value="solo">เดี่ยว (1 คน)</option>
-              <option value="small">เล็ก (2-4 คน)</option>
-              <option value="medium">กลาง (5-10 คน)</option>
-              <option value="large">ใหญ่ (10+ คน)</option>
-            </Sel>
-          </Field>
-          <Field label="จำนวนสาขา">
-            <Sel Icon={Smartphone} value={form.branch_count} onChange={(v: string) => update('branch_count', v)}>
-              <option value="1">1 สาขา</option>
-              <option value="2">2 สาขา</option>
-              <option value="3">3 สาขา</option>
-              <option value="5">5 สาขา</option>
-              <option value="10">10 สาขาขึ้นไป</option>
-            </Sel>
-          </Field>
-          <Field label="ระบบที่ใช้อยู่ปัจจุบัน">
-            <Sel Icon={FileSpreadsheet} value={form.current_system} onChange={(v: string) => update('current_system', v)}>
-              <option value="excel">Excel / Google Sheet</option>
-              <option value="paper">สมุดจด / กระดาษ</option>
-              <option value="line">LINE Note</option>
-              <option value="other_app">แอปอื่น</option>
-              <option value="none">ยังไม่มี</option>
-            </Sel>
-          </Field>
+        {/* ===================== FORM (ขวา) ===================== */}
+        <main className="formside">
+          <div className="form-inner">
+            <div className="form-logo"><div className="form-logo-badge">S</div></div>
+            <h1 className="form-title">สมัครสมาชิก</h1>
+            <p className="form-sub">เริ่มใช้งาน StockCare ฟรี 30 วัน</p>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#475569', cursor: 'pointer' }}>
-            <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#3b82f6', marginTop: 2, flexShrink: 0 }} />
-            <span>ฉันยอมรับ <span style={{ color: '#3b82f6', fontWeight: 600 }}>ข้อกำหนดการให้บริการ</span> และ <span style={{ color: '#3b82f6', fontWeight: 600 }}>นโยบายความเป็นส่วนตัว</span></span>
-          </label>
+            {error && <div className="alert" role="alert"><AlertCircle size={16} /> <span>{error}</span></div>}
 
-          {error && <div style={errBox}><AlertCircle size={15} /> {error}</div>}
+            <form onSubmit={handleSubmit} className="form">
+              <div className="field">
+                <label>ชื่อร้าน / ชื่อธุรกิจ <i>*</i></label>
+                <div className="input-wrap"><Building2 size={18} className="input-ico" />
+                  <input value={form.shop_name} onChange={(e) => update('shop_name', e.target.value)} placeholder="เช่น ร้านเอกโมบาย" /></div>
+              </div>
 
-          <button type="submit" disabled={submitting} style={primaryBtn}>
-            {submitting ? <Loader2 size={17} className="v3-spin" /> : <UserPlus size={17} strokeWidth={2.4} />}
-            {submitting ? 'กำลังสมัคร...' : 'สมัครสมาชิก'}
-          </button>
+              <div className="field">
+                <label>ชื่อผู้ติดต่อ <i>*</i></label>
+                <div className="input-wrap"><User size={18} className="input-ico" />
+                  <input value={form.contact_name} onChange={(e) => update('contact_name', e.target.value)} placeholder="ชื่อ-นามสกุล" /></div>
+              </div>
 
-          <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b' }}>
-            มีบัญชีอยู่แล้ว?{' '}
-            <Link href="/login" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 700 }}>เข้าสู่ระบบ →</Link>
+              <div className="grid2">
+                <div className="field">
+                  <label>เบอร์โทรศัพท์ <i>*</i></label>
+                  <div className="input-wrap"><Phone size={18} className="input-ico" />
+                    <input type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value.replace(/[^\d-]/g, ''))} placeholder="09xxxxxxxx" /></div>
+                </div>
+                <div className="field">
+                  <label>อีเมล</label>
+                  <div className="input-wrap"><Mail size={18} className="input-ico" />
+                    <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="example@mail.com" /></div>
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="field">
+                  <label>รหัสผ่าน <i>*</i></label>
+                  <div className="input-wrap"><Lock size={18} className="input-ico" />
+                    <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} placeholder="อย่างน้อย 6 ตัว" />
+                    <button type="button" className="eye" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+                </div>
+                <div className="field">
+                  <label>ยืนยันรหัสผ่าน <i>*</i></label>
+                  <div className="input-wrap"><Lock size={18} className="input-ico" />
+                    <input type={showConfirm ? 'text' : 'password'} value={form.confirm_password} onChange={(e) => update('confirm_password', e.target.value)} placeholder="อีกครั้ง" />
+                    <button type="button" className="eye" onClick={() => setShowConfirm(!showConfirm)} tabIndex={-1}>{showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="field">
+                  <label>ประเภทธุรกิจ <i>*</i></label>
+                  <div className="input-wrap"><Building2 size={18} className="input-ico" />
+                    <select value={form.business_type} onChange={(e) => update('business_type', e.target.value)}>
+                      <option value="mobile_shop">ร้านขายมือถือ</option><option value="repair_shop">ร้านซ่อมมือถือ</option>
+                      <option value="both">ขาย + ซ่อม</option><option value="other">อื่นๆ</option>
+                    </select></div>
+                </div>
+                <div className="field">
+                  <label>ขนาดร้าน</label>
+                  <div className="input-wrap"><UsersIcon size={18} className="input-ico" />
+                    <select value={form.shop_size} onChange={(e) => update('shop_size', e.target.value)}>
+                      <option value="solo">เดี่ยว (1 คน)</option><option value="small">เล็ก (2-4)</option>
+                      <option value="medium">กลาง (5-10)</option><option value="large">ใหญ่ (10+)</option>
+                    </select></div>
+                </div>
+              </div>
+
+              <div className="grid2">
+                <div className="field">
+                  <label>จำนวนสาขา</label>
+                  <div className="input-wrap"><Smartphone size={18} className="input-ico" />
+                    <select value={form.branch_count} onChange={(e) => update('branch_count', e.target.value)}>
+                      <option value="1">1 สาขา</option><option value="2">2 สาขา</option><option value="3">3 สาขา</option>
+                      <option value="5">5 สาขา</option><option value="10">10+ สาขา</option>
+                    </select></div>
+                </div>
+                <div className="field">
+                  <label>ระบบที่ใช้ปัจจุบัน</label>
+                  <div className="input-wrap"><FileSpreadsheet size={18} className="input-ico" />
+                    <select value={form.current_system} onChange={(e) => update('current_system', e.target.value)}>
+                      <option value="excel">Excel / Sheet</option><option value="paper">สมุดจด</option>
+                      <option value="line">LINE Note</option><option value="other_app">แอปอื่น</option><option value="none">ยังไม่มี</option>
+                    </select></div>
+                </div>
+              </div>
+
+              <label className="terms">
+                <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} />
+                <span>ฉันยอมรับ <b>ข้อกำหนดการให้บริการ</b> และ <b>นโยบายความเป็นส่วนตัว</b></span>
+              </label>
+
+              <button type="submit" className="btn-primary" disabled={submitting}>
+                {submitting ? <><Loader2 size={18} className="spin" /> กำลังสมัคร...</> : 'สมัครสมาชิก ฟรี 30 วัน'}
+              </button>
+            </form>
+
+            <p className="signup">มีบัญชีอยู่แล้ว? <Link href="/login">เข้าสู่ระบบ →</Link></p>
+            <p className="ver">StockCare v3.9.83</p>
           </div>
-        </form>
-
-        <div style={{ textAlign: 'center', fontSize: 10, color: '#cbd5e1', marginTop: 16 }}>StockCare v3.9.82</div>
+        </main>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: wrapCss + formCss }} />
     </div>
   );
 }
 
-/* ===== Components ===== */
-function Field({ label, req, children }: any) {
-  return (
-    <div>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>
-        {label} {req && <span style={{ color: '#ef4444' }}>*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-function Inp({ Icon, value, onChange, placeholder, type = 'text' }: any) {
-  return (
-    <div style={{ position: 'relative' }}>
-      <Icon size={17} style={iconSt} />
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputSt}
-        onFocus={fOn} onBlur={fOff} />
-    </div>
-  );
-}
-function Pwd({ value, onChange, placeholder, show, onToggle }: any) {
-  return (
-    <div style={{ position: 'relative' }}>
-      <Lock size={17} style={iconSt} />
-      <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ ...inputSt, paddingRight: 44 }}
-        onFocus={fOn} onBlur={fOff} />
-      <button type="button" onClick={onToggle} tabIndex={-1} style={eyeSt}>
-        {show ? <EyeOff size={16} /> : <Eye size={16} />}
-      </button>
-    </div>
-  );
-}
-function Sel({ Icon, value, onChange, children }: any) {
-  return (
-    <div style={{ position: 'relative' }}>
-      <Icon size={16} style={iconSt} />
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={{
-        ...inputSt, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
-        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'><polyline points='6 9 12 15 18 9'/></svg>")`,
-        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center',
-      }}>
-        {children}
-      </select>
-    </div>
-  );
-}
-function fOn(e: React.FocusEvent<any>) { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.12)'; }
-function fOff(e: React.FocusEvent<any>) { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }
+/* ===================== STYLES ===================== */
+const wrapCss = `
+  .auth-wrap{min-height:100vh;min-height:100dvh;width:100%;max-width:100vw;display:flex;align-items:center;justify-content:center;
+    padding:20px;box-sizing:border-box;overflow-x:hidden;font-family:'Sarabun',system-ui,sans-serif;
+    background:radial-gradient(1100px 700px at 12% 0%,#eaf2ff 0%,transparent 55%),radial-gradient(900px 600px at 100% 100%,#e6f0ff 0%,transparent 50%),linear-gradient(160deg,#f7faff,#eef4ff 70%,#e7eefc);}
+  .auth-card{width:100%;max-width:1000px;display:grid;grid-template-columns:.92fr 1.08fr;background:#fff;border-radius:26px;overflow:hidden;box-sizing:border-box;
+    max-height:calc(100dvh - 40px);box-shadow:0 30px 80px -28px rgba(37,99,235,.35),0 4px 16px rgba(15,23,42,.06);}
+  .mkt{position:relative;overflow:hidden;padding:40px 36px;background:linear-gradient(160deg,#eaf2ff 0%,#dbeafe 45%,#eff6ff 100%);}
+  .mkt-pattern{position:absolute;inset:0;opacity:.5;background-image:radial-gradient(rgba(37,99,235,.18) 1.3px,transparent 1.3px);background-size:20px 20px;}
+  .mkt-glow{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45;}
+  .mkt-glow-1{width:240px;height:240px;background:#60a5fa;top:-50px;left:-40px;}
+  .mkt-glow-2{width:260px;height:260px;background:#a5b4fc;bottom:-70px;right:-50px;}
+  .mkt-inner{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;}
+  .mkt-brand{display:flex;align-items:center;gap:11px;margin-bottom:22px;}
+  .mkt-logo{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-family:'Prompt';font-weight:800;font-size:21px;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 8px 18px -4px rgba(37,99,235,.6),inset 0 1px 0 rgba(255,255,255,.5);}
+  .mkt-logo-name{font-family:'Prompt';font-weight:800;font-size:19px;color:#0f2a5e;}
+  .mkt-logo-sub{font-size:10px;letter-spacing:2px;color:#3b6fb5;font-weight:600;margin-top:-2px;}
+  .mkt-title{font-family:'Prompt';font-weight:700;font-size:26px;line-height:1.25;color:#0f2a5e;margin:0 0 8px;}
+  .mkt-title b{background:linear-gradient(120deg,#2563eb,#1d4ed8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .mkt-desc{font-size:13px;color:#3b6fb5;line-height:1.7;margin:0 0 18px;}
+  .mockup{position:relative;height:140px;margin:0 0 18px;}
+  .laptop{position:absolute;left:6%;top:8px;width:62%;animation:floaty 6s ease-in-out infinite;}
+  .laptop-screen{background:#0f2a5e;border-radius:10px 10px 4px 4px;padding:9px;border:2px solid #1e3a8a;}
+  .ls-row{display:flex;gap:4px;margin-bottom:7px;} .ls-row span{width:6px;height:6px;border-radius:50%;background:#3b82f6;opacity:.7;}
+  .ls-bars{display:flex;align-items:flex-end;gap:5px;height:50px;} .ls-bars i{flex:1;border-radius:3px;background:linear-gradient(180deg,#60a5fa,#2563eb);}
+  .laptop-base{height:7px;background:linear-gradient(180deg,#cbd5e1,#94a3b8);border-radius:0 0 8px 8px;margin:0 -6px;}
+  .phone{position:absolute;right:4%;bottom:0;width:78px;padding:7px 7px 12px;background:#fff;border-radius:15px;border:2px solid #dbeafe;box-shadow:0 14px 30px -10px rgba(37,99,235,.4);animation:floaty 6s ease-in-out infinite;animation-delay:-3s;}
+  .phone-notch{width:26px;height:4px;border-radius:3px;background:#cbd5e1;margin:0 auto 7px;}
+  .phone-card{height:12px;border-radius:5px;background:linear-gradient(90deg,#dbeafe,#eff6ff);margin-bottom:5px;} .phone-card.short{width:60%;background:linear-gradient(90deg,#bfdbfe,#dbeafe);}
+  .float{position:absolute;border-radius:13px;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 10px 22px -6px rgba(37,99,235,.45);}
+  .float-spark{width:40px;height:40px;top:-4px;right:16%;color:#f59e0b;animation:floaty 5s ease-in-out infinite;}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .benefits{display:flex;flex-direction:column;gap:10px;margin-top:auto;}
+  .benefit{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;color:#0f2a5e;}
+  .bcheck{width:22px;height:22px;border-radius:7px;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px -2px rgba(37,99,235,.5);}
+  .spin{animation:spin 1s linear infinite;} @keyframes spin{to{transform:rotate(360deg)}}
+`;
 
-/* ===== Styles ===== */
-const page: React.CSSProperties = {
-  minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-  background: 'linear-gradient(160deg, #eff6ff 0%, #f8fafc 100%)', boxSizing: 'border-box',
-};
-const card: React.CSSProperties = {
-  width: '100%', maxWidth: 400, background: '#fff', borderRadius: 22, padding: '24px 22px',
-  boxShadow: '0 16px 48px rgba(15,23,42,0.10)', boxSizing: 'border-box', margin: '20px 0',
-};
-const iconSt: React.CSSProperties = { position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' };
-const inputSt: React.CSSProperties = {
-  width: '100%', height: 46, padding: '0 12px 0 42px', background: '#fff', border: '1.5px solid #e2e8f0',
-  borderRadius: 12, color: '#1e293b', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-};
-const eyeSt: React.CSSProperties = {
-  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', width: 30, height: 30,
-  background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex',
-  alignItems: 'center', justifyContent: 'center', borderRadius: 6, padding: 0,
-};
-const errBox: React.CSSProperties = {
-  padding: '10px 12px', background: '#fee2e2', color: '#991b1b', borderRadius: 10,
-  fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6,
-};
-const primaryBtn: React.CSSProperties = {
-  width: '100%', padding: 13, background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff',
-  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 16px rgba(59,130,246,0.3)', boxSizing: 'border-box',
-};
+const formCss = `
+  .formside{display:flex;align-items:center;justify-content:center;padding:34px 38px;box-sizing:border-box;overflow-y:auto;}
+  .form-inner{width:100%;max-width:420px;}
+  .form-logo{display:none;} .form-logo-badge{width:52px;height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-family:'Prompt';font-weight:800;font-size:24px;color:#fff;margin-bottom:16px;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 10px 22px -6px rgba(37,99,235,.6);}
+  .form-title{font-family:'Prompt';font-weight:700;font-size:25px;color:#0f172a;margin:0 0 5px;}
+  .form-sub{font-size:13px;color:#64748b;margin:0 0 18px;}
+  .alert{display:flex;align-items:center;gap:8px;padding:11px 13px;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:13px;font-weight:500;margin-bottom:14px;}
+  .form{display:flex;flex-direction:column;gap:13px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:#334155;margin-bottom:6px;} .field label i{color:#dc2626;font-style:normal;}
+  .input-wrap{position:relative;}
+  .input-ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;}
+  .input-wrap input,.input-wrap select{width:100%;height:48px;padding:0 14px 0 42px;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14.5px;font-family:'Sarabun';color:#0f172a;background:#f8fafc;outline:none;transition:.2s;}
+  .input-wrap select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;}
+  .input-wrap input::placeholder{color:#94a3b8;}
+  .input-wrap input:focus,.input-wrap select:focus{border-color:#2563eb;background:#fff;box-shadow:0 0 0 4px rgba(37,99,235,.13);}
+  .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:none;background:transparent;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:9px;transition:.2s;}
+  .eye:hover{color:#2563eb;background:#eff6ff;}
+  .terms{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:#475569;cursor:pointer;line-height:1.5;margin-top:2px;}
+  .terms input{width:17px;height:17px;accent-color:#2563eb;margin-top:1px;flex-shrink:0;cursor:pointer;}
+  .terms b{color:#2563eb;font-weight:600;}
+  .btn-primary{height:54px;border:none;border-radius:13px;cursor:pointer;margin-top:4px;font-family:'Prompt';font-weight:700;font-size:16px;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 12px 26px -8px rgba(37,99,235,.6);transition:transform .2s,box-shadow .2s,opacity .2s;display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 34px -10px rgba(37,99,235,.7);}
+  .btn-primary:disabled{opacity:.7;cursor:not-allowed;}
+  .signup{text-align:center;font-size:13.5px;color:#64748b;margin:18px 0 0;}
+  .signup :global(a){color:#2563eb;font-weight:700;text-decoration:none;}
+  .ver{text-align:center;font-size:10px;color:#cbd5e1;letter-spacing:1px;margin:12px 0 0;}
+  @media (max-width:900px){.auth-card{grid-template-columns:1fr;max-width:480px;max-height:none;}.mkt{display:none;}.form-logo{display:flex;}}
+  @media (max-width:480px){.auth-wrap{padding:0;align-items:stretch;background:#fff;}.auth-card{border-radius:0;box-shadow:none;min-height:100dvh;}.formside{padding:40px 20px 30px;align-items:flex-start;}.form-inner{max-width:100%;}.grid2{grid-template-columns:1fr;}}
+`;
+
+const successCss = `
+  .success-card{display:flex;flex-direction:column;align-items:center;text-align:center;max-width:420px;padding:48px 36px;}
+  .suc-ico{width:84px;height:84px;margin:0 auto 18px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border-radius:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 34px -8px rgba(34,197,94,.5);}
+  .suc-title{font-family:'Prompt';font-weight:800;font-size:23px;color:#0f172a;margin:0 0 8px;}
+  .suc-desc{font-size:13.5px;color:#64748b;line-height:1.7;margin:0 0 16px;}
+  .suc-badge{padding:9px 16px;background:#fef3c7;border-radius:100px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#78350f;}
+  .suc-badge :global(svg){color:#f59e0b;}
+  .suc-btn{margin-top:22px;width:100%;max-width:300px;}
+  @media (max-width:480px){.auth-wrap{padding:18px;}.success-card{border-radius:24px;min-height:auto;}}
+`;
