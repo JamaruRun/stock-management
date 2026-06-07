@@ -30,6 +30,8 @@ export default function V3SAOnlinePage() {
       setLoading(false);
     }
     load();
+    const t = setInterval(load, 30000); // refresh ทุก 30 วินาที
+    return () => clearInterval(t);
   }, []);
 
   return (

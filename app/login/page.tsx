@@ -213,7 +213,7 @@ export default function LoginPage() {
             </form>
 
             <p className="signup">ยังไม่มีบัญชี? <Link href="/register">สมัคร Beta ฟรี 30 วัน →</Link></p>
-            <p className="ver">StockCare v3.9.85</p>
+            <p className="ver">StockCare v3.9.86</p>
           </div>
         </main>
       </div>
