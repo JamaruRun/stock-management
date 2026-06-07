@@ -105,7 +105,7 @@ export default function V3HistoryPage() {
           staff: r.sold_by_name,
           branch: r.branch?.name,
           iconColor: TYPE_INFO.stock_sale.color,
-          link: '/dashboard/history',
+          link: '/v3/history',
         });
       });
 
@@ -133,7 +133,7 @@ export default function V3HistoryPage() {
           staff: first.sold_by_name,
           branch: first.branch?.name,
           iconColor: TYPE_INFO.goods_sale.color,
-          link: '/dashboard/goods/history',
+          link: '/v3/goods',
         });
       });
 

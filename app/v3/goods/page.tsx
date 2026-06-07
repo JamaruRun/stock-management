@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
@@ -34,8 +35,9 @@ export default function V3GoodsPage() {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showSell, setShowSell] = useState(false);
+  const sp = useSearchParams();
+  const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
+  const [showSell, setShowSell] = useState(sp.get('sell') === '1');
 
   async function load() {
     try {
@@ -232,7 +234,7 @@ export default function V3GoodsPage() {
           กำลังโหลด...
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState hasFilters={!!(search || activeCategory !== 'all')} />
+        <EmptyState hasFilters={!!(search || activeCategory !== 'all')} onAdd={() => setShowAdd(true)} />
       ) : (
         <div className="v3-goods-grid">
           {filtered.map(item => (
@@ -516,7 +518,7 @@ function GoodsCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, o
   );
 }
 
-function EmptyState({ hasFilters }: any) {
+function EmptyState({ hasFilters, onAdd }: any) {
   return (
     <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
       <ShoppingBag size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
@@ -527,9 +529,9 @@ function EmptyState({ hasFilters }: any) {
         {hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการเพิ่มสินค้าใหม่'}
       </div>
       {!hasFilters && (
-        <Link href="/dashboard/goods/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={onAdd} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={14} /> เพิ่มสินค้า
-        </Link>
+        </button>
       )}
     </div>
   );

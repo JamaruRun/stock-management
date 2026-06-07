@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
@@ -37,8 +38,9 @@ export default function V3PartsPage() {
   const [activeGrade, setActiveGrade] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showSell, setShowSell] = useState(false);
+  const sp = useSearchParams();
+  const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
+  const [showSell, setShowSell] = useState(sp.get('sell') === '1');
 
   async function load() {
     try {

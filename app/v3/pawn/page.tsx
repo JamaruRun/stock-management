@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Coins, Smartphone, MoreVertical, Phone,
@@ -52,7 +53,7 @@ export default function V3PawnPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd, setShowAdd] = useState(useSearchParams().get('add') === '1');
   const [redeemItem, setRedeemItem] = useState<PawnItem | null>(null);
   const [renewItem, setRenewItem] = useState<PawnItem | null>(null);
 

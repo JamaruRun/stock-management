@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, CreditCard, Smartphone, MoreVertical, Phone,
@@ -69,7 +70,8 @@ export default function V3InstallmentPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
+  const sp = useSearchParams();
+  const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [payItem, setPayItem] = useState<any>(null);
 
   async function load() {
@@ -254,7 +256,7 @@ export default function V3InstallmentPage() {
           กำลังโหลด...
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState hasFilters={!!(search || activeStatus !== 'all')} />
+        <EmptyState hasFilters={!!(search || activeStatus !== 'all')} onAdd={() => setShowAdd(true)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(item => (
@@ -583,7 +585,7 @@ function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onPa
   );
 }
 
-function EmptyState({ hasFilters }: any) {
+function EmptyState({ hasFilters, onAdd }: any) {
   return (
     <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
       <CreditCard size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
@@ -594,9 +596,9 @@ function EmptyState({ hasFilters }: any) {
         {hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการเพิ่มเครื่องผ่อนใหม่'}
       </div>
       {!hasFilters && (
-        <Link href="/dashboard/installment/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={onAdd} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={14} /> เพิ่มเครื่องผ่อนใหม่
-        </Link>
+        </button>
       )}
     </div>
   );

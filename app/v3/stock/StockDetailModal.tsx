@@ -354,14 +354,14 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted, on
           {/* Actions */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Link
-              href={`/dashboard/sell?imei=${encodeURIComponent(item.imei)}`}
+              href={`/v3/sell?imei=${encodeURIComponent(item.imei)}`}
               style={primaryBtnStyle}
             >
               <ShoppingCart size={16} /> ขายเครื่องนี้
             </Link>
             <div style={{ display: 'flex', gap: 8 }}>
               <Link
-                href={`/dashboard/stock`}
+                href={`/v3/stock`}
                 style={secondaryBtnStyle}
               >
                 <Edit2 size={14} /> แก้ไข

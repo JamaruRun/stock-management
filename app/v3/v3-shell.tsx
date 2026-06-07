@@ -420,14 +420,14 @@ export default function V3Shell({
                     Icon={Coins}
                     label="รับจำนำ"
                     color="#f59e0b"
-                    href="/dashboard/pawn/add"
+                    href="/v3/pawn?add=1"
                     onClick={() => setShowScanModal(false)}
                   />
                   <ActionTile
                     Icon={CreditCard}
                     label="ผ่อนเครื่อง"
                     color="#8b5cf6"
-                    href="/dashboard/installment/add"
+                    href="/v3/installment?add=1"
                     onClick={() => setShowScanModal(false)}
                   />
                 </div>
@@ -449,14 +449,14 @@ export default function V3Shell({
                     Icon={ShoppingBag}
                     label="ขายของ"
                     color="#06b6d4"
-                    href="/dashboard/goods/sell"
+                    href="/v3/goods?sell=1"
                     onClick={() => setShowScanModal(false)}
                   />
                   <ActionTile
                     Icon={Package}
                     label="ขายอะไหล่"
                     color="#ef4444"
-                    href="/dashboard/parts/sell"
+                    href="/v3/parts?sell=1"
                     onClick={() => setShowScanModal(false)}
                   />
                 </div>

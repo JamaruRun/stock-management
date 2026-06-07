@@ -546,7 +546,7 @@ function StockCardV2({ item, isAdmin, onClick, menuOpen, onToggleMenu, onDelete,
             >
               <MenuItem Icon={Eye} label="ดูรายละเอียด" onClick={() => { onClose(); onClick(); }} />
               <Link
-                href={`/dashboard/sell?imei=${encodeURIComponent(item.imei)}`}
+                href={`/v3/sell?imei=${encodeURIComponent(item.imei)}`}
                 style={menuLinkStyle}
                 onClick={(e) => e.stopPropagation()}
               >
