@@ -394,11 +394,11 @@ export default function V3HomePage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
           gap: 8,
         }}>
-          <QuickAction Icon={Plus} label="เพิ่มเครื่อง" href="/v3/stock/add" color="#3b82f6" />
-          <QuickAction Icon={ShoppingCart} label="ขายสินค้า" href="/v3/goods/sell" color="#22c55e" />
-          <QuickAction Icon={Hammer} label="รับงานซ่อม" href="/v3/repair/new" color="#f59e0b" />
-          <QuickAction Icon={Coins} label="รับจำนำ" href="/v3/pawn/new" color="#ef4444" />
-          <QuickAction Icon={UserPlus} label="ลูกค้าใหม่" href="/v3/users" color="#8b5cf6" />
+          <QuickAction Icon={Plus} label="เพิ่มเครื่อง" href="/v3/stock?add=1" color="#3b82f6" />
+          <QuickAction Icon={ShoppingCart} label="ขายสินค้า" href="/v3/goods?sell=1" color="#22c55e" />
+          <QuickAction Icon={Hammer} label="รับงานซ่อม" href="/v3/repair?new=1" color="#f59e0b" />
+          <QuickAction Icon={Coins} label="รับจำนำ" href="/v3/pawn?add=1" color="#ef4444" />
+          <QuickAction Icon={UserPlus} label="ลูกค้าใหม่" href="/v3/customers" color="#8b5cf6" />
           <QuickAction Icon={Barcode} label="พิมพ์บาร์โค้ด" href="/v3/stock" color="#06b6d4" />
         </div>
       </div>

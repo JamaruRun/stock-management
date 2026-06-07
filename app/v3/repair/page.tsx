@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { REPAIR_STATUSES, getStatusInfo, type RepairStatus } from '@/lib/repair-constants';
 import RepairNewModal from './RepairNewModal';
@@ -49,7 +50,7 @@ export default function V3RepairPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(useSearchParams().get('new') === '1');
   const [manageId, setManageId] = useState<string | null>(null);
 
   async function load() {

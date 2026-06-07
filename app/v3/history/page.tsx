@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Search, BarChart3, Smartphone, ShoppingBag, Wrench, Coins,
   CreditCard, Hammer, Calendar, User, TrendingUp,
-  Filter, Eye, FileText,
+  Filter, Eye, FileText, Lock,
 } from 'lucide-react';
 
 type EventType = 'stock_sale' | 'goods_sale' | 'parts_sale' | 'repair' | 'pawn' | 'installment';
@@ -271,6 +271,17 @@ export default function V3HistoryPage() {
       .filter(e => e.type === 'stock_sale' || e.type === 'goods_sale' || e.type === 'parts_sale')
       .reduce((s, e) => s + e.amount, 0);
   }, [filtered]);
+
+  const isAdmin = profile?.role === 'admin' || profile?.is_super_admin;
+  if (!loading && profile && !isAdmin) {
+    return (
+      <div className="v3-card" style={{ padding: 40, textAlign: 'center' }}>
+        <Lock size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>เฉพาะแอดมิน</h2>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>หน้าประวัติรวมจำกัดให้แอดมินเท่านั้น</p>
+      </div>
+    );
+  }
 
   return (
     <>

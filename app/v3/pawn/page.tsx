@@ -216,7 +216,7 @@ export default function V3PawnPage() {
           กำลังโหลด...
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState hasFilters={!!(search || activeStatus !== 'all')} />
+        <EmptyState hasFilters={!!(search || activeStatus !== 'all')} onAdd={() => setShowAdd(true)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(item => (
@@ -563,7 +563,7 @@ function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, o
   );
 }
 
-function EmptyState({ hasFilters }: any) {
+function EmptyState({ hasFilters, onAdd }: any) {
   return (
     <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
       <Coins size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
@@ -574,9 +574,9 @@ function EmptyState({ hasFilters }: any) {
         {hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการรับจำนำใหม่'}
       </div>
       {!hasFilters && (
-        <Link href="/v3/pawn/add" className="v3-btn v3-btn-primary" style={{ textDecoration: 'none' }}>
+        <button onClick={onAdd} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={14} /> รับจำนำใหม่
-        </Link>
+        </button>
       )}
     </div>
   );
