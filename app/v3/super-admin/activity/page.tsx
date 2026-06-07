@@ -14,8 +14,8 @@ export default function V3SAActivityPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: shops } = await supabase.from('shops').select('id, name, owner_name, package, last_seen_at').order('name');
-      if (!shops) { setLoading(false); return; }
+      const { data: shops, error: shopErr } = await supabase.from('shops').select('*').order('name');
+      if (shopErr || !shops) { setLoading(false); return; }
 
       async function cnt(table: string, shopId: string) {
         const { count } = await supabase.from(table).select('id', { count: 'exact', head: true }).eq('shop_id', shopId);
