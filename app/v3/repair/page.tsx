@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import { REPAIR_STATUSES, getStatusInfo, type RepairStatus } from '@/lib/repair-constants';
 import RepairNewModal from './RepairNewModal';
+import RepairManageModal from './RepairManageModal';
 import {
   Plus, Search, Hammer, Smartphone, X, MoreVertical,
   Clock, Wrench, Package, CheckCircle2, Truck, Ban,
@@ -49,6 +50,7 @@ export default function V3RepairPage() {
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [manageId, setManageId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -314,6 +316,7 @@ export default function V3RepairPage() {
               onToggleMenu={() => setMenuOpenId(menuOpenId === job.id ? null : job.id)}
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(job)}
+              onManage={() => { setMenuOpenId(null); setManageId(job.id); }}
             />
           ))}
         </div>
@@ -321,6 +324,9 @@ export default function V3RepairPage() {
 
       {showNew && (
         <RepairNewModal onClose={() => setShowNew(false)} onSuccess={() => { setShowNew(false); load(); }} />
+      )}
+      {manageId && (
+        <RepairManageModal jobId={manageId} onClose={() => setManageId(null)} onChanged={() => { setManageId(null); load(); }} />
       )}
     </>
   );
@@ -366,7 +372,7 @@ function StatusTab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete }: any) {
+function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onManage }: any) {
   const info = getStatusInfo(job.status);
   const StatusIcon = STATUS_ICONS[job.status] || Hammer;
   const balance = Number(job.total_price || 0) - Number(job.paid_amount || 0);
@@ -461,9 +467,9 @@ function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete }: an
                       padding: 4,
                       zIndex: 20,
                     }}>
-                      <Link href={`/dashboard/repair/edit?id=${job.id}`} style={menuLinkStyle}>
-                        <Eye size={14} /> ดู / แก้ไข
-                      </Link>
+                      <button onClick={onManage} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                        <Eye size={14} /> ดู / จัดการงาน
+                      </button>
                       {job.customer_phone && (
                         <a href={`tel:${job.customer_phone}`} style={menuLinkStyle}>
                           <Phone size={14} /> โทรหาลูกค้า
