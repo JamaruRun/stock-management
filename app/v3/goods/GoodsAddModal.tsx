@@ -78,6 +78,7 @@ export default function GoodsAddModal({ onClose, onSuccess }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.sell_price || !form.branchId) return notify('กรอก ชื่อ, ราคาขาย, สาขา', false);
+    if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }

@@ -38,6 +38,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.sell_price) return notify('กรอกชื่ออะไหล่ + ราคาขาย', false);
+    if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
     setLoading(true);
     const stockQty = parseInt(form.stock_qty) || 0;
     const costPrice = parseFloat(form.cost_price) || 0;

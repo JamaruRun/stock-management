@@ -63,6 +63,7 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
       return notify('กรอก IMEI, รุ่น, ราคา, ชื่อลูกค้า, สาขา ให้ครบ', false);
     }
     if (form.imei.length !== 15) return notify('IMEI ต้องมี 15 หลัก', false);
+    if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
 
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();

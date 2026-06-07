@@ -93,6 +93,7 @@ export default function GoodsSellModal({ onClose, onSuccess }: Props) {
   async function confirmSell() {
     if (cart.length === 0) return notify('ตะกร้าว่าง', false);
     if (discountValue > subtotal) return notify('ส่วนลดเกินยอดรวม', false);
+    if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
     setSubmitting(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSubmitting(false); return; }
