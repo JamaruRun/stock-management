@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import StockAddModal from './StockAddModal';
 import StockDetailModal from './StockDetailModal';
+import StockEditModal from './StockEditModal';
 
 interface StockItem {
   id: string;
@@ -55,6 +56,7 @@ function V3StockContent() {
   const [filterColor, setFilterColor] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(autoAdd);
   const [detailItem, setDetailItem] = useState<StockItem | null>(null);
+  const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   async function load() {
@@ -316,8 +318,18 @@ function V3StockContent() {
           item={detailItem}
           isAdmin={isAdmin}
           onClose={() => setDetailItem(null)}
+          onEdit={() => { setEditItem(detailItem); setDetailItem(null); }}
           onDeleted={() => { setDetailItem(null); load(); }}
           onRefresh={() => load()}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editItem && (
+        <StockEditModal
+          item={editItem}
+          onClose={() => setEditItem(null)}
+          onSuccess={() => { setEditItem(null); load(); }}
         />
       )}
 

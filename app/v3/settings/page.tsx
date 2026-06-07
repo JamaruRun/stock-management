@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import { uploadStockImage } from '@/lib/image-upload';
 import {
   User, Building2, Palette, Bell, Save, Check, X,
   KeyRound, Mail, Phone, MapPin, FileText, Hash,
@@ -422,6 +423,64 @@ function ProfileTab({ profile, onChangePassword, onLogout }: any) {
    Shop Tab
 ========================= */
 
+function ShopLogoCard({ shop }: any) {
+  const supabase = createClient();
+  const [logoUrl, setLogoUrl] = useState<string>(shop?.receipt_logo_url || '');
+  const [uploading, setUploading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  function notify(text: string, ok = true) { setMsg({ text, ok }); setTimeout(() => setMsg(null), 2800); }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return notify('กรุณาเลือกไฟล์รูปภาพ', false);
+    if (!shop?.id) return notify('ยังโหลดข้อมูลร้านไม่เสร็จ', false);
+    setUploading(true);
+    try {
+      const url = await uploadStockImage(file, shop.id);
+      const { error } = await supabase.from('shops').update({ receipt_logo_url: url }).eq('id', shop.id);
+      if (error) throw error;
+      setLogoUrl(url);
+      notify('อัปเดตโลโก้แล้ว — จะขึ้นบนใบเสร็จ');
+    } catch (err: any) {
+      notify('อัปโหลดไม่สำเร็จ: ' + (err?.message || ''), false);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
+  async function removeLogo() {
+    if (!shop?.id) return;
+    if (!confirm('ลบโลโก้ร้านออกจากใบเสร็จ?')) return;
+    await supabase.from('shops').update({ receipt_logo_url: null }).eq('id', shop.id);
+    setLogoUrl('');
+    notify('ลบโลโก้แล้ว');
+  }
+
+  return (
+    <div className="v3-card" style={{ padding: 20 }}>
+      <SectionTitle Icon={ImageIcon} label="โลโก้ร้าน (บนใบเสร็จ)" color="#8b5cf6" />
+      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+        อัปโหลดโลโก้ร้าน จะแสดงด้านบนของใบเสร็จทุกใบเวลาพิมพ์
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ width: 88, height: 88, borderRadius: 14, border: '2px dashed var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+          {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <ImageIcon size={30} style={{ color: 'var(--text-muted)' }} />}
+        </div>
+        <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 16px', borderRadius: 10, background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: uploading ? 'wait' : 'pointer' }}>
+            {uploading ? <Loader2 size={16} className="v3-spin" /> : <ImageIcon size={16} />} {uploading ? 'กำลังอัปโหลด...' : (logoUrl ? 'เปลี่ยนโลโก้' : 'อัปโหลดโลโก้')}
+            <input type="file" accept="image/*" onChange={handleFile} disabled={uploading} style={{ display: 'none' }} />
+          </label>
+          {logoUrl && <button onClick={removeLogo} style={{ padding: '9px 16px', borderRadius: 10, background: 'var(--surface-2)', color: '#ef4444', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ลบโลโก้</button>}
+          <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>รองรับ JPG/PNG · ระบบย่อขนาดให้อัตโนมัติ</div>
+        </div>
+      </div>
+      {msg && <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: msg.ok ? '#16a34a' : '#dc2626' }}>{msg.text}</div>}
+    </div>
+  );
+}
+
 function ShopTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
   if (!isAdmin) {
     return (
@@ -439,6 +498,9 @@ function ShopTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Section 0: โลโก้ร้าน (ขึ้นใบเสร็จ) */}
+      <ShopLogoCard shop={shop} />
+
       {/* Section 1: ข้อมูลร้าน */}
       <div className="v3-card" style={{ padding: 20 }}>
         <SectionTitle Icon={Building2} label="ข้อมูลร้าน" color="#22c55e" />

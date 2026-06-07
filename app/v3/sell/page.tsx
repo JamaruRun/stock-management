@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import ReceiptPDF from '@/components/ReceiptPDF';
 import {
   Search, ShoppingCart, Smartphone, Barcode, X,
-  Wallet, ArrowRightLeft, CreditCard, Calendar,
+  Wallet, ArrowRightLeft, CreditCard, Calendar, Printer,
   CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 
@@ -35,6 +36,8 @@ function V3SellContent() {
   const [paymentType, setPaymentType] = useState<'cash' | 'transfer' | 'credit' | 'installment'>('cash');
   const [confirming, setConfirming] = useState(false);
   const [success, setSuccess] = useState<{ receipt: string; price: number } | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [soldSnapshot, setSoldSnapshot] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
@@ -195,6 +198,12 @@ function V3SellContent() {
         });
       } catch (e) { console.warn('receipt save failed:', e); }
 
+      setSoldSnapshot({
+        receiptNo, model: item.model,
+        detail: `IMEI: ${item.imei}${item.color ? ` • ${item.color}` : ''}${item.spec ? ` • ${item.spec}` : ''}`,
+        price: Number(item.price), discount: discountValue, total: finalPrice,
+        paymentType, issuedBy: profile.full_name,
+      });
       setSuccess({ receipt: receiptNo, price: finalPrice });
       setConfirming(false);
     } catch (e: any) {
@@ -236,6 +245,9 @@ function V3SellContent() {
           ฿{success.price.toLocaleString()}
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => setShowReceipt(true)} className="v3-btn" style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff', border: 'none' }}>
+            <Printer size={14} /> พิมพ์ใบเสร็จ
+          </button>
           <button onClick={reset} className="v3-btn v3-btn-primary">
             <ShoppingCart size={14} /> ขายเครื่องถัดไป
           </button>
@@ -243,6 +255,19 @@ function V3SellContent() {
             กลับสต๊อก
           </Link>
         </div>
+        {showReceipt && soldSnapshot && (
+          <ReceiptPDF
+            receiptNo={soldSnapshot.receiptNo}
+            type="stock_sale"
+            items={[{ name: soldSnapshot.model, detail: soldSnapshot.detail, qty: 1, price: soldSnapshot.price }]}
+            subtotal={soldSnapshot.price}
+            discount={soldSnapshot.discount}
+            total={soldSnapshot.total}
+            paymentType={soldSnapshot.paymentType}
+            issuedByName={soldSnapshot.issuedBy}
+            onClose={() => setShowReceipt(false)}
+          />
+        )}
       </div>
     );
   }

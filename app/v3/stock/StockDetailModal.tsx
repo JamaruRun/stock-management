@@ -14,11 +14,12 @@ interface Props {
   item: any;
   isAdmin: boolean;
   onClose: () => void;
+  onEdit?: () => void;
   onDeleted: () => void;
   onRefresh?: () => void;
 }
 
-export default function StockDetailModal({ item, isAdmin, onClose, onDeleted, onRefresh }: Props) {
+export default function StockDetailModal({ item, isAdmin, onClose, onEdit, onDeleted, onRefresh }: Props) {
   const supabase = createClient();
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -360,12 +361,12 @@ export default function StockDetailModal({ item, isAdmin, onClose, onDeleted, on
               <ShoppingCart size={16} /> ขายเครื่องนี้
             </Link>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Link
-                href={`/v3/stock`}
-                style={secondaryBtnStyle}
+              <button
+                onClick={onEdit}
+                style={{ ...secondaryBtnStyle, border: 'none', cursor: 'pointer' }}
               >
                 <Edit2 size={14} /> แก้ไข
-              </Link>
+              </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}

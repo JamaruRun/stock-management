@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import ReceiptPDF from '@/components/ReceiptPDF';
 import { sendLineNotify } from '@/lib/line-notify';
 import {
   ShoppingCart, X, ScanLine, Search, Plus, Minus, Trash2, Tag,
-  Loader2, CheckCircle2, AlertCircle, Receipt, Package,
+  Loader2, CheckCircle2, AlertCircle, Receipt, Package, Printer,
 } from 'lucide-react';
 
 interface CartItem {
@@ -24,6 +25,7 @@ export default function GoodsSellModal({ onClose, onSuccess }: Props) {
   const [searching, setSearching] = useState(false);
   const [discount, setDiscount] = useState('');
   const [showScanner, setShowScanner] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<any>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -148,10 +150,22 @@ export default function GoodsSellModal({ onClose, onSuccess }: Props) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setShowReceipt(true)} style={{ ...secBtn, background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Printer size={15} /> พิมพ์</button>
             <button onClick={() => { setDone(null); setCart([]); setDiscount(''); }} style={secBtn}>ขายต่อ</button>
             <button onClick={() => onSuccess()} style={{ ...priBtn, background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>เสร็จสิ้น</button>
           </div>
         </div>
+        {showReceipt && (
+          <ReceiptPDF
+            receiptNo={done.receiptNo}
+            type="goods_sale"
+            items={done.items.map((it: CartItem) => ({ name: it.name, qty: it.quantity, price: it.unit_price }))}
+            subtotal={done.subtotal}
+            discount={done.discount}
+            total={done.total}
+            onClose={() => setShowReceipt(false)}
+          />
+        )}
       </Overlay>
     );
   }
