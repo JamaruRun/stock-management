@@ -5,6 +5,7 @@ import Link from 'next/link';
 // import Image from 'next/image'; // เปิดใช้เมื่อมีไฟล์ asset จริง
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import ContactBlock from '@/components/ContactBlock';
 import {
   Lock, User, Eye, EyeOff, AlertCircle, Loader2,
   Smartphone, Wrench, Coins, BarChart3, Box, ScanLine, CheckCircle2,
@@ -213,7 +214,10 @@ export default function LoginPage() {
             </form>
 
             <p className="signup">ยังไม่มีบัญชี? <Link href="/register">สมัคร Beta ฟรี 30 วัน →</Link></p>
-            <p className="ver">StockCare v3.9.86</p>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #eef2f7' }}>
+              <ContactBlock variant="compact" />
+            </div>
+            <p className="ver">StockCare v3.9.87</p>
           </div>
         </main>
       </div>

@@ -5,6 +5,7 @@ import Heartbeat from '@/components/Heartbeat';
 import BarcodeScannerPreload from '@/components/BarcodeScannerPreload';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import FeedbackButton from '@/components/FeedbackButton';
+import ContactBlock from '@/components/ContactBlock';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -37,6 +38,9 @@ export default async function V3Layout({ children }: { children: React.ReactNode
           <form action="/auth/signout" method="post">
             <button className="btn btn-sec" type="submit">ออกจากระบบ</button>
           </form>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border, #e2e8f0)' }}>
+            <ContactBlock />
+          </div>
         </div>
       </div>
     );
@@ -61,11 +65,14 @@ export default async function V3Layout({ children }: { children: React.ReactNode
                 ออกจากระบบ
               </button>
             </form>
+            <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border, #e2e8f0)' }}>
+              <ContactBlock />
+            </div>
           </div>
         </div>
       );
     }
-    
+
     if (shop.package !== 'lifetime' && shop.expires_at) {
       const expires = new Date(shop.expires_at);
       const now = new Date();
@@ -84,6 +91,9 @@ export default async function V3Layout({ children }: { children: React.ReactNode
                   ออกจากระบบ
                 </button>
               </form>
+              <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--border, #e2e8f0)' }}>
+                <ContactBlock />
+              </div>
             </div>
           </div>
         );
