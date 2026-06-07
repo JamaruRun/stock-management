@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { Sparkles, Store, Phone, MapPin, Check, X, Clock } from 'lucide-react';
+import { Sparkles, Store, Phone, MapPin, Check, X, Clock, AtSign, MessageSquare, KeyRound } from 'lucide-react';
 import { Header, FilterTabs, SearchBar, LoadingCard, EmptyCard } from '../SAShared';
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -60,7 +60,27 @@ export default function V3SABetaPage() {
                       {b.phone && <a href={`tel:${b.phone}`} style={{ color: '#16a34a' }}><Phone size={11} style={{ display: 'inline', verticalAlign: '-1px' }} /> {b.phone}</a>}
                       {b.province && <span><MapPin size={11} style={{ display: 'inline', verticalAlign: '-1px' }} /> {b.province}</span>}
                     </div>
-                    {b.message && <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6, whiteSpace: 'pre-wrap' }}>{b.message}</p>}
+                    {(b.username || b.line_id || b.note || b.message) && (
+                      <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {b.username && (
+                          <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <AtSign size={12} style={{ color: '#8b5cf6', flexShrink: 0 }} />
+                            <span style={{ color: 'var(--text-dim)' }}>ชื่อผู้ใช้:</span>
+                            <b style={{ fontFamily: 'monospace' }}>{b.username}</b>
+                          </div>
+                        )}
+                        {b.line_id && (
+                          <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <MessageSquare size={12} style={{ color: '#06c755', flexShrink: 0 }} />
+                            <span style={{ color: 'var(--text-dim)' }}>ติดต่อ:</span>
+                            <span style={{ wordBreak: 'break-all' }}>{b.line_id}</span>
+                          </div>
+                        )}
+                        {(b.note || b.message) && (
+                          <div style={{ fontSize: 11.5, color: 'var(--text-dim)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{b.note || b.message}</div>
+                        )}
+                      </div>
+                    )}
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ color: st.color, fontWeight: 600 }}>● {st.label}</span>
                       <span>· {new Date(b.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</span>

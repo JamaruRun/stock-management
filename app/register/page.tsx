@@ -246,7 +246,7 @@ export default function RegisterPage() {
             </form>
 
             <p className="signup">มีบัญชีอยู่แล้ว? <Link href="/login">เข้าสู่ระบบ →</Link></p>
-            <p className="ver">StockCare v3.9.88</p>
+            <p className="ver">StockCare v3.9.89</p>
           </div>
         </main>
       </div>
@@ -268,7 +268,7 @@ const wrapCss = `
   .mkt-glow{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45;}
   .mkt-glow-1{width:240px;height:240px;background:#60a5fa;top:-50px;left:-40px;}
   .mkt-glow-2{width:260px;height:260px;background:#a5b4fc;bottom:-70px;right:-50px;}
-  .mkt-inner{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;}
+  .mkt-inner{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;height:100%;}
   .mkt-brand{display:flex;align-items:center;gap:11px;margin-bottom:22px;}
   .mkt-logo{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-family:'Prompt';font-weight:800;font-size:21px;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 8px 18px -4px rgba(37,99,235,.6),inset 0 1px 0 rgba(255,255,255,.5);}
   .mkt-logo-name{font-family:'Prompt';font-weight:800;font-size:19px;color:#0f2a5e;}
@@ -288,7 +288,7 @@ const wrapCss = `
   .float{position:absolute;border-radius:13px;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 10px 22px -6px rgba(37,99,235,.45);}
   .float-spark{width:40px;height:40px;top:-4px;right:16%;color:#f59e0b;animation:floaty 5s ease-in-out infinite;}
   @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-  .benefits{display:flex;flex-direction:column;gap:10px;margin-top:auto;}
+  .benefits{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
   .benefit{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;color:#0f2a5e;}
   .bcheck{width:22px;height:22px;border-radius:7px;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px -2px rgba(37,99,235,.5);}
   .spin{animation:spin 1s linear infinite;} @keyframes spin{to{transform:rotate(360deg)}}
@@ -315,7 +315,7 @@ const formCss = `
   .terms{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:#475569;cursor:pointer;line-height:1.5;margin-top:2px;}
   .terms input{width:17px;height:17px;accent-color:#2563eb;margin-top:1px;flex-shrink:0;cursor:pointer;}
   .terms b{color:#2563eb;font-weight:600;}
-  .btn-primary{height:54px;border:none;border-radius:13px;cursor:pointer;margin-top:4px;font-family:'Prompt';font-weight:700;font-size:16px;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 12px 26px -8px rgba(37,99,235,.6);transition:transform .2s,box-shadow .2s,opacity .2s;display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;}
+  .btn-primary{width:100%;height:54px;flex-shrink:0;border:none;border-radius:13px;cursor:pointer;margin-top:4px;font-family:'Prompt';font-weight:700;font-size:16px;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 12px 26px -8px rgba(37,99,235,.6);transition:transform .2s,box-shadow .2s,opacity .2s;display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;box-sizing:border-box;}
   .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 34px -10px rgba(37,99,235,.7);}
   .btn-primary:disabled{opacity:.7;cursor:not-allowed;}
   .signup{text-align:center;font-size:13.5px;color:#64748b;margin:18px 0 0;}
