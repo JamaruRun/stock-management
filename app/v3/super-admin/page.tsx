@@ -8,8 +8,9 @@ import {
   Shield, Store, Plus, Search, Phone, Crown, Clock, AlertTriangle,
   CheckCircle2, XCircle, TrendingUp, Users, MessageSquare, Sparkles,
   MoreVertical, Calendar, RefreshCw, Pause, Play, Edit2, Trash2,
-  Loader2, Lock, DollarSign, Inbox, ChevronRight, X, Zap, Bell,
+  Loader2, Lock, DollarSign, Inbox, ChevronRight, X, Zap, Bell, Megaphone,
 } from 'lucide-react';
+import AnnouncementsManageModal from './AnnouncementsManageModal';
 
 interface Shop {
   id: string;
@@ -55,6 +56,7 @@ export default function V3SuperAdminPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Shop | null>(null);
+  const [showAnnounce, setShowAnnounce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
@@ -322,6 +324,10 @@ export default function V3SuperAdminPage() {
             <NavTile href="/super-admin/online" Icon={Users} label="ออนไลน์ตอนนี้" color="#22c55e" />
             <NavTile href="/super-admin/users" Icon={Shield} label="ผู้ใช้ทั้งหมด" color="#8b5cf6" />
             <NavTile href="/super-admin/feedback" Icon={MessageSquare} label="Feedback" color="#f59e0b" />
+            <button onClick={() => setShowAnnounce(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '14px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: '#ede9fe', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Megaphone size={17} /></div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>ส่งประกาศ</span>
+            </button>
           </div>
 
           {/* Shops list */}
@@ -388,6 +394,8 @@ export default function V3SuperAdminPage() {
           {toast.msg}
         </div>
       )}
+
+      {showAnnounce && <AnnouncementsManageModal onClose={() => setShowAnnounce(false)} />}
 
       <style jsx>{`
         @media (max-width: 640px) {

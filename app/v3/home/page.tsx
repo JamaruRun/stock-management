@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
+import AnnouncementBanner from './AnnouncementBanner';
 import {
   Wallet, TrendingUp, Smartphone, Hammer, Coins, CreditCard,
   ShoppingBag, AlertTriangle, Plus, ShoppingCart,
@@ -216,6 +217,9 @@ export default function V3HomePage() {
           <p className="v3-page-subtitle">ยินดีต้อนรับกลับมา · {todayStr}</p>
         </div>
       </div>
+
+      {/* ประกาศจากแอดมิน (Broadcast) */}
+      <AnnouncementBanner />
 
       {/* KPI Cards 5 — ตาม ref */}
       <div className="v3-kpi-grid" style={{
