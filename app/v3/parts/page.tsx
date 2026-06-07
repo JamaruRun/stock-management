@@ -12,6 +12,7 @@ import {
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getGradeInfo } from '@/lib/parts-constants';
 import PartAddModal from './PartAddModal';
 import PartSellModal from './PartSellModal';
+import PartEditModal from './PartEditModal';
 
 interface PartItem {
   id: string;
@@ -41,6 +42,7 @@ export default function V3PartsPage() {
   const sp = useSearchParams();
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
+  const [editItem, setEditItem] = useState<any>(null);
 
   async function load() {
     try {
@@ -288,6 +290,7 @@ export default function V3PartsPage() {
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(item)}
               onSell={() => { setMenuOpenId(null); setShowSell(true); }}
+              onEdit={() => { setMenuOpenId(null); setEditItem(item); }}
             />
           ))}
         </div>
@@ -298,6 +301,9 @@ export default function V3PartsPage() {
       )}
       {showSell && (
         <PartSellModal onClose={() => setShowSell(false)} onSuccess={() => { setShowSell(false); load(); }} />
+      )}
+      {editItem && (
+        <PartEditModal item={editItem} onClose={() => setEditItem(null)} onSuccess={() => { setEditItem(null); load(); }} />
       )}
 
       <style jsx>{`
@@ -384,7 +390,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell }: any) {
+function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit }: any) {
   const qty = Number(item.stock_qty || 0);
   const lowAlert = Number(item.low_stock_alert || 2);
   const isOut = qty === 0;
@@ -452,9 +458,9 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, on
               <button onClick={onSell} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                 <ShoppingCart size={13} /> ขาย
               </button>
-              <Link href={`/dashboard/parts/edit?id=${item.id}`} style={menuLinkStyle}>
+              <button onClick={onEdit} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                 <Edit2 size={13} /> แก้ไข
-              </Link>
+              </button>
               <button onClick={onDelete} style={{
                 ...menuLinkStyle,
                 color: 'var(--danger)',

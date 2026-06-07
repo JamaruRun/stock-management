@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import GoodsAddModal from './GoodsAddModal';
 import GoodsSellModal from './GoodsSellModal';
+import GoodsEditModal from './GoodsEditModal';
 
 interface GoodsItem {
   id: string;
@@ -38,6 +39,7 @@ export default function V3GoodsPage() {
   const sp = useSearchParams();
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
+  const [editItem, setEditItem] = useState<any>(null);
 
   async function load() {
     try {
@@ -247,6 +249,7 @@ export default function V3GoodsPage() {
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(item)}
               onSell={() => { setMenuOpenId(null); setShowSell(true); }}
+              onEdit={() => { setMenuOpenId(null); setEditItem(item); }}
             />
           ))}
         </div>
@@ -257,6 +260,9 @@ export default function V3GoodsPage() {
       )}
       {showSell && (
         <GoodsSellModal onClose={() => setShowSell(false)} onSuccess={() => { setShowSell(false); load(); }} />
+      )}
+      {editItem && (
+        <GoodsEditModal item={editItem} onClose={() => setEditItem(null)} onSuccess={() => { setEditItem(null); load(); }} />
       )}
 
       <style jsx>{`
@@ -343,7 +349,7 @@ function Tab({ active, onClick, label, count }: any) {
   );
 }
 
-function GoodsCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell }: any) {
+function GoodsCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit }: any) {
   const qty = Number(item.stock_qty || 0);
   const lowAlert = Number(item.low_stock_alert || 5);
   const isOut = qty === 0;
@@ -412,9 +418,9 @@ function GoodsCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, o
               <button onClick={onSell} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                 <ShoppingCart size={13} /> ขาย
               </button>
-              <Link href={`/dashboard/goods/stock`} style={menuLinkStyle}>
+              <button onClick={onEdit} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                 <Edit2 size={13} /> แก้ไข
-              </Link>
+              </button>
               <button onClick={onDelete} style={{
                 ...menuLinkStyle,
                 color: 'var(--danger)',

@@ -10,6 +10,7 @@ import {
   TrendingUp, FileText, Eye, Trash2, DollarSign,
 } from 'lucide-react';
 import { InstallmentAddModal, InstallmentPayModal } from './InstallmentModals';
+import InstallmentDetailModal from './InstallmentDetailModal';
 
 interface InstallmentItem {
   id: string;
@@ -73,6 +74,7 @@ export default function V3InstallmentPage() {
   const sp = useSearchParams();
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [payItem, setPayItem] = useState<any>(null);
+  const [detailItem, setDetailItem] = useState<any>(null);
 
   async function load() {
     try {
@@ -268,6 +270,7 @@ export default function V3InstallmentPage() {
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(item)}
               onPay={() => { setMenuOpenId(null); setPayItem(item); }}
+              onDetail={() => { setMenuOpenId(null); setDetailItem(item); }}
             />
           ))}
         </div>
@@ -278,6 +281,13 @@ export default function V3InstallmentPage() {
       )}
       {payItem && (
         <InstallmentPayModal item={payItem} onClose={() => setPayItem(null)} onSuccess={() => { setPayItem(null); load(); }} />
+      )}
+      {detailItem && (
+        <InstallmentDetailModal
+          itemId={detailItem.id}
+          onClose={() => setDetailItem(null)}
+          onPay={() => { const it = detailItem; setDetailItem(null); setPayItem(it); }}
+        />
       )}
 
       <style jsx>{`
@@ -369,7 +379,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onPay }: any) {
+function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onPay, onDetail }: any) {
   const status = getStatusOf(item);
   const info = STATUS_COLORS[status];
   const StatusIcon = info.Icon;
@@ -463,9 +473,9 @@ function InstallmentCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onPa
                       padding: 4,
                       zIndex: 20,
                     }}>
-                      <Link href={`/dashboard/installment/detail?id=${item.id}`} style={menuLinkStyle}>
+                      <button onClick={onDetail} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                         <Eye size={14} /> ดูรายละเอียด
-                      </Link>
+                      </button>
                       <button onClick={onPay} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                         <DollarSign size={14} /> รับชำระงวด
                       </button>
