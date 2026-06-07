@@ -253,7 +253,7 @@ export default function V3SuperAdminPage() {
             {/* quick links */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: expiringShops.length ? 14 : 0 }}>
               <ActionLink
-                href="/super-admin/beta"
+                href="/v3/super-admin/beta"
                 Icon={Inbox}
                 label="Beta รออนุมัติ"
                 count={betaPending}
@@ -261,7 +261,7 @@ export default function V3SuperAdminPage() {
                 empty={betaPending === 0}
               />
               <ActionLink
-                href="/super-admin/feedback"
+                href="/v3/super-admin/feedback"
                 Icon={MessageSquare}
                 label="Feedback ใหม่"
                 count={feedbackNew}
@@ -320,10 +320,10 @@ export default function V3SuperAdminPage() {
 
           {/* Quick nav to sub-tools */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginBottom: 14 }}>
-            <NavTile href="/super-admin/activity" Icon={TrendingUp} label="กิจกรรมร้าน" color="#3b82f6" />
-            <NavTile href="/super-admin/online" Icon={Users} label="ออนไลน์ตอนนี้" color="#22c55e" />
-            <NavTile href="/super-admin/users" Icon={Shield} label="ผู้ใช้ทั้งหมด" color="#8b5cf6" />
-            <NavTile href="/super-admin/feedback" Icon={MessageSquare} label="Feedback" color="#f59e0b" />
+            <NavTile href="/v3/super-admin/activity" Icon={TrendingUp} label="กิจกรรมร้าน" color="#3b82f6" />
+            <NavTile href="/v3/super-admin/online" Icon={Users} label="ออนไลน์ตอนนี้" color="#22c55e" />
+            <NavTile href="/v3/super-admin/users" Icon={Shield} label="ผู้ใช้ทั้งหมด" color="#8b5cf6" />
+            <NavTile href="/v3/super-admin/feedback" Icon={MessageSquare} label="Feedback" color="#f59e0b" />
             <button onClick={() => setShowAnnounce(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '14px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
               <div style={{ width: 32, height: 32, borderRadius: 9, background: '#ede9fe', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Megaphone size={17} /></div>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>ส่งประกาศ</span>
