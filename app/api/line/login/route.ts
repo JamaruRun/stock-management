@@ -41,6 +41,8 @@ export async function GET(req: NextRequest) {
     scope: 'profile openid',
     // บังคับ LINE ขอ consent ใหม่ทุกครั้ง - กันปัญหา cache
     prompt: 'consent',
+    // แสดงตัวเลือก "เพิ่มเพื่อน OA" บนหน้า consent (ต้อง link Login channel กับ Messaging API channel ใน console)
+    bot_prompt: 'aggressive',
   });
 
   const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?${params.toString()}`;

@@ -7,8 +7,9 @@ import {
   User, Building2, Palette, Bell, Save, Check, X,
   KeyRound, Mail, Phone, MapPin, FileText, Hash,
   Image as ImageIcon, MessageSquare, Moon, Sun, Smartphone as Phone2,
-  LogOut, AlertCircle, Loader2,
+  LogOut, AlertCircle, Loader2, UserPlus, QrCode, Copy,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 
 type TabId = 'profile' | 'shop' | 'theme' | 'notify';
 
@@ -795,6 +796,9 @@ function NotifyTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
         </div>
       </div>
 
+      {/* เพิ่มเพื่อน LINE OA */}
+      <LineAddFriend />
+
       <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
         เลือกประเภทเหตุการณ์ที่ต้องการให้แจ้งเตือนเข้า LINE
       </div>
@@ -869,6 +873,76 @@ function NotifyTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
 /* =========================
    Subcomponents
 ========================= */
+
+function LineAddFriend() {
+  const oaId = (process.env.NEXT_PUBLIC_LINE_OA_ID || '').trim();
+  const cleanId = oaId.replace(/^@/, '');
+  const addUrl = cleanId ? `https://line.me/R/ti/p/@${cleanId}` : '';
+  const [qr, setQr] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!addUrl) return;
+    QRCode.toDataURL(addUrl, { width: 240, margin: 1 }).then(setQr).catch(() => {});
+  }, [addUrl]);
+
+  function copyId() {
+    navigator.clipboard?.writeText(`@${cleanId}`).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }
+
+  if (!cleanId) {
+    return (
+      <div style={{ padding: 14, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+          <UserPlus size={15} /> ตั้งค่า LINE OA เพื่อให้ลูกค้าแอดเพื่อนได้
+        </div>
+        <div style={{ fontSize: 11, color: '#92400e', lineHeight: 1.6 }}>
+          เพิ่ม Environment Variable ใน Vercel: <code style={{ background: '#fef3c7', padding: '1px 5px', borderRadius: 4 }}>NEXT_PUBLIC_LINE_OA_ID</code> = Basic ID ของ OA (เช่น <code style={{ background: '#fef3c7', padding: '1px 5px', borderRadius: 4 }}>@abc1234</code>) แล้ว deploy ใหม่ → ปุ่ม + QR จะขึ้นตรงนี้อัตโนมัติ
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 16, background: 'var(--surface-2)', borderRadius: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+        <UserPlus size={16} style={{ color: '#06c755' }} /> เพิ่มเพื่อน LINE OA ก่อนรับแจ้งเตือน
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.6 }}>
+        LINE บังคับให้ <strong>แอดบอทเป็นเพื่อนก่อน</strong> ถึงจะได้รับข้อความ — แอดทางปุ่ม (มือถือ) หรือสแกน QR (คอม)
+      </p>
+
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        {qr && (
+          <img src={qr} alt="LINE QR" width={110} height={110} style={{ borderRadius: 10, background: '#fff', padding: 6, flexShrink: 0 }} />
+        )}
+        <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <a href={addUrl} target="_blank" rel="noopener noreferrer" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '12px 16px', background: '#06c755', color: '#fff', borderRadius: 10,
+            fontSize: 14, fontWeight: 700, textDecoration: 'none', fontFamily: 'inherit',
+          }}>
+            <UserPlus size={17} /> เพิ่มเพื่อน @{cleanId}
+          </a>
+          <button onClick={copyId} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '9px 12px', background: 'var(--surface)', color: 'var(--text)',
+            border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            {copied ? <><Check size={13} /> คัดลอกแล้ว</> : <><Copy size={13} /> คัดลอก ID: @{cleanId}</>}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--surface)', borderRadius: 10, fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.8 }}>
+        <strong style={{ color: 'var(--text)' }}>ส่งเข้ากลุ่ม?</strong> เชิญบอท <strong>@{cleanId}</strong> เข้ากลุ่ม LINE ด้วย (เมนูกลุ่ม → เชิญ → เลือก OA) แล้วบอทถึงจะส่งข้อความเข้ากลุ่มได้
+      </div>
+    </div>
+  );
+}
 
 function SectionTitle({ Icon, label, color }: any) {
   return (
