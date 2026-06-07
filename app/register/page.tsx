@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   User, Phone, Mail, Lock, Eye, EyeOff, Building2, Users as UsersIcon,
   Smartphone, FileSpreadsheet, AlertCircle, Loader2, CheckCircle2, Sparkles, Shield, Check,
+  AtSign, MessageSquare,
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -17,7 +18,7 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   const [form, setForm] = useState({
-    shop_name: '', contact_name: '', phone: '', email: '',
+    shop_name: '', contact_name: '', username: '', phone: '', email: '', contact_channel: '',
     password: '', confirm_password: '',
     business_type: 'mobile_shop', shop_size: 'small', branch_count: '1', current_system: 'excel',
   });
@@ -28,24 +29,29 @@ export default function RegisterPage() {
     setError('');
     if (!form.shop_name.trim()) return setError('กรุณาใส่ชื่อร้าน');
     if (!form.contact_name.trim()) return setError('กรุณาใส่ชื่อผู้ติดต่อ');
+    if (!form.username.trim()) return setError('กรุณาตั้งชื่อผู้ใช้ (username)');
+    if (!/^[a-z0-9_]{3,20}$/.test(form.username.trim())) return setError('username ใช้ a-z, 0-9, _ เท่านั้น (3-20 ตัว)');
     if (!/^[0-9]{9,10}$/.test(form.phone.replace(/[-\s]/g, ''))) return setError('เบอร์โทรไม่ถูกต้อง (9-10 หลัก)');
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return setError('รูปแบบอีเมลไม่ถูกต้อง');
     if (form.password.length < 6) return setError('รหัสผ่านต้องมีอย่างน้อย 6 ตัว');
     if (form.password !== form.confirm_password) return setError('รหัสผ่านไม่ตรงกัน');
     if (!acceptTerms) return setError('กรุณายอมรับข้อกำหนดการให้บริการ');
 
-    const phoneClean = form.phone.replace(/[-\s]/g, '');
-    const username = `user${phoneClean.slice(-9)}`;
+    const username = form.username.trim().toLowerCase();
+    const noteParts = [
+      form.email ? `อีเมล: ${form.email}` : '',
+      form.contact_channel ? `ติดต่อ: ${form.contact_channel}` : '',
+    ].filter(Boolean);
     setSubmitting(true);
     try {
       const res = await fetch('/api/beta-signup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shop_name: form.shop_name.trim(), contact_name: form.contact_name.trim(),
-          phone: form.phone, line_id: '', province: '',
+          phone: form.phone, line_id: form.contact_channel.trim() || '', province: '',
           business_type: form.business_type, shop_size: form.shop_size,
           branch_count: parseInt(form.branch_count) || 1, current_system: form.current_system,
-          username, password: form.password, note: form.email ? `อีเมล: ${form.email}` : '',
+          username, password: form.password, note: noteParts.join(' · '),
         }),
       });
       const data = await res.json();
@@ -150,6 +156,13 @@ export default function RegisterPage() {
                   <input value={form.contact_name} onChange={(e) => update('contact_name', e.target.value)} placeholder="ชื่อ-นามสกุล" /></div>
               </div>
 
+              <div className="field">
+                <label>ตั้งชื่อผู้ใช้ (Username) <i>*</i></label>
+                <div className="input-wrap"><AtSign size={18} className="input-ico" />
+                  <input value={form.username} onChange={(e) => update('username', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="เช่น ake_mobile (ใช้เข้าสู่ระบบ)" maxLength={20} autoCapitalize="none" /></div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-dim, #94a3b8)', marginTop: 4 }}>ใช้ a-z, 0-9, _ เท่านั้น (3-20 ตัว) · ใช้ตอนเข้าสู่ระบบ</div>
+              </div>
+
               <div className="grid2">
                 <div className="field">
                   <label>เบอร์โทรศัพท์ <i>*</i></label>
@@ -161,6 +174,12 @@ export default function RegisterPage() {
                   <div className="input-wrap"><Mail size={18} className="input-ico" />
                     <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="example@mail.com" /></div>
                 </div>
+              </div>
+
+              <div className="field">
+                <label>ช่องทางติดต่อ (Facebook / LINE)</label>
+                <div className="input-wrap"><MessageSquare size={18} className="input-ico" />
+                  <input value={form.contact_channel} onChange={(e) => update('contact_channel', e.target.value)} placeholder="เช่น LINE: @akemobile หรือ ลิงก์ Facebook" /></div>
               </div>
 
               <div className="grid2">
@@ -227,7 +246,7 @@ export default function RegisterPage() {
             </form>
 
             <p className="signup">มีบัญชีอยู่แล้ว? <Link href="/login">เข้าสู่ระบบ →</Link></p>
-            <p className="ver">StockCare v3.9.87</p>
+            <p className="ver">StockCare v3.9.88</p>
           </div>
         </main>
       </div>
