@@ -409,6 +409,10 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, on
       padding: 12,
       position: 'relative',
       transition: 'all 0.15s',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      boxSizing: 'border-box',
     }}>
       {(isOut || isLow) && (
         <div style={{
@@ -533,16 +537,19 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, on
         fontSize: 10,
         color: 'var(--text-dim)',
         marginBottom: 8,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
       }}>
         <Smartphone size={9} style={{ display: 'inline', marginRight: 3, verticalAlign: '-1px' }} />
-        {item.phone_model}
+        {item.phone_model || 'ทั่วไป'}
       </div>
 
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        marginTop: 8,
+        marginTop: 'auto',
         paddingTop: 8,
         borderTop: '1px dashed var(--border)',
       }}>

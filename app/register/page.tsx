@@ -227,7 +227,7 @@ export default function RegisterPage() {
             </form>
 
             <p className="signup">มีบัญชีอยู่แล้ว? <Link href="/login">เข้าสู่ระบบ →</Link></p>
-            <p className="ver">StockCare v3.9.84</p>
+            <p className="ver">StockCare v3.9.85</p>
           </div>
         </main>
       </div>
