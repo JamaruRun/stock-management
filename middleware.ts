@@ -69,13 +69,17 @@ export async function middleware(request: NextRequest) {
 
   // เปลี่ยนระบบมา v3: redirect หน้า list ระดับบนของ dashboard → v3
   // (ฟอร์ม add/edit แบบ 3-segment เช่น /dashboard/pawn/add ปล่อยผ่าน ยังใช้ของเดิม)
+  // 🔓 ทางลัดเทียบของเก่า: เติม ?old=1 ท้าย URL = ไม่เด้ง (เช่น /dashboard/home?old=1)
   if (user && path.startsWith('/dashboard')) {
-    const seg = path.split('/').filter(Boolean); // ['dashboard', 'pawn', 'add']
-    if (seg.length <= 2) {
-      const top = seg[1] || 'home';
-      const target = DASHBOARD_TO_V3[top];
-      if (target) {
-        return NextResponse.redirect(new URL(target, request.url));
+    const bypassOld = request.nextUrl.searchParams.get('old') === '1';
+    if (!bypassOld) {
+      const seg = path.split('/').filter(Boolean); // ['dashboard', 'pawn', 'add']
+      if (seg.length <= 2) {
+        const top = seg[1] || 'home';
+        const target = DASHBOARD_TO_V3[top];
+        if (target) {
+          return NextResponse.redirect(new URL(target, request.url));
+        }
       }
     }
   }
