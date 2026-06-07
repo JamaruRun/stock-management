@@ -9,7 +9,7 @@ import ReceiptPDF from '@/components/ReceiptPDF';
 import {
   Search, ShoppingCart, Smartphone, Barcode, X,
   Wallet, ArrowRightLeft, CreditCard, Calendar, Printer,
-  CheckCircle2, AlertTriangle,
+  CheckCircle2, AlertTriangle, Loader2,
 } from 'lucide-react';
 
 export default function V3SellPage() {
@@ -35,6 +35,7 @@ function V3SellContent() {
   const [discount, setDiscount] = useState('');
   const [paymentType, setPaymentType] = useState<'cash' | 'transfer' | 'credit' | 'installment'>('cash');
   const [confirming, setConfirming] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [success, setSuccess] = useState<{ receipt: string; price: number } | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [soldSnapshot, setSoldSnapshot] = useState<any>(null);
@@ -130,8 +131,7 @@ function V3SellContent() {
     if (discountValue < 0) { alert('ส่วนลดต้องไม่ติดลบ'); return; }
     if (finalPrice < 0) { alert('ราคาสุทธิติดลบ'); return; }
 
-    if (!confirm(`ยืนยันการขาย ${item.model} ในราคา ฿${finalPrice.toLocaleString()}?`)) return;
-
+    setShowConfirm(false);
     setConfirming(true);
     try {
       const costPrice = Number(item.cost_price) || 0;
@@ -205,6 +205,7 @@ function V3SellContent() {
         paymentType, issuedBy: profile.full_name,
       });
       setSuccess({ receipt: receiptNo, price: finalPrice });
+      setShowReceipt(true);
       setConfirming(false);
     } catch (e: any) {
       alert('เกิดข้อผิดพลาด: ' + e.message);
@@ -609,7 +610,7 @@ function V3SellContent() {
             </div>
 
             <button
-              onClick={confirmSale}
+              onClick={() => setShowConfirm(true)}
               disabled={confirming || finalPrice <= 0}
               style={{
                 width: '100%',
@@ -662,6 +663,31 @@ function V3SellContent() {
           }}
           onClose={() => setShowScanner(false)}
         />
+      )}
+
+      {/* ป๊อปอัพยืนยันก่อนขาย */}
+      {showConfirm && item && (
+        <div onClick={() => setShowConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="v3-card" style={{ maxWidth: 380, width: '100%', padding: 22 }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ width: 56, height: 56, margin: '0 auto 10px', borderRadius: 16, background: '#dbeafe', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ShoppingCart size={28} /></div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, fontFamily: 'Prompt, sans-serif' }}>ยืนยันการขาย?</h2>
+            </div>
+            <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13.5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-dim)' }}>เครื่อง</span><span style={{ fontWeight: 700 }}>{item.model}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-dim)' }}>IMEI</span><span style={{ fontFamily: 'monospace', fontSize: 12 }}>{item.imei}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--text-dim)' }}>ราคา</span><span>฿{Number(item.price).toLocaleString()}</span></div>
+              {discountValue > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}><span>ส่วนลด</span><span>-฿{discountValue.toLocaleString()}</span></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border)', paddingTop: 8, marginTop: 2 }}><span style={{ fontWeight: 700 }}>รวมสุทธิ</span><span style={{ fontSize: 19, fontWeight: 800, fontFamily: 'Prompt, sans-serif', color: 'var(--accent)' }}>฿{finalPrice.toLocaleString()}</span></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setShowConfirm(false)} style={{ flex: 1, padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 11, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+              <button onClick={confirmSale} disabled={confirming} style={{ flex: 2, padding: 13, background: 'linear-gradient(135deg,#22c55e,#16a34a)', color: '#fff', border: 'none', borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                {confirming ? <Loader2 size={16} className="v3-spin" /> : <CheckCircle2 size={16} />} ยืนยันขาย
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
