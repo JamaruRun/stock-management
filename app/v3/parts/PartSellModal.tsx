@@ -6,8 +6,9 @@ import { sendLineNotify } from '@/lib/line-notify';
 import { getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
 import {
   ShoppingCart, X, Search, Plus, Minus, Trash2, Tag, Wrench,
-  Loader2, CheckCircle2, AlertCircle, Receipt,
+  Loader2, CheckCircle2, AlertCircle, Receipt, ScanLine,
 } from 'lucide-react';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
 interface CartItem {
   part_id: string; name: string; phone_model?: string; category?: string; grade?: string;
@@ -20,6 +21,7 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
   const [profile, setProfile] = useState<any>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [query, setQuery] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [discount, setDiscount] = useState('');
@@ -144,9 +146,12 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
       </div>
 
       <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={16} style={iconSt} />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาชื่อ / รุ่นมือถือ / SKU..." style={{ ...inputSt, paddingLeft: 40 }} onFocus={fOn} onBlur={fOff} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+            <Search size={16} style={iconSt} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาชื่อ / รุ่นมือถือ / SKU..." style={{ ...inputSt, paddingLeft: 40, width: '100%' }} onFocus={fOn} onBlur={fOff} />
+          </div>
+          <button type="button" onClick={() => setShowScanner(true)} title="สแกน SKU" style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}><ScanLine size={20} /></button>
         </div>
         {query.trim() && (
           <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 12 }}>
@@ -226,6 +231,7 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
           {toast.ok ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />} {toast.msg}
         </div>
       )}
+      {showScanner && <BarcodeScanner mode="any" onScan={(code) => { setShowScanner(false); try { (navigator as any).vibrate?.(100); } catch {} setQuery(code.trim()); }} onClose={() => setShowScanner(false)} />}
     </Overlay>
   );
 }

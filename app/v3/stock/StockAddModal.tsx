@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import { X, Plus, Smartphone, Barcode, ImageIcon, Sparkles, Link as LinkIcon, Check, Loader2, Upload } from 'lucide-react';
 import { searchImage } from '@/lib/image-search';
 import { uploadStockImage } from '@/lib/image-upload';
+import BarcodeScanner from '@/components/BarcodeScanner';
 
 interface Props {
   onClose: () => void;
@@ -14,6 +15,7 @@ interface Props {
 export default function StockAddModal({ onClose, onSuccess }: Props) {
   const supabase = createClient();
   const [saving, setSaving] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [branches, setBranches] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
@@ -324,21 +326,27 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
         <form onSubmit={handleSubmit} style={{ padding: 16, overflowY: 'auto' }}>
           {/* IMEI */}
           <FormField label="IMEI" required>
-            <div style={{ position: 'relative' }}>
-              <Barcode size={16} style={{
-                position: 'absolute', left: 12, top: '50%',
-                transform: 'translateY(-50%)', color: 'var(--text-muted)',
-                pointerEvents: 'none',
-              }} />
-              <input
-                type="text"
-                value={form.imei}
-                onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '') })}
-                placeholder="0000000000000000"
-                maxLength={20}
-                style={{ ...inputStyle, paddingLeft: 36, fontFamily: 'monospace' }}
-                autoFocus
-              />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                <Barcode size={16} style={{
+                  position: 'absolute', left: 12, top: '50%',
+                  transform: 'translateY(-50%)', color: 'var(--text-muted)',
+                  pointerEvents: 'none',
+                }} />
+                <input
+                  type="text"
+                  value={form.imei}
+                  onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '') })}
+                  placeholder="0000000000000000"
+                  maxLength={20}
+                  style={{ ...inputStyle, paddingLeft: 36, fontFamily: 'monospace', width: '100%' }}
+                  autoFocus
+                />
+              </div>
+              <button type="button" onClick={() => setShowScanner(true)} title="สแกน IMEI"
+                style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                <Barcode size={20} />
+              </button>
             </div>
           </FormField>
 
@@ -778,6 +786,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
           </div>
         </form>
       </div>
+      {showScanner && <BarcodeScanner onScan={(code) => { setForm({ ...form, imei: code.replace(/\D/g, '').substring(0, 20) }); setShowScanner(false); }} onClose={() => setShowScanner(false)} mode="imei" />}
     </div>
   );
 }

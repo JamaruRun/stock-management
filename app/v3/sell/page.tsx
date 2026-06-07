@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import BarcodeScanner from '@/components/BarcodeScanner';
 import {
   Search, ShoppingCart, Smartphone, Barcode, X,
   Wallet, ArrowRightLeft, CreditCard, Calendar,
@@ -25,6 +26,7 @@ function V3SellContent() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [imeiInput, setImeiInput] = useState(imeiFromUrl);
+  const [showScanner, setShowScanner] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [item, setItem] = useState<any>(null);
@@ -291,6 +293,18 @@ function V3SellContent() {
               }}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            title="สแกนด้วยกล้อง"
+            style={{
+              width: 44, height: 44, flexShrink: 0,
+              background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}
+          >
+            <Barcode size={20} />
+          </button>
           <button
             type="submit"
             disabled={searching || imeiInput.length < 14}
@@ -611,6 +625,19 @@ function V3SellContent() {
           }
         }
       `}</style>
+
+      {showScanner && (
+        <BarcodeScanner
+          mode="imei"
+          onScan={(code) => {
+            const clean = code.replace(/\D/g, '').substring(0, 20);
+            setImeiInput(clean);
+            setShowScanner(false);
+            if (clean.length >= 14) searchByImei(clean);
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </>
   );
 }
