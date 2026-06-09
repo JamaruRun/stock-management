@@ -67,7 +67,7 @@ export default function V3HomePage() {
           isAdminUser
             ? supabase
                 .from('sales_history')
-                .select('final_price, profit, sold_date, brand, model')
+                .select('final_price, profit, sold_date, model')
                 .gte('sold_date', since30)
                 .order('sold_date', { ascending: true })
             : Promise.resolve({ data: [] }),
@@ -101,13 +101,12 @@ export default function V3HomePage() {
         const points: DayPoint[] = Object.entries(byDay).map(([date, revenue]) => ({ date, revenue }));
         setSalesByDay(points);
 
-        // Top Products (last 30 days)
+        // Top Products (last 30 days) - group ตามรุ่น
         const counter: Record<string, TopProduct> = {};
         for (const s of sales) {
-          const brand = (s.brand || 'ไม่ระบุ').trim();
           const model = (s.model || 'ไม่ระบุ').trim();
-          const k = `${brand}__${model}`;
-          if (!counter[k]) counter[k] = { brand, model, count: 0 };
+          const k = model;
+          if (!counter[k]) counter[k] = { brand: '', model, count: 0 };
           counter[k].count += 1;
         }
         const top = Object.values(counter).sort((a, b) => b.count - a.count).slice(0, 5);
