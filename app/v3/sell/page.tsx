@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ReceiptPDF from '@/components/ReceiptPDF';
+import { sendLineNotify } from '@/lib/line-notify';
 import {
   Search, ShoppingCart, Smartphone, Barcode, X,
   Wallet, ArrowRightLeft, CreditCard, Calendar, Printer,
@@ -197,6 +198,11 @@ function V3SellContent() {
           shop_id: profile.shop_id,
         });
       } catch (e) { console.warn('receipt save failed:', e); }
+
+      // แจ้งเตือน LINE (ขายเครื่อง)
+      const payLabel: Record<string, string> = { cash: 'เงินสด', transfer: 'โอน', card: 'บัตร', installment: 'ผ่อน' };
+      const lineMsg = `📱 ขายเครื่อง\n━━━━━━━━━━━━━\n${item.model}${item.color ? ` (${item.color})` : ''}${item.spec ? ` ${item.spec}` : ''}\nIMEI: ${item.imei}\n━━━━━━━━━━━━━\n💰 ราคา: ฿${Number(item.price).toLocaleString()}${discountValue > 0 ? `\n➖ ส่วนลด: ฿${discountValue.toLocaleString()}` : ''}\n💵 สุทธิ: ฿${finalPrice.toLocaleString()}\n💳 ${payLabel[paymentType] || paymentType}\n🧾 ${receiptNo}\n👤 ${profile.full_name || ''}`;
+      sendLineNotify(lineMsg, 'sale').catch(() => {});
 
       setSoldSnapshot({
         receiptNo, model: item.model,
