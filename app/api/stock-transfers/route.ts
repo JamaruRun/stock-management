@@ -125,7 +125,10 @@ async function pushLine(admin: ReturnType<typeof adminClient>, shopId: string, m
 
   const text = `${message}\n\nเวลา: ${thaiDateTime()}`;
 
-  if (channelToken && shop?.line_group_id) {
+  let sentCount = 0;
+
+  async function sendMessagingPush(to: string, label: string) {
+    if (!channelToken || !to) return false;
     const res = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
@@ -133,33 +136,40 @@ async function pushLine(admin: ReturnType<typeof adminClient>, shopId: string, m
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        to: shop.line_group_id,
+        to,
         messages: [{ type: 'text', text }],
       }),
     });
-    if (res.ok) return;
+    if (!res.ok) {
+      console.error(`LINE stock transfer push failed (${label}):`, await res.text());
+      return false;
+    }
+    return true;
   }
 
   if (channelToken) {
+    if (shop?.line_group_id) {
+      const groupSent = await sendMessagingPush(shop.line_group_id, 'group');
+      if (groupSent) sentCount += 1;
+    }
+
     const { data: admins } = await admin
       .from('profiles')
-      .select('line_user_id')
+      .select('line_user_id, role, is_super_admin, full_name')
       .eq('shop_id', shopId)
-      .eq('role', 'admin')
       .not('line_user_id', 'is', null);
 
-    const results = await Promise.allSettled((admins || []).map((p: any) => fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${channelToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: p.line_user_id,
-        messages: [{ type: 'text', text }],
-      }),
-    })));
-    if (results.some(r => r.status === 'fulfilled')) return;
+    const adminTargets = Array.from(new Set((admins || [])
+      .filter((p: any) => p.role === 'admin' || p.is_super_admin)
+      .map((p: any) => p.line_user_id)
+      .filter(Boolean)));
+
+    const results = await Promise.allSettled(
+      adminTargets.map((lineUserId: string) => sendMessagingPush(lineUserId, 'admin'))
+    );
+    sentCount += results.filter((r: any) => r.status === 'fulfilled' && r.value === true).length;
+
+    if (sentCount > 0) return;
   }
 
   if (!shop?.line_token) return;
