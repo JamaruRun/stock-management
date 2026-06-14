@@ -124,11 +124,13 @@ async function pushLine(admin: ReturnType<typeof adminClient>, shopId: string, m
     .single();
 
   const text = `${message}\n\nเวลา: ${thaiDateTime()}`;
+  const groupId = String(shop?.line_group_id || '').trim();
 
   let sentCount = 0;
 
   async function sendMessagingPush(to: string, label: string) {
-    if (!channelToken || !to) return false;
+    const target = String(to || '').trim();
+    if (!channelToken || !target) return false;
     const res = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
@@ -136,21 +138,23 @@ async function pushLine(admin: ReturnType<typeof adminClient>, shopId: string, m
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        to,
+        to: target,
         messages: [{ type: 'text', text }],
       }),
     });
     if (!res.ok) {
-      console.error(`LINE stock transfer push failed (${label}):`, await res.text());
+      console.error(`LINE stock transfer push failed (${label}:${target.slice(0, 4)}...):`, await res.text());
       return false;
     }
     return true;
   }
 
   if (channelToken) {
-    if (shop?.line_group_id) {
-      const groupSent = await sendMessagingPush(shop.line_group_id, 'group');
+    if (groupId) {
+      const groupSent = await sendMessagingPush(groupId, 'group');
       if (groupSent) sentCount += 1;
+    } else {
+      console.warn(`LINE stock transfer group skipped: no line_group_id for shop ${shopId}`);
     }
 
     const { data: admins } = await admin
@@ -170,6 +174,8 @@ async function pushLine(admin: ReturnType<typeof adminClient>, shopId: string, m
     sentCount += results.filter((r: any) => r.status === 'fulfilled' && r.value === true).length;
 
     if (sentCount > 0) return;
+  } else if (groupId) {
+    console.warn(`LINE stock transfer group skipped: LINE_MESSAGING_CHANNEL_TOKEN is not configured for shop ${shopId}`);
   }
 
   if (!shop?.line_token) return;

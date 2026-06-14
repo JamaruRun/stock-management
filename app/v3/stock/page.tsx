@@ -291,9 +291,6 @@ function V3StockContent() {
           <p className="v3-page-subtitle">เครื่องในสต๊อกทั้งหมด {stats.total} เครื่อง</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <button onClick={() => openTransfer()} className="v3-btn v3-btn-secondary">
-          <Truck size={16} strokeWidth={2.5} /> ย้ายสต๊อก
-        </button>
         <button onClick={() => setShowAddModal(true)} className="v3-btn v3-btn-primary">
           <Plus size={16} strokeWidth={2.5} /> เพิ่มเครื่องใหม่
         </button>
@@ -311,48 +308,11 @@ function V3StockContent() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={() => openTransfer()} style={{ ...mobileAddBtnStyle, background: 'var(--surface-2)', color: 'var(--text)' }}>
-          <Truck size={19} strokeWidth={2.5} />
-        </button>
         <button onClick={() => setShowAddModal(true)} style={mobileAddBtnStyle}>
           <Plus size={20} strokeWidth={2.5} />
         </button>
         </div>
       </div>
-
-      <div className="v3-card" style={{ padding: 10, marginBottom: 12 }}>
-        <button
-          onClick={() => openTransfer()}
-          className="v3-btn v3-btn-secondary"
-          style={{
-            width: '100%',
-            justifyContent: 'center',
-            minHeight: 42,
-            fontWeight: 800,
-            borderStyle: 'dashed',
-          }}
-        >
-          <Truck size={17} strokeWidth={2.5} />
-          ย้าย / รับโอนสต๊อก
-        </button>
-        <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-dim)', textAlign: 'center' }}>
-          ย้ายได้ทั้งเครื่องในสต๊อก อะไหล่ และสินค้า
-        </div>
-      </div>
-
-      {(pendingIncoming.length > 0 || pendingOutgoing.length > 0) && (
-        <TransferPanel
-          incoming={pendingIncoming}
-          outgoing={pendingOutgoing}
-          busyId={transferBusyId}
-          onReceive={(t: StockTransfer) => handleTransferAction(t, 'receive')}
-          onCancel={(t: StockTransfer) => handleTransferAction(t, 'cancel')}
-        />
-      )}
-
-      {isAdmin && transferHistory.length > 0 && (
-        <TransferHistoryPanel transfers={transferHistory} />
-      )}
 
       {/* Search + Filters - แถวเดียวเหมือน ref */}
       <div className="v3-card v3-filter-bar" style={{ marginBottom: 12, padding: 10 }}>
@@ -530,6 +490,13 @@ function V3StockContent() {
           branches={branches}
           profile={profile}
           seedItem={transferSeedItem}
+          isAdmin={isAdmin}
+          incoming={pendingIncoming}
+          outgoing={pendingOutgoing}
+          history={transferHistory}
+          busyId={transferBusyId}
+          onReceive={(t: StockTransfer) => handleTransferAction(t, 'receive')}
+          onCancel={(t: StockTransfer) => handleTransferAction(t, 'cancel')}
           onClose={() => { setShowTransferModal(false); setTransferSeedItem(null); }}
           onSuccess={() => {
             setShowTransferModal(false);
@@ -780,8 +747,23 @@ function formatTransferDate(value?: string | null) {
   }
 }
 
-function StockTransferModal({ items, branches, profile, seedItem, onClose, onSuccess }: any) {
+function StockTransferModal({
+  items,
+  branches,
+  profile,
+  seedItem,
+  isAdmin,
+  incoming,
+  outgoing,
+  history,
+  busyId,
+  onReceive,
+  onCancel,
+  onClose,
+  onSuccess,
+}: any) {
   const [selectedIds, setSelectedIds] = useState<string[]>(seedItem ? [seedItem.id] : []);
+  const [activeTab, setActiveTab] = useState<'move' | 'activity'>(seedItem ? 'move' : 'move');
   const [itemType, setItemType] = useState<TransferItemType>('stock');
   const [transferItems, setTransferItems] = useState<any[]>(items);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -889,7 +871,30 @@ function StockTransferModal({ items, branches, profile, seedItem, onClose, onSuc
           </button>
         </div>
 
-        <div style={{ padding: 16, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(240px, 0.65fr)', gap: 14 }}>
+        <div style={{ padding: '10px 16px 0', display: 'flex', gap: 8, borderBottom: '1px solid var(--border)' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('move')}
+            style={modalTabStyle(activeTab === 'move')}
+          >
+            <Send size={14} /> ทำรายการย้าย
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('activity')}
+            style={modalTabStyle(activeTab === 'activity')}
+          >
+            <Clock size={14} /> รายการ / ประวัติ
+            {(incoming.length + outgoing.length) > 0 && (
+              <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: activeTab === 'activity' ? '#fff' : 'var(--accent)', color: activeTab === 'activity' ? 'var(--accent)' : '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                {incoming.length + outgoing.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === 'move' ? (
+        <div className="transfer-move-grid" style={{ padding: 16, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(240px, 0.65fr)', gap: 14 }}>
           <div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto' }}>
               {(Object.keys(TRANSFER_TYPES) as TransferItemType[]).map(type => (
@@ -1007,17 +1012,30 @@ function StockTransferModal({ items, branches, profile, seedItem, onClose, onSuc
             {error && <div style={{ padding: 10, borderRadius: 10, background: '#fef2f2', color: '#991b1b', fontSize: 12 }}>{error}</div>}
           </div>
         </div>
+        ) : (
+          <TransferActivityTab
+            incoming={incoming}
+            outgoing={outgoing}
+            history={history}
+            busyId={busyId}
+            onReceive={onReceive}
+            onCancel={onCancel}
+            isAdmin={isAdmin}
+          />
+        )}
 
+        {activeTab === 'move' && (
         <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
           <button type="button" onClick={onClose} className="v3-btn v3-btn-secondary" style={{ flex: 1 }}>ยกเลิก</button>
           <button type="submit" disabled={saving} className="v3-btn v3-btn-primary" style={{ flex: 2 }}>
             {saving ? <RefreshCw size={15} className="v3-spin" /> : <Send size={15} />} {saving ? 'กำลังทำรายการ...' : 'ยืนยันย้ายสต๊อก'}
           </button>
         </div>
+        )}
       </form>
       <style jsx>{`
         @media (max-width: 760px) {
-          form > div:nth-child(2) {
+          .transfer-move-grid {
             grid-template-columns: 1fr !important;
           }
         }
@@ -1032,6 +1050,54 @@ function FormMini({ label, children }: any) {
       {label}
       {children}
     </label>
+  );
+}
+
+function TransferActivityTab({ incoming, outgoing, history, busyId, onReceive, onCancel, isAdmin }: any) {
+  const hasPending = incoming.length > 0 || outgoing.length > 0;
+  const visibleHistory = isAdmin ? history : history.slice(0, 20);
+
+  return (
+    <div style={{ padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 800 }}>รายการที่กำลังดำเนินการ</div>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{incoming.length + outgoing.length} รายการ</span>
+        </div>
+
+        {!hasPending ? (
+          <div style={{ padding: 18, border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text-dim)', fontSize: 12, textAlign: 'center', background: 'var(--surface-2)' }}>
+            ยังไม่มีรายการย้ายที่รอรับ
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {incoming.map((t: StockTransfer) => (
+              <TransferRow key={t.id} transfer={t} busy={busyId === t.id} mode="incoming" onReceive={onReceive} onCancel={onCancel} />
+            ))}
+            {outgoing.map((t: StockTransfer) => (
+              <TransferRow key={t.id} transfer={t} busy={busyId === t.id} mode="outgoing" onReceive={onReceive} onCancel={onCancel} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 800 }}>ประวัติการโอนย้าย</div>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{visibleHistory.length} รายการล่าสุด</span>
+        </div>
+
+        {visibleHistory.length === 0 ? (
+          <div style={{ padding: 18, border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text-dim)', fontSize: 12, textAlign: 'center', background: 'var(--surface-2)' }}>
+            ยังไม่มีประวัติการโอนย้าย
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {visibleHistory.map((t: StockTransfer) => <TransferHistoryRow key={t.id} transfer={t} />)}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -1451,6 +1517,24 @@ const inputMiniStyle: React.CSSProperties = {
   outline: 'none',
   boxSizing: 'border-box',
 };
+
+function modalTabStyle(active: boolean): React.CSSProperties {
+  return {
+    border: 'none',
+    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+    background: 'transparent',
+    color: active ? 'var(--accent)' : 'var(--text-dim)',
+    padding: '8px 4px 10px',
+    fontSize: 12,
+    fontWeight: 800,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    whiteSpace: 'nowrap',
+  };
+}
 
 const menuLinkStyle: React.CSSProperties = {
   display: 'flex',
