@@ -48,7 +48,7 @@ function V3SellContent() {
       if (!user) return;
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, shop_id, role, is_super_admin')
+        .select('id, full_name, shop_id, branch_id, role, is_super_admin')
         .eq('id', user.id)
         .single();
       setProfile(data);
@@ -76,11 +76,31 @@ function V3SellContent() {
     setSearchError(null);
     setItem(null);
 
-    const { data, error } = await supabase
+    let activeProfile = profile;
+    if (!activeProfile) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, shop_id, branch_id, role, is_super_admin')
+          .eq('id', user.id)
+          .single();
+        activeProfile = data;
+        setProfile(data);
+      }
+    }
+
+    const isAdminUser = activeProfile?.role === 'admin' || activeProfile?.is_super_admin;
+    let stockQuery = supabase
       .from('stock')
       .select('*, branches(name), suppliers(name)')
-      .eq('imei', searchImei)
-      .maybeSingle();
+      .eq('imei', searchImei);
+
+    if (activeProfile && !isAdminUser && activeProfile.branch_id) {
+      stockQuery = stockQuery.eq('branch_id', activeProfile.branch_id);
+    }
+
+    const { data, error } = await stockQuery.maybeSingle();
 
     if (error) {
       setSearchError('เกิดข้อผิดพลาดในการค้นหา');
@@ -126,6 +146,11 @@ function V3SellContent() {
 
   async function confirmSale() {
     if (!item || !profile) return;
+    const isAdminUser = profile?.role === 'admin' || profile?.is_super_admin;
+    if (!isAdminUser && profile.branch_id && item.branch_id !== profile.branch_id) {
+      alert('พนักงานขายได้เฉพาะเครื่องในสาขาของตัวเอง');
+      return;
+    }
     const discountValue = parseFloat(discount) || 0;
     const finalPrice = Number(item.price) - discountValue;
 

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Users, MapPin, Shield,
   X, Trash2, MoreVertical, Crown, User,
-  Building2, Phone, KeyRound, Lock,
+  Building2, Phone, KeyRound, Lock, Edit2,
 } from 'lucide-react';
 
 interface Profile {
@@ -44,6 +44,7 @@ export default function V3UsersPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showAddBranch, setShowAddBranch] = useState(false);
+  const [editBranch, setEditBranch] = useState<Branch | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [newUser, setNewUser] = useState({
@@ -167,6 +168,27 @@ export default function V3UsersPage() {
     alert(`สร้างสาขา ${newBranch.name} แล้ว`);
     setNewBranch({ name: '', address: '', phone: '' });
     setShowAddBranch(false);
+    loadData();
+  }
+
+  async function handleUpdateBranch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editBranch?.name.trim()) { alert('กรุณาใส่ชื่อสาขา'); return; }
+
+    setSubmitting(true);
+    const { error } = await supabase
+      .from('branches')
+      .update({
+        name: editBranch.name.trim(),
+        address: editBranch.address?.trim() || null,
+        phone: editBranch.phone?.trim() || null,
+      })
+      .eq('id', editBranch.id)
+      .eq('shop_id', currentShopId);
+    setSubmitting(false);
+
+    if (error) { alert('แก้ไขสาขาไม่สำเร็จ: ' + error.message); return; }
+    setEditBranch(null);
     loadData();
   }
 
@@ -340,7 +362,7 @@ export default function V3UsersPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filteredBranches.map(b => (
-              <BranchCard key={b.id} branch={b} userCount={users.filter(u => u.branch_id === b.id).length} />
+              <BranchCard key={b.id} branch={b} userCount={users.filter(u => u.branch_id === b.id).length} onEdit={() => setEditBranch(b)} />
             ))}
           </div>
         )
@@ -440,6 +462,45 @@ export default function V3UsersPage() {
               </button>
               <button type="submit" disabled={submitting} style={btnPrimary}>
                 {submitting ? 'กำลังบันทึก...' : '+ เพิ่มสาขา'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {editBranch && (
+        <Modal title="แก้ไขสาขา" onClose={() => setEditBranch(null)}>
+          <form onSubmit={handleUpdateBranch} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Field label="ชื่อสาขา" required>
+              <input
+                type="text"
+                value={editBranch.name}
+                onChange={(e) => setEditBranch({ ...editBranch, name: e.target.value })}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="ที่อยู่">
+              <input
+                type="text"
+                value={editBranch.address || ''}
+                onChange={(e) => setEditBranch({ ...editBranch, address: e.target.value })}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="เบอร์โทร">
+              <input
+                type="text"
+                value={editBranch.phone || ''}
+                onChange={(e) => setEditBranch({ ...editBranch, phone: e.target.value })}
+                style={inputStyle}
+              />
+            </Field>
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button type="button" onClick={() => setEditBranch(null)} style={btnSecondary}>
+                ยกเลิก
+              </button>
+              <button type="submit" disabled={submitting} style={btnPrimary}>
+                {submitting ? 'กำลังบันทึก...' : 'บันทึกสาขา'}
               </button>
             </div>
           </form>
@@ -667,7 +728,7 @@ function UserCard({ user, menuOpen, onToggleMenu, onClose, onDelete, onResetPass
   );
 }
 
-function BranchCard({ branch, userCount }: any) {
+function BranchCard({ branch, userCount, onEdit }: any) {
   return (
     <div style={{
       background: 'var(--surface)',
@@ -711,7 +772,26 @@ function BranchCard({ branch, userCount }: any) {
         )}
       </div>
 
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          onClick={onEdit}
+          title="แก้ไขสาขา"
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            border: '1px solid var(--border)',
+            background: 'var(--surface-2)',
+            color: 'var(--text-dim)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <Edit2 size={15} />
+        </button>
+        <div>
         <div style={{
           fontSize: 18,
           fontWeight: 800,
@@ -723,6 +803,7 @@ function BranchCard({ branch, userCount }: any) {
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>พนักงาน</div>
       </div>
+    </div>
     </div>
   );
 }

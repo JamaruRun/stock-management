@@ -43,6 +43,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
     addedDate: new Date().toISOString().split('T')[0],
     branchId: '',
   });
+  const isAdmin = profile?.role === 'admin' || profile?.is_super_admin;
 
   useEffect(() => {
     async function init() {
@@ -230,6 +231,11 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
     }
     if (!form.branchId) {
       alert('กรุณาเลือกสาขา');
+      return;
+    }
+
+    if (!isAdmin && profile?.branch_id && form.branchId !== profile.branch_id) {
+      alert('พนักงานเพิ่มเครื่องได้เฉพาะสาขาของตัวเอง');
       return;
     }
 
@@ -710,6 +716,7 @@ export default function StockAddModal({ onClose, onSuccess }: Props) {
             <select
               value={form.branchId}
               onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+              disabled={!isAdmin}
               style={inputStyle}
             >
               <option value="">-- เลือกสาขา --</option>
