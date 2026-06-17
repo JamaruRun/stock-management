@@ -9,8 +9,10 @@ import {
   KeyRound, Mail, Phone, MapPin, FileText, Hash,
   Image as ImageIcon, MessageSquare, Moon, Sun, Smartphone as Phone2,
   LogOut, AlertCircle, Loader2, UserPlus, QrCode, Copy,
+  Users, Link2, Unlink, Send, ChevronDown,
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { sendLineNotify } from '@/lib/line-notify';
 
 type TabId = 'profile' | 'shop' | 'theme' | 'notify';
 
@@ -123,6 +125,14 @@ export default function V3SettingsPage() {
   }
 
   useEffect(() => { loadData(); }, []);
+
+  // กลับจาก LINE OAuth (?line=connected/cancelled/error) → เปิดแท็บแจ้งเตือนให้เลย
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('line')) {
+      setActiveTab('notify');
+    }
+  }, []);
 
   async function handleSaveShop() {
     if (!shop?.id) return;
@@ -246,11 +256,13 @@ export default function V3SettingsPage() {
           {activeTab === 'notify' && (
             <NotifyTab
               shop={shop}
+              profile={profile}
               form={lineForm}
               setForm={setLineForm}
               saving={saving}
               onSave={handleSaveLine}
               isAdmin={isAdmin}
+              reload={loadData}
             />
           )}
         </div>
@@ -808,7 +820,85 @@ function ThemeTab({ current, onChange }: any) {
    Notify Tab
 ========================= */
 
-function NotifyTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
+function NotifyTab({ shop, profile, form, setForm, saving, onSave, isAdmin, reload }: any) {
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  function notify(text: string, ok = true) { setMsg({ text, ok }); setTimeout(() => setMsg(null), 3500); }
+
+  const [groupIdInput, setGroupIdInput] = useState('');
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // แสดงผลกลับจาก LINE OAuth (?line=connected/cancelled/error) แล้วล้าง URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    const r = p.get('line');
+    if (!r) return;
+    if (r === 'connected') notify('เชื่อม LINE สำเร็จ — ระบบพร้อมส่งแจ้งเตือนแล้ว');
+    else if (r === 'cancelled') notify('ยกเลิกการเชื่อม LINE', false);
+    else notify('เชื่อม LINE ไม่สำเร็จ: ' + (p.get('reason') || 'ลองใหม่อีกครั้ง'), false);
+    window.history.replaceState({}, '', '/v3/settings');
+  }, []);
+
+  async function handleSaveGroup() {
+    const gid = groupIdInput.trim();
+    if (!gid) return notify('ใส่ Group ID ก่อน', false);
+    if (!gid.startsWith('C')) return notify('Group ID ต้องขึ้นต้นด้วย C', false);
+    setSavingGroup(true);
+    try {
+      const res = await fetch('/api/line/group', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: gid }),
+      });
+      const data = await res.json();
+      if (data.success) { notify('เชื่อมกลุ่มสำเร็จ — เช็คใน LINE มีข้อความยืนยัน'); setGroupIdInput(''); reload?.(); }
+      else notify('เชื่อมไม่สำเร็จ: ' + (data.error || ''), false);
+    } catch (e: any) { notify('เกิดข้อผิดพลาด: ' + e.message, false); }
+    finally { setSavingGroup(false); }
+  }
+
+  async function handleDisconnectGroup() {
+    if (!confirm('ยกเลิกการเชื่อมกลุ่ม LINE?\n\nระบบจะกลับไปส่งหา admin แต่ละคนแทน')) return;
+    setDisconnecting(true);
+    try {
+      const res = await fetch('/api/line/group', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { notify('ยกเลิกการเชื่อมกลุ่มแล้ว'); reload?.(); }
+      else notify('ยกเลิกไม่สำเร็จ: ' + (data.error || ''), false);
+    } catch (e: any) { notify('เกิดข้อผิดพลาด: ' + e.message, false); }
+    finally { setDisconnecting(false); }
+  }
+
+  function handleConnectLine() { window.location.href = '/api/line/login'; }
+
+  async function handleDisconnectLine() {
+    if (!confirm('ยกเลิกการเชื่อม LINE ส่วนตัว?\n\nคุณจะไม่ได้รับแจ้งเตือนอีก (admin คนอื่นยังได้รับอยู่)')) return;
+    setDisconnecting(true);
+    try {
+      const res = await fetch('/api/line/disconnect', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) { notify('ยกเลิกการเชื่อมแล้ว'); reload?.(); }
+      else notify('ยกเลิกไม่สำเร็จ: ' + (data.error || ''), false);
+    } catch (e: any) { notify('เกิดข้อผิดพลาด: ' + e.message, false); }
+    finally { setDisconnecting(false); }
+  }
+
+  async function handleTest() {
+    setTesting(true);
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const result = await sendLineNotify(
+      `🎉 ทดสอบการแจ้งเตือน\n\n🏪 ร้าน: ${shop?.name || 'ของคุณ'}\n👤 ${profile?.full_name || ''}\n📅 ${dateStr} 🕐 ${timeStr} น.\n\n✅ การเชื่อมต่อสำเร็จ`,
+      'test'
+    );
+    setTesting(false);
+    if (result?.success) notify('ส่งข้อความทดสอบสำเร็จ — เช็คใน LINE');
+    else notify('ส่งไม่สำเร็จ: ' + (result?.detail || result?.error || 'ยังไม่ได้เชื่อม LINE'), false);
+  }
+
   if (!isAdmin) {
     return (
       <div className="v3-card" style={{ padding: 40, textAlign: 'center' }}>
@@ -820,43 +910,155 @@ function NotifyTab({ shop, form, setForm, saving, onSave, isAdmin }: any) {
     );
   }
 
-  const isLineConnected = !!shop?.line_group_id;
+  const groupConnected = !!shop?.line_group_id;
+  const meConnected = !!profile?.line_user_id;
 
   return (
     <div className="v3-card" style={{ padding: 20 }}>
       <SectionTitle Icon={Bell} label="การแจ้งเตือน LINE" color="#f59e0b" />
 
-      {/* Connection status */}
-      <div style={{
-        padding: 12,
-        background: isLineConnected ? '#dcfce7' : '#fef3c7',
-        borderRadius: 10,
-        marginBottom: 16,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-      }}>
+      {msg && (
         <div style={{
-          width: 32, height: 32,
-          borderRadius: 16,
-          background: isLineConnected ? '#22c55e' : '#f59e0b',
-          color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          {isLineConnected ? <Check size={16} strokeWidth={3} /> : <AlertCircle size={16} />}
+          padding: '10px 12px', borderRadius: 10, marginBottom: 14, fontSize: 12, fontWeight: 600,
+          background: msg.ok ? '#dcfce7' : '#fee2e2', color: msg.ok ? '#166534' : '#b91c1c',
+        }}>{msg.text}</div>
+      )}
+
+      {/* ───── วิธี 1: เชื่อมกลุ่ม LINE (แนะนำ) ───── */}
+      <div style={{
+        padding: 14, borderRadius: 12, marginBottom: 14,
+        background: groupConnected ? 'rgba(6,199,85,0.08)' : 'var(--surface-2)',
+        border: `1px solid ${groupConnected ? 'rgba(6,199,85,0.35)' : 'var(--border)'}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Users size={16} style={{ color: '#06c755' }} />
+          <span style={{ fontSize: 13, fontWeight: 700 }}>ส่งเข้ากลุ่ม LINE</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#06c755', background: 'rgba(6,199,85,0.12)', padding: '2px 7px', borderRadius: 100 }}>แนะนำ</span>
+          {groupConnected && <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#06c755' }}>✓ เชื่อมแล้ว</span>}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: isLineConnected ? '#166534' : '#92400e' }}>
-            {isLineConnected ? 'เชื่อมต่อ LINE Group แล้ว' : 'ยังไม่ได้เชื่อมต่อ LINE'}
-          </div>
-          <div style={{ fontSize: 10, color: isLineConnected ? '#166534' : '#92400e', marginTop: 1 }}>
-            {isLineConnected
-              ? 'ระบบส่งข้อความเข้า LINE Group อัตโนมัติ'
-              : 'ตั้งค่า LINE Group ID ในหน้า /dashboard/settings'}
-          </div>
-        </div>
+
+        {groupConnected ? (
+          <>
+            <div style={{ padding: 10, background: 'var(--surface)', borderRadius: 8, fontFamily: 'monospace', fontSize: 11, color: 'var(--text-dim)', wordBreak: 'break-all', marginBottom: 10 }}>
+              {shop.line_group_id}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
+              💡 ส่ง 1 ข้อความ → ทุกคนในกลุ่มได้รับพร้อมกัน · ประหยัดโควต้า LINE
+            </div>
+            <button onClick={handleDisconnectGroup} disabled={disconnecting} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9,
+              background: 'var(--surface)', color: '#ef4444', border: '1px solid var(--border)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              <Unlink size={13} /> {disconnecting ? 'กำลังยกเลิก...' : 'ยกเลิกการเชื่อมกลุ่ม'}
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 10 }}>
+              ส่ง 1 ข้อความ → ทุก admin ในกลุ่มเห็น · ประหยัดโควต้า 🎯
+            </div>
+            <button onClick={() => setShowGuide(!showGuide)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, background: 'transparent', border: 'none',
+              color: 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '2px 0',
+              fontFamily: 'inherit', marginBottom: 10,
+            }}>
+              <ChevronDown size={14} style={{ transform: showGuide ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+              {showGuide ? 'ปิดวิธีทำ' : 'ดูวิธีทำ (3 นาที)'}
+            </button>
+
+            {showGuide && (
+              <div style={{ padding: 12, background: 'var(--surface)', borderRadius: 8, fontSize: 12, lineHeight: 1.8, marginBottom: 10 }}>
+                <strong>ขั้นตอน:</strong>
+                <ol style={{ marginLeft: 18, marginTop: 4 }}>
+                  <li>เปิด LINE → สร้างกลุ่มใหม่ ตั้งชื่อ "แจ้งเตือนร้าน"</li>
+                  <li>เชิญ admin คนอื่นเข้ากลุ่ม</li>
+                  <li>เชิญ <strong>LINE OA ของระบบ</strong> เข้ากลุ่ม</li>
+                  <li>บอทจะส่ง <strong>"Group ID:"</strong> เข้ามาในกลุ่ม (ถ้าไม่ส่ง พิมพ์ <code>id</code> ในกลุ่ม)</li>
+                  <li>คัดลอก Group ID (ขึ้นต้น C) → วางด้านล่าง → บันทึก</li>
+                </ol>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="text"
+                value={groupIdInput}
+                onChange={(e) => setGroupIdInput(e.target.value)}
+                placeholder="C1234567890abcdef..."
+                style={{ ...inputStyle, height: 40, flex: 1, fontFamily: 'monospace', fontSize: 12 }}
+              />
+              <button onClick={handleSaveGroup} disabled={savingGroup} style={{
+                padding: '0 16px', background: '#06c755', color: '#fff', border: 'none', borderRadius: 10,
+                fontSize: 13, fontWeight: 700, cursor: savingGroup ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+              }}>
+                {savingGroup ? '...' : 'บันทึก'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* ───── วิธี 2: เชื่อม LINE ส่วนตัว (OAuth) ───── */}
+      <div style={{
+        padding: 14, borderRadius: 12, marginBottom: 14,
+        background: meConnected ? 'rgba(6,199,85,0.08)' : 'var(--surface-2)',
+        border: `1px solid ${meConnected ? 'rgba(6,199,85,0.35)' : 'var(--border)'}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <MessageSquare size={16} style={{ color: '#06c755' }} />
+          <span style={{ fontSize: 13, fontWeight: 700 }}>เชื่อม LINE ส่วนตัวของคุณ</span>
+        </div>
+
+        {meConnected ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {profile.line_picture_url
+              ? <img src={profile.line_picture_url} alt="" style={{ width: 48, height: 48, borderRadius: 24, border: '2px solid #06c755', flexShrink: 0 }} />
+              : <div style={{ width: 48, height: 48, borderRadius: 24, background: '#06c755', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>💬</div>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#06c755' }}>✓ เชื่อมต่อแล้ว</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile.line_display_name || 'LINE User'}
+              </div>
+            </div>
+            <button onClick={handleDisconnectLine} disabled={disconnecting} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, padding: '8px 12px', borderRadius: 9,
+              background: 'var(--surface)', color: '#ef4444', border: '1px solid var(--border)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+            }}>
+              <Unlink size={13} /> ยกเลิก
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 10 }}>
+              ใช้กรณีไม่ใช้กลุ่ม · ระบบจะส่งแจ้งเตือนเข้า LINE ส่วนตัวของคุณ
+            </div>
+            <button onClick={handleConnectLine} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+              padding: '13px 16px', background: '#06c755', color: '#fff', border: 'none', borderRadius: 10,
+              fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              boxShadow: '0 2px 8px rgba(6,199,85,0.3)',
+            }}>
+              <Link2 size={17} /> เชื่อม LINE (Login ครั้งเดียวจบ)
+            </button>
+            <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center' }}>
+              🔒 ปลอดภัย ใช้ LINE Login · ไม่เก็บรหัสผ่าน
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ปุ่มทดสอบ (มีเมื่อเชื่อมอย่างใดอย่างหนึ่ง) */}
+      {(groupConnected || meConnected) && (
+        <button onClick={handleTest} disabled={testing} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%',
+          padding: '11px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)',
+          borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: testing ? 'wait' : 'pointer', fontFamily: 'inherit', marginBottom: 14,
+        }}>
+          <Send size={14} /> {testing ? 'กำลังส่ง...' : 'ส่งข้อความทดสอบ'}
+        </button>
+      )}
 
       {/* เพิ่มเพื่อน LINE OA */}
       <LineAddFriend />

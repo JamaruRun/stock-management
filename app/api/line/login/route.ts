@@ -15,12 +15,12 @@ export async function GET(req: NextRequest) {
     .from('profiles').select('role, shop_id').eq('id', user.id).single();
   
   if (profile?.role !== 'admin') {
-    return NextResponse.redirect(new URL('/dashboard/home?error=not_admin', req.url));
+    return NextResponse.redirect(new URL('/v3/home?error=not_admin', req.url));
   }
 
   const channelId = process.env.LINE_LOGIN_CHANNEL_ID;
   if (!channelId) {
-    return NextResponse.redirect(new URL('/dashboard/settings?error=line_not_configured', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?error=line_not_configured', req.url));
   }
 
   // สร้าง state เพื่อป้องกัน CSRF + เก็บ shop_id

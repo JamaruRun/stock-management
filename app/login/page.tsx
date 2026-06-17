@@ -217,7 +217,7 @@ export default function LoginPage() {
             <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #eef2f7' }}>
               <ContactBlock variant="compact" />
             </div>
-            <p className="ver">StockCare v3.9.96</p>
+            <p className="ver">StockCare v3.9.97</p>
           </div>
         </main>
       </div>

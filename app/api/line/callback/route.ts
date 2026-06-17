@@ -9,23 +9,23 @@ export async function GET(req: NextRequest) {
 
   // ถ้าผู้ใช้ปฏิเสธ
   if (error) {
-    return NextResponse.redirect(new URL('/dashboard/settings?line=cancelled', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?line=cancelled', req.url));
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=missing_code', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?line=error&reason=missing_code', req.url));
   }
 
   // ตรวจสอบ state จาก cookie
   const savedState = req.cookies.get('line_oauth_state')?.value;
   if (!savedState || savedState !== state) {
-    return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=invalid_state', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?line=error&reason=invalid_state', req.url));
   }
 
   // ดึง user_id จาก state
   const [, userIdFromState] = state.split('.');
   if (!userIdFromState) {
-    return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=invalid_state_format', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?line=error&reason=invalid_state_format', req.url));
   }
 
   const supabase = await createClient();
@@ -41,14 +41,14 @@ export async function GET(req: NextRequest) {
     .from('profiles').select('role, shop_id, full_name').eq('id', user.id).single();
   
   if (profile?.role !== 'admin' || !profile?.shop_id) {
-    return NextResponse.redirect(new URL('/dashboard/home?error=not_admin', req.url));
+    return NextResponse.redirect(new URL('/v3/home?error=not_admin', req.url));
   }
 
   const channelId = process.env.LINE_LOGIN_CHANNEL_ID;
   const channelSecret = process.env.LINE_LOGIN_CHANNEL_SECRET;
   
   if (!channelId || !channelSecret) {
-    return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=not_configured', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?line=error&reason=not_configured', req.url));
   }
 
   // แลก code เป็น access token
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       const errorText = await tokenRes.text();
       console.error('LINE token exchange failed:', errorText);
-      return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=token_exchange', req.url));
+      return NextResponse.redirect(new URL('/v3/settings?line=error&reason=token_exchange', req.url));
     }
 
     const tokenData = await tokenRes.json();
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (!profileRes.ok) {
-      return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=profile_fetch', req.url));
+      return NextResponse.redirect(new URL('/v3/settings?line=error&reason=profile_fetch', req.url));
     }
 
     const lineProfile = await profileRes.json();
@@ -103,15 +103,15 @@ export async function GET(req: NextRequest) {
 
     if (updateError) {
       console.error('Update profile failed:', updateError);
-      return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=save_failed', req.url));
+      return NextResponse.redirect(new URL('/v3/settings?line=error&reason=save_failed', req.url));
     }
 
     // เคลียร์ cookie
-    const response = NextResponse.redirect(new URL('/dashboard/settings?line=connected', req.url));
+    const response = NextResponse.redirect(new URL('/v3/settings?line=connected', req.url));
     response.cookies.delete('line_oauth_state');
     return response;
   } catch (e: any) {
     console.error('LINE OAuth error:', e);
-    return NextResponse.redirect(new URL('/dashboard/settings?line=error&reason=exception', req.url));
+    return NextResponse.redirect(new URL('/v3/settings?line=error&reason=exception', req.url));
   }
 }
