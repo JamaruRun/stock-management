@@ -7,11 +7,12 @@ import { createClient } from '@/lib/supabase-client';
 import { REPAIR_STATUSES, getStatusInfo, type RepairStatus } from '@/lib/repair-constants';
 import RepairNewModal from './RepairNewModal';
 import RepairManageModal from './RepairManageModal';
+import RepairSlipPrint from '@/components/RepairSlipPrint';
 import {
   Plus, Search, Hammer, Smartphone, X, MoreVertical,
   Clock, Wrench, Package, CheckCircle2, Truck, Ban,
   Eye, Edit2, Phone, Calendar, User, FileText,
-  ChevronDown, ArrowRight,
+  ChevronDown, ArrowRight, Printer,
 } from 'lucide-react';
 
 interface RepairJob {
@@ -52,6 +53,8 @@ export default function V3RepairPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(useSearchParams().get('new') === '1');
   const [manageId, setManageId] = useState<string | null>(null);
+  const [slipJob, setSlipJob] = useState<any>(null);
+  const [shop, setShop] = useState<any>(null);
 
   async function load() {
     try {
@@ -60,10 +63,15 @@ export default function V3RepairPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_super_admin')
+        .select('role, is_super_admin, shop_id')
         .eq('id', user.id)
         .single();
       setIsAdmin(profile?.role === 'admin' || profile?.is_super_admin);
+
+      if (profile?.shop_id) {
+        const { data: s } = await supabase.from('shops').select('*').eq('id', profile.shop_id).single();
+        setShop(s);
+      }
 
       const { data } = await supabase
         .from('repair_jobs')
@@ -318,6 +326,7 @@ export default function V3RepairPage() {
               onClose={() => setMenuOpenId(null)}
               onDelete={() => handleDelete(job)}
               onManage={() => { setMenuOpenId(null); setManageId(job.id); }}
+              onPrint={() => { setMenuOpenId(null); setSlipJob(job); }}
             />
           ))}
         </div>
@@ -328,6 +337,18 @@ export default function V3RepairPage() {
       )}
       {manageId && (
         <RepairManageModal jobId={manageId} onClose={() => setManageId(null)} onChanged={() => { setManageId(null); load(); }} />
+      )}
+      {slipJob && (
+        <RepairSlipPrint
+          job={{
+            ...slipJob,
+            received_date: slipJob.received_date || slipJob.created_at || new Date().toISOString(),
+            problem_description: slipJob.problem_description || '-',
+          }}
+          shopName={shop?.name}
+          shopPhone={shop?.receipt_phone || shop?.phone || shop?.owner_phone}
+          onClose={() => setSlipJob(null)}
+        />
       )}
     </>
   );
@@ -373,7 +394,7 @@ function StatusTab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onManage }: any) {
+function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onManage, onPrint }: any) {
   const info = getStatusInfo(job.status);
   const StatusIcon = STATUS_ICONS[job.status] || Hammer;
   const balance = Number(job.total_price || 0) - Number(job.paid_amount || 0);
@@ -470,6 +491,9 @@ function JobCard({ job, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onMa
                     }}>
                       <button onClick={onManage} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                         <Eye size={14} /> ดู / จัดการงาน
+                      </button>
+                      <button onClick={onPrint} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                        <Printer size={14} /> ปริ้นใบรับซ่อม
                       </button>
                       {job.customer_phone && (
                         <a href={`tel:${job.customer_phone}`} style={menuLinkStyle}>
