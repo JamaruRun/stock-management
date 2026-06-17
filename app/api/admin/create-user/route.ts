@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ข้อมูลไม่ครบ' }, { status: 400 });
     }
 
+    // normalize ให้ตรงกับตอน login (find-email lowercase เสมอ)
+    const uname = String(username).trim().toLowerCase();
+
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!SERVICE_KEY) {
       return NextResponse.json(
@@ -45,24 +48,27 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // เช็คว่า username นี้มีในร้านนี้แล้วหรือยัง
-    const { data: existingUsername } = await adminClient
+    // เช็ค username ซ้ำ "ทั้งระบบ" (ไม่ใช่แค่ร้านนี้)
+    // เพราะ login ค้น username แบบ global → ถ้าซ้ำข้ามร้านจะ login สับสน/ผิดร้านได้
+    const { data: dupes } = await adminClient
       .from('profiles')
-      .select('id, full_name')
-      .eq('username', username)
-      .eq('shop_id', profile.shop_id)
-      .maybeSingle();
+      .select('id, full_name, shop_id')
+      .eq('username', uname)
+      .limit(1);
 
-    if (existingUsername) {
+    if (dupes && dupes.length > 0) {
+      const sameShop = dupes[0].shop_id === profile.shop_id;
       return NextResponse.json(
-        { error: `Username "${username}" มีอยู่ในร้านนี้แล้ว (${existingUsername.full_name})` },
+        { error: sameShop
+            ? `Username "${uname}" มีอยู่ในร้านนี้แล้ว (${dupes[0].full_name})`
+            : `Username "${uname}" ถูกใช้ไปแล้ว — กรุณาตั้งชื่อผู้ใช้ใหม่` },
         { status: 400 }
       );
     }
 
     // ใช้ shop_id 8 ตัวแรกเป็นส่วนหนึ่งของ email เพื่อให้ unique
     const shopShortId = profile.shop_id.replace(/-/g, '').substring(0, 8);
-    const email = `${username}+${shopShortId}@example.com`;
+    const email = `${uname}+${shopShortId}@example.com`;
 
     // สร้าง auth user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -78,7 +84,7 @@ export async function POST(request: NextRequest) {
     // สร้าง profile - username เก็บแบบไม่มี shop_id (สำหรับแสดงผล)
     const { error: profileError } = await adminClient.from('profiles').insert({
       id: newUser.user.id,
-      username,
+      username: uname,
       full_name,
       role,
       branch_id,

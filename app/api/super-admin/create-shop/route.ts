@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'รหัสผ่านอย่างน้อย 6 ตัว' }, { status: 400 });
     }
 
+    // normalize ให้ตรงกับตอน login (find-email lowercase เสมอ)
+    const adminUname = String(adminUsername).trim().toLowerCase();
+
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!SERVICE_KEY) {
       return NextResponse.json({ error: 'ยังไม่ได้ตั้งค่า SERVICE_ROLE_KEY' }, { status: 500 });
@@ -41,6 +44,20 @@ export async function POST(request: NextRequest) {
       SERVICE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // เช็ค username ซ้ำ "ทั้งระบบ" ก่อนสร้าง (login ค้น username แบบ global)
+    const { data: dupAdmin } = await adminClient
+      .from('profiles')
+      .select('id')
+      .eq('username', adminUname)
+      .limit(1);
+
+    if (dupAdmin && dupAdmin.length > 0) {
+      return NextResponse.json(
+        { error: `Username "${adminUname}" ถูกใช้ไปแล้ว — กรุณาตั้งชื่อผู้ใช้ใหม่` },
+        { status: 400 }
+      );
+    }
 
     // 1. คำนวณวันหมดอายุ
     let expires_at = null;
@@ -86,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // 4. สร้าง auth user - ใช้ shop_id ใน email เพื่อให้ unique ข้ามร้าน
     const shopShortId = shop.id.replace(/-/g, '').substring(0, 8);
-    const email_for_auth = `${adminUsername}+${shopShortId}@example.com`;
+    const email_for_auth = `${adminUname}+${shopShortId}@example.com`;
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: email_for_auth,
       password: adminPassword,
@@ -104,7 +121,7 @@ export async function POST(request: NextRequest) {
       .from('profiles')
       .insert({
         id: authData.user.id,
-        username: adminUsername,
+        username: adminUname,
         full_name: adminFullName,
         role: 'admin',
         branch_id: branch.id,
@@ -123,7 +140,7 @@ export async function POST(request: NextRequest) {
       success: true,
       shop,
       branch,
-      admin: { username: adminUsername, id: authData.user.id },
+      admin: { username: adminUname, id: authData.user.id },
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
