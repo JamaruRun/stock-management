@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import * as XLSX from 'xlsx';
 import {
-  Database, Download, FileSpreadsheet, FileJson,
+  Database, Download, Upload, FileSpreadsheet, FileJson,
   CheckCircle2, AlertCircle, Loader2, Lock, Calendar,
   Smartphone, ShoppingBag, Coins, CreditCard, Hammer,
   Receipt, Wrench, Building2, Users, Truck, Shield,
-  Sparkles, Info, Clock,
+  Sparkles, Info, Clock, XCircle, AlertTriangle,
 } from 'lucide-react';
 
 type ExportFormat = 'xlsx' | 'json';
@@ -161,7 +161,18 @@ export default function V3BackupPage() {
         });
 
         const filename = `StockCare_Backup_${shopName}_${date}_${time}.xlsx`;
-        XLSX.writeFile(wb, filename);
+        // ใช้ write→Blob→download แทน writeFile (เสถียรกว่าบนมือถือ/Android Chrome
+        // ที่ writeFile มักได้ไฟล์ว่าง/ไม่สมบูรณ์)
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       } else {
         // JSON
         const exportData = {
@@ -353,6 +364,9 @@ export default function V3BackupPage() {
             )}
           </div>
 
+          {/* Import / Restore */}
+          <ImportSection supabase={supabase} profile={profile} onDone={loadData} />
+
           {/* Tables list */}
           <div className="v3-card" style={{ padding: 16, marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -519,5 +533,223 @@ function DownloadBtn({ Icon, color, bg, title, desc, onClick, disabled }: any) {
         </div>
       </div>
     </button>
+  );
+}
+
+/* =========================
+   Import / Restore
+========================= */
+
+// ลำดับ FK-safe: ตารางแม่ (branches, suppliers) ก่อน แล้วค่อยตารางลูก
+// ข้าม profiles / shops (ตัวตน + ผูก auth — ห้าม import)
+const IMPORT_ORDER = [
+  'branches', 'suppliers',
+  'stock', 'goods', 'parts', 'repair_jobs', 'expenses',
+  'sales_history', 'goods_sales', 'supplier_transactions',
+  'pawn_stock', 'pawn_history', 'pawn_renewals',
+  'installment_stock', 'installment_history', 'installment_payments',
+];
+
+function ImportSection({ supabase, profile, onDone }: any) {
+  const [parsed, setParsed] = useState<Record<string, any[]> | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [results, setResults] = useState<{ table: string; label: string; ok: boolean; n: number; msg?: string }[] | null>(null);
+  const [err, setErr] = useState('');
+
+  const labelOf = (key: string) => TABLES.find(t => t.key === key)?.label || key;
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setErr(''); setResults(null); setParsed(null);
+    setParsing(true);
+    setFileName(file.name);
+    try {
+      const lower = file.name.toLowerCase();
+      let tables: Record<string, any[]> = {};
+
+      if (lower.endsWith('.json')) {
+        const json = JSON.parse(await file.text());
+        const src = json.tables && typeof json.tables === 'object' ? json.tables : json;
+        TABLES.forEach(t => { if (Array.isArray(src[t.key])) tables[t.key] = src[t.key]; });
+      } else if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+        const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+        const byLabel: Record<string, string> = {};
+        TABLES.forEach(t => { byLabel[t.label.slice(0, 31)] = t.key; });
+        wb.SheetNames.forEach(name => {
+          const key = byLabel[name];
+          if (!key) return;
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[name]) as any[];
+          const clean = rows.filter(r => r && Object.keys(r).length > 0 && !('(ไม่มีข้อมูล)' in r));
+          if (clean.length) tables[key] = clean;
+        });
+      } else {
+        throw new Error('รองรับเฉพาะไฟล์ .json หรือ .xlsx');
+      }
+
+      // เก็บเฉพาะตารางที่ import ได้ + มี id + มีข้อมูล
+      const filtered: Record<string, any[]> = {};
+      IMPORT_ORDER.forEach(key => {
+        const rows = tables[key];
+        if (Array.isArray(rows) && rows.length > 0) filtered[key] = rows;
+      });
+
+      if (Object.keys(filtered).length === 0) {
+        throw new Error('ไม่พบข้อมูลที่นำเข้าได้ในไฟล์นี้');
+      }
+      setParsed(filtered);
+    } catch (e: any) {
+      setErr('อ่านไฟล์ไม่สำเร็จ: ' + (e?.message || 'unknown'));
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function runImport() {
+    if (!parsed || !profile?.shop_id) return;
+    if (!confirm(
+      'ยืนยันนำเข้าข้อมูล?\n\n' +
+      '• เขียนทับรายการที่ id ตรงกัน (upsert) เฉพาะร้านของคุณ\n' +
+      '• ระบบกันไม่ให้แตะข้อมูลร้านอื่นอัตโนมัติ\n' +
+      '• แนะนำใช้กับไฟล์สำรองของร้านตัวเองเท่านั้น'
+    )) return;
+
+    setImporting(true);
+    setResults(null);
+    const out: { table: string; label: string; ok: boolean; n: number; msg?: string }[] = [];
+
+    for (const table of IMPORT_ORDER) {
+      const rows = parsed[table];
+      if (!rows || rows.length === 0) continue;
+      try {
+        // บังคับ shop_id เป็นร้านตัวเอง กัน inject ข้ามร้าน
+        const payload = rows.map((r: any) => ({ ...r, shop_id: profile.shop_id }));
+        const { error } = await supabase.from(table).upsert(payload, { onConflict: 'id' });
+        if (error) out.push({ table, label: labelOf(table), ok: false, n: rows.length, msg: error.message });
+        else out.push({ table, label: labelOf(table), ok: true, n: rows.length });
+      } catch (e: any) {
+        out.push({ table, label: labelOf(table), ok: false, n: rows.length, msg: e?.message });
+      }
+    }
+
+    setResults(out);
+    setImporting(false);
+    onDone?.();
+  }
+
+  const totalRows = parsed ? Object.values(parsed).reduce((s, r) => s + r.length, 0) : 0;
+
+  return (
+    <div className="v3-card" style={{ padding: 18, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: 8,
+          background: '#ede9fe', color: '#8b5cf6',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Upload size={16} />
+        </div>
+        <h3 style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>
+          นำเข้า / กู้คืนข้อมูล
+        </h3>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 14, lineHeight: 1.6 }}>
+        เลือกไฟล์สำรอง (.json หรือ .xlsx) ที่เคยดาวน์โหลดไว้ — ระบบจะ <strong>กู้คืนทับรายการที่ id ตรงกัน</strong> เฉพาะร้านคุณ
+      </p>
+
+      {/* คำเตือน */}
+      <div style={{
+        background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
+        padding: 12, marginBottom: 14, display: 'flex', gap: 10,
+      }}>
+        <AlertTriangle size={16} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
+        <div style={{ fontSize: 11, color: '#991b1b', lineHeight: 1.6 }}>
+          ใช้กับ<strong>ไฟล์สำรองของร้านตัวเอง</strong>เท่านั้น · <strong>JSON</strong> แม่นยำกว่า (ชนิดข้อมูลตรง) · Excel เป็นแบบ best-effort · ไม่นำเข้าผู้ใช้/ข้อมูลร้าน
+        </div>
+      </div>
+
+      {/* ปุ่มเลือกไฟล์ */}
+      {!parsed && (
+        <label style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: '13px', borderRadius: 12, cursor: parsing ? 'wait' : 'pointer',
+          background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
+          fontSize: 14, fontWeight: 700, fontFamily: 'inherit',
+        }}>
+          {parsing ? <Loader2 size={17} className="v3-spin" /> : <Upload size={17} />}
+          {parsing ? 'กำลังอ่านไฟล์...' : 'เลือกไฟล์ (.json / .xlsx)'}
+          <input type="file" accept=".json,.xlsx,.xls" onChange={handleFile} disabled={parsing} style={{ display: 'none' }} />
+        </label>
+      )}
+
+      {err && (
+        <div style={{ marginTop: 12, padding: 10, background: '#fef2f2', borderRadius: 8, fontSize: 12, color: '#b91c1c', fontWeight: 600 }}>
+          {err}
+        </div>
+      )}
+
+      {/* preview ก่อนยืนยัน */}
+      {parsed && !results && (
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
+            ไฟล์: <strong style={{ color: 'var(--text)' }}>{fileName}</strong> · รวม {totalRows.toLocaleString()} รายการ
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, maxHeight: 200, overflowY: 'auto' }}>
+            {Object.entries(parsed).map(([key, rows]) => (
+              <div key={key} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 12,
+              }}>
+                <span style={{ fontWeight: 600 }}>{labelOf(key)}</span>
+                <span style={{ color: 'var(--text-dim)', fontWeight: 700 }}>{rows.length.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button onClick={() => { setParsed(null); setFileName(''); }} disabled={importing} style={{
+              padding: '12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)',
+              color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>ยกเลิก</button>
+            <button onClick={runImport} disabled={importing} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '12px', borderRadius: 10, border: 'none',
+              background: importing ? 'var(--surface-2)' : 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+              color: '#fff', fontSize: 13, fontWeight: 700, cursor: importing ? 'wait' : 'pointer', fontFamily: 'inherit',
+            }}>
+              {importing ? <Loader2 size={15} className="v3-spin" /> : <Upload size={15} />}
+              {importing ? 'กำลังนำเข้า...' : 'เริ่มนำเข้า'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ผลลัพธ์ */}
+      {results && (
+        <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+            {results.map(r => (
+              <div key={r.table} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 10px', borderRadius: 8, fontSize: 12,
+                background: r.ok ? '#dcfce7' : '#fef2f2',
+              }}>
+                {r.ok ? <CheckCircle2 size={14} style={{ color: '#16a34a', flexShrink: 0 }} /> : <XCircle size={14} style={{ color: '#dc2626', flexShrink: 0 }} />}
+                <span style={{ fontWeight: 600, color: r.ok ? '#166534' : '#991b1b' }}>{r.label}</span>
+                <span style={{ marginLeft: 'auto', color: r.ok ? '#166534' : '#991b1b' }}>
+                  {r.ok ? `${r.n.toLocaleString()} รายการ` : (r.msg || 'ไม่สำเร็จ')}
+                </span>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => { setParsed(null); setResults(null); setFileName(''); }} style={{
+            width: '100%', padding: '12px', borderRadius: 10, border: '1px solid var(--border)',
+            background: 'var(--surface-2)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+          }}>เสร็จสิ้น — นำเข้าไฟล์อื่น</button>
+        </div>
+      )}
+    </div>
   );
 }
