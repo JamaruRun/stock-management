@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
-import BarcodeScanner from '@/components/BarcodeScanner';
+import { Eye, EyeOff } from 'lucide-react';
 import { sendLineNotify } from '@/lib/line-notify';
 
 export default function AddPawnPage() {
   const supabase = createClient();
   const router = useRouter();
   const [form, setForm] = useState({
-    imei: '', model: '', color: '', spec: '',
+    model: '', color: '', spec: '', devicePassword: '',
     pawnPrice: '', pawnDate: new Date().toISOString().split('T')[0],
     interestDays: '30', interestAmount: '',
     customerName: '', customerPhone: '', customerNote: '',
@@ -20,7 +20,7 @@ export default function AddPawnPage() {
   const [profile, setProfile] = useState<any>(null);
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
@@ -44,15 +44,9 @@ export default function AddPawnPage() {
     load();
   }, []);
 
-  function handleScan(imei: string) {
-    setForm({ ...form, imei });
-    setShowScanner(false);
-    showToast('สแกนสำเร็จ', `IMEI: ${imei}`);
-  }
-
   function reset() {
     setForm({
-      imei: '', model: '', color: '', spec: '',
+      model: '', color: '', spec: '', devicePassword: '',
       pawnPrice: '', pawnDate: new Date().toISOString().split('T')[0],
       interestDays: '30', interestAmount: '',
       customerName: '', customerPhone: '', customerNote: '',
@@ -63,26 +57,14 @@ export default function AddPawnPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!form.imei || !form.model || !form.pawnPrice || !form.customerName || !form.branchId) {
-      showToast('ข้อมูลไม่ครบ', 'กรอก IMEI, รุ่น, ราคา, ชื่อ, สาขา', 'danger');
-      return;
-    }
-    if (form.imei.length !== 15) {
-      showToast('IMEI ไม่ถูกต้อง', 'ต้องมี 15 หลัก', 'danger');
+    if (!form.model || !form.pawnPrice || !form.customerName || !form.branchId) {
+      showToast('ข้อมูลไม่ครบ', 'กรอก รุ่น, ราคา, ชื่อ, สาขา', 'danger');
       return;
     }
 
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-
-    const { data: existing } = await supabase
-      .from('pawn_stock').select('id').eq('imei', form.imei).maybeSingle();
-    if (existing) {
-      showToast('IMEI ซ้ำ', 'เครื่องนี้กำลังจำนำอยู่', 'danger');
-      setLoading(false);
-      return;
-    }
 
     const { data: profileWithShop } = await supabase
       .from('profiles').select('shop_id').eq('id', user.id).single();
@@ -95,8 +77,9 @@ export default function AddPawnPage() {
     const dueDateStr = dueDate.toISOString().split('T')[0];
 
     const { error } = await supabase.from('pawn_stock').insert({
-      imei: form.imei, model: form.model,
+      model: form.model,
       color: form.color || null, spec: form.spec || null,
+      device_password: form.devicePassword || null,
       pawn_price: parseFloat(form.pawnPrice), pawn_date: form.pawnDate,
       interest_days: interestDays,
       interest_amount: parseFloat(form.interestAmount) || 0,
@@ -118,10 +101,10 @@ export default function AddPawnPage() {
     }
 
     showToast('รับจำนำสำเร็จ', `${form.model} • ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
-    
+
     // 🔔 LINE Notify
     const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';
-    const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n🔢 IMEI: ${form.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;
+    const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
     
     reset();
@@ -142,23 +125,6 @@ export default function AddPawnPage() {
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="field full">
-              <label>IMEI <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input type="text" inputMode="numeric" maxLength={15}
-                  value={form.imei}
-                  onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '').substring(0, 15) })}
-                  placeholder="356789012345678"
-                  style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
-                  required />
-                <button type="button" className="btn btn-sec"
-                  onClick={() => setShowScanner(true)}
-                  style={{ width: 'auto', padding: '0 16px' }}>
-                  📷 สแกน
-                </button>
-              </div>
-            </div>
-
-            <div className="field full">
               <label>รุ่น <span style={{ color: 'var(--danger)' }}>*</span></label>
               <input type="text" value={form.model}
                 onChange={(e) => setForm({ ...form, model: e.target.value })}
@@ -175,6 +141,21 @@ export default function AddPawnPage() {
               <label>สเปค</label>
               <input type="text" value={form.spec}
                 onChange={(e) => setForm({ ...form, spec: e.target.value })} />
+            </div>
+
+            <div className="field full">
+              <label>รหัสผ่านเครื่อง (ถ้ามี)</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
+                  onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
+                  placeholder="รหัสปลดล็อกเครื่อง"
+                  style={{ flex: 1 }} />
+                <button type="button" className="btn btn-sec"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ width: 'auto', padding: '0 16px' }}>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <div className="field">
@@ -262,7 +243,6 @@ export default function AddPawnPage() {
         </form>
       </div>
 
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
       {toast && <Toast {...toast} />}
     </>
   );

@@ -7,17 +7,18 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Coins, Smartphone, MoreVertical, Phone,
   CheckCircle2, Clock, AlertTriangle, Calendar, User,
-  RotateCcw, FileText, Eye, Trash2, RefreshCw,
+  RotateCcw, FileText, Eye, Trash2, RefreshCw, Pencil,
 } from 'lucide-react';
 import PawnAddModal from './PawnAddModal';
-import { PawnRedeemModal, PawnRenewModal } from './PawnActionModals';
+import { PawnRedeemModal, PawnRenewModal, PawnEditModal, PawnDetailModal } from './PawnActionModals';
 
 interface PawnItem {
   id: string;
-  imei: string;
+  imei?: string | null;
   model: string;
   color?: string | null;
   spec?: string | null;
+  device_password?: string | null;
   pawn_price: number;
   pawn_date: string;
   interest_days: number;
@@ -25,9 +26,13 @@ interface PawnItem {
   due_date: string;
   customer_name: string;
   customer_phone?: string | null;
+  customer_note?: string | null;
   status?: string | null;
+  renew_count?: number;
   branch_id?: string;
   branch?: any;
+  added_by?: string | null;
+  added_by_name?: string | null;
 }
 
 const STATUS_COLORS = {
@@ -56,6 +61,8 @@ export default function V3PawnPage() {
   const [showAdd, setShowAdd] = useState(useSearchParams().get('add') === '1');
   const [redeemItem, setRedeemItem] = useState<PawnItem | null>(null);
   const [renewItem, setRenewItem] = useState<PawnItem | null>(null);
+  const [editItem, setEditItem] = useState<PawnItem | null>(null);
+  const [viewItem, setViewItem] = useState<PawnItem | null>(null);
 
   async function load() {
     try {
@@ -92,7 +99,7 @@ export default function V3PawnPage() {
       if (search) {
         const s = search.toLowerCase();
         const hit =
-          it.imei.toLowerCase().includes(s) ||
+          (it.imei || '').toLowerCase().includes(s) ||
           it.model.toLowerCase().includes(s) ||
           it.customer_name.toLowerCase().includes(s) ||
           (it.customer_phone && it.customer_phone.toLowerCase().includes(s));
@@ -182,7 +189,7 @@ export default function V3PawnPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหา IMEI / รุ่น / ชื่อลูกค้า / เบอร์..."
+            placeholder="ค้นหา รุ่น / ชื่อลูกค้า / เบอร์..."
             style={{
               width: '100%',
               height: 38,
@@ -229,6 +236,8 @@ export default function V3PawnPage() {
               onDelete={() => handleDelete(item)}
               onRedeem={() => { setMenuOpenId(null); setRedeemItem(item); }}
               onRenew={() => { setMenuOpenId(null); setRenewItem(item); }}
+              onEdit={() => { setMenuOpenId(null); setEditItem(item); }}
+              onView={() => { setMenuOpenId(null); setViewItem(item); }}
             />
           ))}
         </div>
@@ -252,6 +261,19 @@ export default function V3PawnPage() {
           item={renewItem}
           onClose={() => setRenewItem(null)}
           onSuccess={() => { setRenewItem(null); load(); }}
+        />
+      )}
+      {editItem && (
+        <PawnEditModal
+          item={editItem}
+          onClose={() => setEditItem(null)}
+          onSuccess={() => { setEditItem(null); load(); }}
+        />
+      )}
+      {viewItem && (
+        <PawnDetailModal
+          item={viewItem}
+          onClose={() => setViewItem(null)}
         />
       )}
 
@@ -365,7 +387,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, onRenew }: any) {
+function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, onRenew, onEdit, onView }: any) {
   const status = getStatusOf(item);
   const info = STATUS_COLORS[status];
   const StatusIcon = info.Icon;
@@ -403,9 +425,11 @@ function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, o
               }}>
                 {item.model}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1, fontFamily: 'monospace' }}>
-                {item.imei}
-              </div>
+              {item.imei && (
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1, fontFamily: 'monospace' }}>
+                  {item.imei}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -455,6 +479,12 @@ function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, o
                       </button>
                       <button onClick={onRedeem} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                         <RotateCcw size={14} /> ไถ่คืนเครื่อง
+                      </button>
+                      <button onClick={onEdit} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                        <Pencil size={14} /> แก้ไข
+                      </button>
+                      <button onClick={onView} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                        <Eye size={14} /> ดูรายละเอียด
                       </button>
                       {item.customer_phone && (
                         <a href={`tel:${item.customer_phone}`} style={menuLinkStyle}>

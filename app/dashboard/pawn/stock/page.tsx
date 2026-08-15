@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import ImportExcel from '@/components/ImportExcel';
 import { sendLineNotify } from '@/lib/line-notify';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function PawnStockPage() {
   const supabase = createClient();
@@ -22,10 +23,12 @@ export default function PawnStockPage() {
   const [viewing, setViewing] = useState<any>(null);
   const [renewing, setRenewing] = useState<any>(null);
   const [forfeiting, setForfeiting] = useState<any>(null);
-  const [renewForm, setRenewForm] = useState({ interestPaid: '', note: '' });
+  const [renewForm, setRenewForm] = useState({ interestPaid: '', note: '', newDueDate: '' });
   const [showOverdueAlert, setShowOverdueAlert] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
+  const [renewals, setRenewals] = useState<any[]>([]);
+  const [showViewPassword, setShowViewPassword] = useState(false);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -114,7 +117,7 @@ export default function PawnStockPage() {
     const s = search.toLowerCase();
     const matchSearch =
       !s ||
-      item.imei.toLowerCase().includes(s) ||
+      (item.imei || '').toLowerCase().includes(s) ||
       item.model.toLowerCase().includes(s) ||
       (item.color && item.color.toLowerCase().includes(s)) ||
       item.customer_name.toLowerCase().includes(s) ||
@@ -161,10 +164,10 @@ export default function PawnStockPage() {
     const { error } = await supabase
       .from('pawn_stock')
       .update({
-        imei: editing.imei,
         model: editing.model,
         color: editing.color,
         spec: editing.spec,
+        device_password: editing.device_password || null,
         pawn_price: parseFloat(editing.pawn_price),
         pawn_date: editing.pawn_date,
         interest_days: interestDays,
@@ -173,6 +176,8 @@ export default function PawnStockPage() {
         customer_name: editing.customer_name,
         customer_phone: editing.customer_phone,
         customer_note: editing.customer_note,
+        reminder_due_sent_at: null,
+        reminder_overdue_sent_at: null,
       })
       .eq('id', editing.id);
 
@@ -212,12 +217,12 @@ export default function PawnStockPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // คำนวณ due_date ใหม่
-    const interestDays = renewing.interest_days || 30;
-    const oldDue = renewing.due_date ? new Date(renewing.due_date) : new Date(renewing.pawn_date);
-    const newDue = new Date(Math.max(oldDue.getTime(), Date.now())); // ถ้าเลยกำหนดแล้วใช้วันนี้
-    newDue.setDate(newDue.getDate() + interestDays);
-    const newDueStr = newDue.toISOString().split('T')[0];
+    // วันครบกำหนดใหม่ - ใช้ค่าที่ปรับได้จากฟอร์ม (ดีฟอลต์คำนวณจากวันครบกำหนดเดิม + จำนวนวัน ไม่ forgive วันที่เลยกำหนด)
+    const newDueStr = renewForm.newDueDate;
+    if (!newDueStr) {
+      showToast('กรุณาเลือกวันครบกำหนดใหม่', '', 'danger');
+      return;
+    }
 
     // 1. บันทึกประวัติการต่อ
     const { error: renewError } = await supabase.from('pawn_renewals').insert({
@@ -243,6 +248,8 @@ export default function PawnStockPage() {
       due_date: newDueStr,
       status: 'active',
       renew_count: (renewing.renew_count || 0) + 1,
+      reminder_due_sent_at: null,
+      reminder_overdue_sent_at: null,
     }).eq('id', renewing.id);
 
     if (updateError) {
@@ -251,13 +258,13 @@ export default function PawnStockPage() {
     }
 
     showToast('ต่อดอกสำเร็จ', `ครบกำหนดใหม่: ${newDueStr}`);
-    
+
     // 🔔 LINE Notify
-    const lineMsg = `🔄 ต่อดอกจำนำ\n━━━━━━━━━━━━━\n📦 ${renewing.model}\n🔢 IMEI: ${renewing.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${renewing.customer_name}\n💰 ดอกเบี้ยที่จ่าย: ฿${interestPaid.toLocaleString()}\n📅 ครบกำหนดใหม่: ${newDueStr}\n🔢 ต่อมาแล้ว: ${(renewing.renew_count || 0) + 1} ครั้ง`;
+    const lineMsg = `🔄 ต่อดอกจำนำ\n━━━━━━━━━━━━━\n📦 ${renewing.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${renewing.customer_name}\n💰 ดอกเบี้ยที่จ่าย: ฿${interestPaid.toLocaleString()}\n📅 ครบกำหนดใหม่: ${newDueStr}\n🔢 ต่อมาแล้ว: ${(renewing.renew_count || 0) + 1} ครั้ง`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
-    
+
     setRenewing(null);
-    setRenewForm({ interestPaid: '', note: '' });
+    setRenewForm({ interestPaid: '', note: '', newDueDate: '' });
     loadData();
   }
 
@@ -309,7 +316,7 @@ export default function PawnStockPage() {
     showToast('บันทึกหลุดจำนำแล้ว', `${forfeiting.model} • ${forfeiting.customer_name}`);
     
     // 🔔 LINE Notify
-    const lineMsg = `⚠️ บันทึกหลุดจำนำ\n━━━━━━━━━━━━━\n📦 ${forfeiting.model}\n🔢 IMEI: ${forfeiting.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${forfeiting.customer_name}\n💵 ราคาจำนำเดิม: ฿${Number(forfeiting.pawn_price).toLocaleString()}\n💰 ดอกเบี้ยที่ได้รับ: ฿${totalInterest.toLocaleString()}\n🔢 ต่อมาแล้ว: ${forfeiting.renew_count || 0} ครั้ง\n\n📌 เครื่องเข้าครอบครองร้านแล้ว`;
+    const lineMsg = `⚠️ บันทึกหลุดจำนำ\n━━━━━━━━━━━━━\n📦 ${forfeiting.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${forfeiting.customer_name}\n💵 ราคาจำนำเดิม: ฿${Number(forfeiting.pawn_price).toLocaleString()}\n💰 ดอกเบี้ยที่ได้รับ: ฿${totalInterest.toLocaleString()}\n🔢 ต่อมาแล้ว: ${forfeiting.renew_count || 0} ครั้ง\n\n📌 เครื่องเข้าครอบครองร้านแล้ว`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
     
     setForfeiting(null);
@@ -424,7 +431,7 @@ export default function PawnStockPage() {
         <div className="search-box">
           <input
             type="text"
-            placeholder="ค้นหา IMEI, รุ่น, ลูกค้า, เบอร์..."
+            placeholder="ค้นหา รุ่น, ลูกค้า, เบอร์..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -461,7 +468,7 @@ export default function PawnStockPage() {
                 <div className="model">{item.model}</div>
                 <div className="price">฿{Number(item.pawn_price).toLocaleString()}</div>
               </div>
-              <div className="imei">IMEI: {item.imei}</div>
+              {item.imei && <div className="imei">IMEI: {item.imei}</div>}
               <div className="meta">
                 <span className="tag" style={{ 
                   background: `${st.color}20`,
@@ -498,21 +505,35 @@ export default function PawnStockPage() {
                   }
                 </div>
                 <div className="actions">
-                  <button 
-                    className="icon-btn" 
-                    onClick={() => { 
-                      setRenewing(item); 
-                      setRenewForm({ 
-                        interestPaid: String(item.interest_amount || ''), 
-                        note: '' 
-                      }); 
-                    }} 
+                  <button
+                    className="icon-btn"
+                    onClick={() => {
+                      setRenewing(item);
+                      const interestDays = item.interest_days || 30;
+                      const oldDue = item.due_date ? new Date(item.due_date) : new Date(item.pawn_date);
+                      const newDue = new Date(oldDue);
+                      newDue.setDate(newDue.getDate() + interestDays);
+                      setRenewForm({
+                        interestPaid: String(item.interest_amount || ''),
+                        note: '',
+                        newDueDate: newDue.toISOString().split('T')[0],
+                      });
+                    }}
                     title="ต่อดอก"
                     style={{ background: 'var(--accent-light)', color: 'var(--accent-text)' }}
                   >
                     🔄
                   </button>
-                  <button className="icon-btn" onClick={() => setViewing(item)} title="ดู">ⓘ</button>
+                  <button
+                    className="icon-btn"
+                    onClick={async () => {
+                      setViewing(item);
+                      setShowViewPassword(false);
+                      const { data } = await supabase.from('pawn_renewals').select('*').eq('pawn_id', item.id).order('renewal_date', { ascending: false });
+                      setRenewals(data || []);
+                    }}
+                    title="ดู"
+                  >ⓘ</button>
                   {isAdmin && (
                     <>
                       <button 
@@ -541,10 +562,12 @@ export default function PawnStockPage() {
             <h3>รายละเอียดการจำนำ</h3>
             <p className="modal-sub">ข้อมูลเครื่องและลูกค้า</p>
             <div className="detail-grid">
-              <div className="detail-item full">
-                <div className="label">IMEI</div>
-                <div className="value mono">{viewing.imei}</div>
-              </div>
+              {viewing.imei && (
+                <div className="detail-item full">
+                  <div className="label">IMEI</div>
+                  <div className="value mono">{viewing.imei}</div>
+                </div>
+              )}
               <div className="detail-item">
                 <div className="label">รุ่น</div>
                 <div className="value">{viewing.model}</div>
@@ -557,6 +580,23 @@ export default function PawnStockPage() {
                 <div className="label">สเปค</div>
                 <div className="value">{viewing.spec || '-'}</div>
               </div>
+              <div className="detail-item full">
+                <div className="label">รหัสผ่านเครื่อง</div>
+                <div className="value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {viewing.device_password
+                    ? (showViewPassword ? viewing.device_password : '••••••••')
+                    : '-'}
+                  {viewing.device_password && (
+                    <button
+                      type="button"
+                      onClick={() => setShowViewPassword(!showViewPassword)}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center' }}
+                    >
+                      {showViewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="detail-item">
                 <div className="label">ราคาจำนำ</div>
                 <div className="value" style={{ color: 'var(--accent)' }}>
@@ -566,6 +606,10 @@ export default function PawnStockPage() {
               <div className="detail-item">
                 <div className="label">วันที่รับจำนำ</div>
                 <div className="value">{viewing.pawn_date}</div>
+              </div>
+              <div className="detail-item">
+                <div className="label">ต่อดอกไปแล้ว</div>
+                <div className="value">{viewing.renew_count || 0} ครั้ง</div>
               </div>
               <div className="detail-item">
                 <div className="label">ลูกค้า</div>
@@ -584,13 +628,37 @@ export default function PawnStockPage() {
               <div className="detail-item full">
                 <div className="label">เพิ่มโดย</div>
                 <div className="value">
-                  {viewing.added_by_profile?.full_name 
+                  {viewing.added_by_profile?.full_name
                     ? viewing.added_by_profile.full_name
-                    : viewing.added_by_name 
+                    : viewing.added_by_name
                       ? `${viewing.added_by_name} (ลาออก)`
                       : '-'}
                 </div>
               </div>
+              {renewals.length > 0 && (
+                <div className="detail-item full">
+                  <div className="label">ประวัติการต่อดอก</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                    {renewals.map((r) => (
+                      <div key={r.id} style={{
+                        padding: 8,
+                        background: 'var(--surface-2)',
+                        borderRadius: 6,
+                        fontSize: 12,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{r.renewal_date}</span>
+                          <span style={{ color: 'var(--success)', fontWeight: 600 }}>฿{Number(r.interest_paid || 0).toLocaleString()}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>
+                          {r.old_due_date || '-'} → {r.new_due_date}
+                          {r.note ? ` • ${r.note}` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button className="btn btn-sec" onClick={() => setViewing(null)}>ปิด</button>
@@ -605,11 +673,12 @@ export default function PawnStockPage() {
             <h3>แก้ไขข้อมูลจำนำ</h3>
             <p className="modal-sub">แก้ไขรายละเอียด</p>
             <div className="form-grid">
-              <div className="field full">
-                <label>IMEI</label>
-                <input type="text" maxLength={15} value={editing.imei}
-                  onChange={(e) => setEditing({ ...editing, imei: e.target.value })} />
-              </div>
+              {editing.imei && (
+                <div className="field full">
+                  <label>IMEI</label>
+                  <input type="text" value={editing.imei} disabled />
+                </div>
+              )}
               <div className="field">
                 <label>รุ่น</label>
                 <input type="text" value={editing.model}
@@ -624,6 +693,19 @@ export default function PawnStockPage() {
                 <label>สเปค</label>
                 <input type="text" value={editing.spec || ''}
                   onChange={(e) => setEditing({ ...editing, spec: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label>รหัสผ่านเครื่อง</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type={showViewPassword ? 'text' : 'password'} value={editing.device_password || ''}
+                    onChange={(e) => setEditing({ ...editing, device_password: e.target.value })}
+                    style={{ flex: 1 }} />
+                  <button type="button" className="btn btn-sec"
+                    onClick={() => setShowViewPassword(!showViewPassword)}
+                    style={{ width: 'auto', padding: '0 16px' }}>
+                    {showViewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="field">
                 <label>ราคาจำนำ</label>
@@ -690,7 +772,7 @@ export default function PawnStockPage() {
           <div className="modal">
             <h3 style={{ color: 'var(--danger)' }}>ยืนยันการลบ</h3>
             <p className="modal-sub">
-              จะลบ {deleting.model} (IMEI: {deleting.imei}) ของ {deleting.customer_name}?
+              จะลบ {deleting.model} ของ {deleting.customer_name}?
             </p>
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDelete}>ลบ</button>
@@ -744,20 +826,16 @@ export default function PawnStockPage() {
                   onChange={(e) => setRenewForm({ ...renewForm, note: e.target.value })}
                   placeholder="ฯลฯ" />
               </div>
-            </div>
-
-            {renewForm.interestPaid && (
-              <div style={{
-                marginTop: 12, padding: 10,
-                background: 'rgba(46, 213, 115, 0.1)',
-                borderLeft: '3px solid var(--success)',
-                fontSize: 13,
-                color: 'var(--success)',
-                fontWeight: 600,
-              }}>
-                ✓ ครบกำหนดใหม่จะเลื่อนไปอีก {renewing.interest_days || 30} วัน
+              <div className="field full">
+                <label>วันครบกำหนดใหม่ (ปรับเองได้)</label>
+                <input type="date"
+                  value={renewForm.newDueDate}
+                  onChange={(e) => setRenewForm({ ...renewForm, newDueDate: e.target.value })} />
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                  💡 ระบบคำนวณให้อัตโนมัติจากวันครบกำหนดเดิม + {renewing.interest_days || 30} วัน ปรับเองได้ถ้าต้องการ
+                </div>
               </div>
-            )}
+            </div>
 
             <div className="modal-actions" style={{ marginTop: 20 }}>
               <button className="btn" onClick={handleRenew}>ยืนยันต่อดอก ✓</button>
@@ -782,7 +860,7 @@ export default function PawnStockPage() {
               marginTop: 14, marginBottom: 16,
               fontSize: 13,
             }}>
-              <div><strong>{forfeiting.model}</strong> ({forfeiting.imei})</div>
+              <div><strong>{forfeiting.model}</strong></div>
               <div style={{ marginTop: 4 }}>ลูกค้า: {forfeiting.customer_name}</div>
               <div style={{ marginTop: 4 }}>จำนำ: ฿{Number(forfeiting.pawn_price).toLocaleString()}</div>
               <div style={{ marginTop: 4 }}>ต่อแล้ว {forfeiting.renew_count || 0} ครั้ง</div>

@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import BarcodeScanner from '@/components/BarcodeScanner';
 import { sendLineNotify } from '@/lib/line-notify';
 import {
-  Coins, X, ScanLine, Smartphone, User, Phone, Calendar,
-  DollarSign, Percent, MapPin, Loader2, CheckCircle2, AlertCircle,
+  Coins, X, Smartphone, User, Phone, Calendar,
+  DollarSign, Percent, MapPin, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, Lock,
 } from 'lucide-react';
 
 interface Props {
@@ -17,7 +16,7 @@ interface Props {
 export default function PawnAddModal({ onClose, onSuccess }: Props) {
   const supabase = createClient();
   const [form, setForm] = useState({
-    imei: '', model: '', color: '', spec: '',
+    model: '', color: '', spec: '', devicePassword: '',
     pawnPrice: '', pawnDate: new Date().toISOString().split('T')[0],
     interestDays: '30', interestAmount: '',
     customerName: '', customerPhone: '', customerNote: '',
@@ -26,7 +25,7 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
   const [profile, setProfile] = useState<any>(null);
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   function notify(msg: string, ok = true) {
@@ -59,19 +58,14 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.imei || !form.model || !form.pawnPrice || !form.customerName || !form.branchId) {
-      return notify('กรอก IMEI, รุ่น, ราคา, ชื่อลูกค้า, สาขา ให้ครบ', false);
+    if (!form.model || !form.pawnPrice || !form.customerName || !form.branchId) {
+      return notify('กรอก รุ่น, ราคา, ชื่อลูกค้า, สาขา ให้ครบ', false);
     }
-    if (form.imei.length !== 15) return notify('IMEI ต้องมี 15 หลัก', false);
     if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
 
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
-
-    const { data: existing } = await supabase
-      .from('pawn_stock').select('id').eq('imei', form.imei).maybeSingle();
-    if (existing) { notify('IMEI ซ้ำ — เครื่องนี้กำลังจำนำอยู่', false); setLoading(false); return; }
 
     const { data: profileWithShop } = await supabase
       .from('profiles').select('shop_id').eq('id', user.id).single();
@@ -83,8 +77,9 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
     const dueDateStr = dueDate.toISOString().split('T')[0];
 
     const { error } = await supabase.from('pawn_stock').insert({
-      imei: form.imei, model: form.model,
+      model: form.model,
       color: form.color || null, spec: form.spec || null,
+      device_password: form.devicePassword || null,
       pawn_price: parseFloat(form.pawnPrice), pawn_date: form.pawnDate,
       interest_days: interestDays,
       interest_amount: parseFloat(form.interestAmount) || 0,
@@ -100,7 +95,7 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
     if (error) { notify('เกิดข้อผิดพลาด: ' + error.message, false); return; }
 
     const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';
-    const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n🔢 IMEI: ${form.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;
+    const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
 
     notify(`รับจำนำสำเร็จ • ${form.model}`);
@@ -140,24 +135,22 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
           {/* เครื่อง */}
           <div>
             <SectionTitle Icon={Smartphone} color="#3b82f6" label="ข้อมูลเครื่อง" />
-            <F label="IMEI (15 หลัก)" req>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <Smartphone size={16} style={iconSt} />
-                  <input value={form.imei} onChange={(e) => setForm({ ...form, imei: e.target.value.replace(/\D/g, '').substring(0, 15) })}
-                    placeholder="กรอก/สแกน IMEI" style={inputSt} inputMode="numeric" onFocus={fOn} onBlur={fOff} />
-                </div>
-                <button type="button" onClick={() => setShowScanner(true)} style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--accent)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                  <ScanLine size={20} />
-                </button>
-              </div>
-              {form.imei && <span style={{ fontSize: 10, color: form.imei.length === 15 ? '#16a34a' : '#f59e0b', fontWeight: 600 }}>{form.imei.length}/15 หลัก</span>}
-            </F>
             <F label="รุ่น" req><Inp value={form.model} onChange={(v) => setForm({ ...form, model: v })} placeholder="iPhone 13 Pro Max" /></F>
             <div style={g2}>
               <F label="สี"><Inp value={form.color} onChange={(v) => setForm({ ...form, color: v })} placeholder="Midnight" /></F>
               <F label="ความจุ/สเปก"><Inp value={form.spec} onChange={(v) => setForm({ ...form, spec: v })} placeholder="256GB" /></F>
             </div>
+            <F label="รหัสผ่านเครื่อง (ถ้ามี)">
+              <div style={{ position: 'relative' }}>
+                <Lock size={16} style={iconSt} />
+                <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
+                  onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
+                  placeholder="รหัสปลดล็อกเครื่อง" style={{ ...inputSt, paddingRight: 40 }} onFocus={fOn} onBlur={fOff} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </F>
           </div>
 
           {/* จำนำ */}
@@ -213,8 +206,6 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
           </div>
         </form>
       </div>
-
-      {showScanner && <BarcodeScanner onScan={(code) => { setForm(f => ({ ...f, imei: code.replace(/\D/g, '').substring(0, 15) })); setShowScanner(false); notify('สแกนสำเร็จ'); }} onClose={() => setShowScanner(false)} mode="imei" />}
 
       {toast && (
         <div style={{ position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: toast.ok ? '#16a34a' : '#dc2626', color: '#fff', padding: '12px 20px', borderRadius: 12, fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 300, maxWidth: '90vw', display: 'flex', alignItems: 'center', gap: 8 }}>

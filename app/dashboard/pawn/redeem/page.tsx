@@ -3,16 +3,16 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
-import BarcodeScanner from '@/components/BarcodeScanner';
 import { sendLineNotify } from '@/lib/line-notify';
 
 export default function RedeemPage() {
   const supabase = createClient();
-  const [imei, setImei] = useState('');
+  const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
+  const [searched, setSearched] = useState(false);
   const [foundItem, setFoundItem] = useState<any>(null);
-  const [showScanner, setShowScanner] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
 
@@ -21,34 +21,23 @@ export default function RedeemPage() {
     setTimeout(() => setToast(null), 2500);
   }
 
-  async function searchByImei(searchImei: string) {
-    if (!searchImei) return;
-    setSearching(true);
-
-    const { data: item } = await supabase
-      .from('pawn_stock')
-      .select('*, added_by_profile:profiles!pawn_stock_added_by_fkey(full_name), branch:branches(name)')
-      .eq('imei', searchImei)
-      .maybeSingle();
-
-    setSearching(false);
-
-    if (!item) {
-      showToast('ไม่พบเครื่อง', 'IMEI นี้ไม่มีในสต๊อกจำนำ', 'danger');
-      return;
-    }
-    setFoundItem(item);
-  }
-
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    await searchByImei(imei);
-  }
+    if (!query.trim()) return;
+    setSearching(true);
+    setSearched(true);
+    setFoundItem(null);
 
-  async function handleScan(scannedImei: string) {
-    setImei(scannedImei);
-    setShowScanner(false);
-    await searchByImei(scannedImei);
+    const q = query.trim();
+    const { data } = await supabase
+      .from('pawn_stock')
+      .select('*, added_by_profile:profiles!pawn_stock_added_by_fkey(full_name), branch:branches(name)')
+      .or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%`)
+      .order('pawn_date', { ascending: false })
+      .limit(20);
+
+    setSearching(false);
+    setResults(data || []);
   }
 
   async function confirmRedeem() {
@@ -73,6 +62,7 @@ export default function RedeemPage() {
       model: foundItem.model,
       color: foundItem.color,
       spec: foundItem.spec,
+      device_password: foundItem.device_password,
       pawn_price: foundItem.pawn_price,
       pawn_date: foundItem.pawn_date,
       customer_name: foundItem.customer_name,
@@ -100,14 +90,14 @@ export default function RedeemPage() {
     await supabase.from('pawn_stock').delete().eq('id', foundItem.id);
 
     showToast('ไถ่คืนสำเร็จ', `${foundItem.model} • ${foundItem.customer_name}`);
-    
+
     // 🔔 LINE Notify
     const interestTxt = totalInterest > 0 ? `\n💰 ดอกเบี้ยที่จ่ายมาทั้งหมด: ฿${totalInterest.toLocaleString()}` : '';
-    const lineMsg = `🔓 ไถ่คืนเครื่องจำนำ\n━━━━━━━━━━━━━\n📦 ${foundItem.model}\n🔢 IMEI: ${foundItem.imei}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${foundItem.customer_name}\n💵 รับเงินคืน: ฿${Number(foundItem.pawn_price).toLocaleString()}${interestTxt}\n👨‍💼 รับโดย: ${profile?.full_name || '-'}`;
+    const lineMsg = `🔓 ไถ่คืนเครื่องจำนำ\n━━━━━━━━━━━━━\n📦 ${foundItem.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${foundItem.customer_name}\n💵 รับเงินคืน: ฿${Number(foundItem.pawn_price).toLocaleString()}${interestTxt}\n👨‍💼 รับโดย: ${profile?.full_name || '-'}`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
-    
+
     setFoundItem(null);
-    setImei('');
+    setResults((r) => r.filter((i) => i.id !== foundItem.id));
     setShowConfirm(false);
     setConfirming(false);
   }
@@ -123,28 +113,60 @@ export default function RedeemPage() {
         <h3>🔍 ค้นหาเครื่อง</h3>
         <form onSubmit={handleSearch}>
           <div className="field">
-            <label>IMEI</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" inputMode="numeric" maxLength={15}
-                value={imei}
-                onChange={(e) => setImei(e.target.value.replace(/\D/g, ''))}
-                placeholder="356789012345678"
-                style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace' }}
-                autoFocus />
-              <button type="button" className="btn btn-sec"
-                onClick={() => setShowScanner(true)}
-                style={{ width: 'auto', padding: '0 16px' }}>
-                📷 สแกน
-              </button>
-            </div>
+            <label>ชื่อลูกค้า หรือ เบอร์โทร</label>
+            <input type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="นายสมชาย ใจดี หรือ 0812345678"
+              autoFocus />
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn" disabled={searching || imei.length !== 15}>
+            <button type="submit" className="btn" disabled={searching || !query.trim()}>
               {searching ? 'กำลังค้นหา...' : '🔍 ค้นหาเครื่อง'}
             </button>
           </div>
         </form>
       </div>
+
+      {!foundItem && searched && !searching && (
+        <div className="form-card">
+          <h3>ผลการค้นหา ({results.length})</h3>
+          {results.length === 0 ? (
+            <div className="empty">
+              <div className="empty-icon">🔍</div>
+              <div className="empty-title">ไม่พบรายการ</div>
+              <div className="empty-sub">ไม่พบเครื่องจำนำของลูกค้ารายนี้</div>
+            </div>
+          ) : (
+            <div className="item-list">
+              {results.map((item) => (
+                <div key={item.id} className="item-card" onClick={() => setFoundItem(item)} style={{ cursor: 'pointer' }}>
+                  <div className="top-row">
+                    <div className="model">{item.model}</div>
+                    <div className="price">฿{Number(item.pawn_price).toLocaleString()}</div>
+                  </div>
+                  <div className="meta">
+                    <span className="tag" style={{ color: '#ffa502', borderColor: '#ffa502' }}>
+                      👤 {item.customer_name}
+                    </span>
+                    {item.customer_phone && <span className="tag">📞 {item.customer_phone}</span>}
+                    {item.branch?.name && <span className="tag">📍 {item.branch.name}</span>}
+                    {item.due_date && (
+                      <span className="tag" style={{
+                        background: new Date(item.due_date) < new Date() ? 'var(--danger-light)' : 'var(--success-light)',
+                        color: new Date(item.due_date) < new Date() ? 'var(--danger-text)' : 'var(--success-text)',
+                        borderColor: new Date(item.due_date) < new Date() ? 'var(--danger)' : 'var(--success)',
+                      }}>
+                        📅 ครบ {new Date(item.due_date).toLocaleDateString('th-TH')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {foundItem && (
         <div className="form-card">
@@ -158,9 +180,6 @@ export default function RedeemPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{foundItem.model}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>
-                  {foundItem.imei}
-                </div>
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--warning)' }}>
                 ฿{Number(foundItem.pawn_price).toLocaleString()}
@@ -212,14 +231,12 @@ export default function RedeemPage() {
             <button className="btn" onClick={() => setShowConfirm(true)} disabled={confirming}>
               🔓 ยืนยันการไถ่คืน
             </button>
-            <button className="btn btn-sec" onClick={() => { setFoundItem(null); setImei(''); }}>
-              ยกเลิก
+            <button className="btn btn-sec" onClick={() => setFoundItem(null)}>
+              กลับไปผลการค้นหา
             </button>
           </div>
         </div>
       )}
-
-      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} mode="imei" />}
 
       {showConfirm && foundItem && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowConfirm(false)}>

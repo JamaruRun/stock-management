@@ -77,7 +77,7 @@ export default function PawnHistoryPage() {
   const filtered = items.filter((item) => {
     const s = search.toLowerCase();
     const matchSearch = !s ||
-      item.imei.toLowerCase().includes(s) ||
+      (item.imei || '').toLowerCase().includes(s) ||
       item.model.toLowerCase().includes(s) ||
       item.customer_name.toLowerCase().includes(s) ||
       (item.customer_phone && item.customer_phone.includes(s));
@@ -100,7 +100,6 @@ export default function PawnHistoryPage() {
     const { error } = await supabase
       .from('pawn_history')
       .update({
-        imei: editing.imei,
         model: editing.model,
         color: editing.color,
         spec: editing.spec,
@@ -227,7 +226,7 @@ export default function PawnHistoryPage() {
                 <div className="model">{item.model}</div>
                 <div className="price">฿{Number(item.pawn_price).toLocaleString()}</div>
               </div>
-              <div className="imei">IMEI: {item.imei}</div>
+              {item.imei && <div className="imei">IMEI: {item.imei}</div>}
               <div className="meta">
                 {item.color && <span className="tag">{item.color}</span>}
                 {item.spec && <span className="tag">{item.spec}</span>}
@@ -266,10 +265,12 @@ export default function PawnHistoryPage() {
             <h3>รายละเอียดประวัติ</h3>
             <p className="modal-sub">ข้อมูลการจำนำและไถ่คืน</p>
             <div className="detail-grid">
-              <div className="detail-item full">
-                <div className="label">IMEI</div>
-                <div className="value mono">{viewing.imei}</div>
-              </div>
+              {viewing.imei && (
+                <div className="detail-item full">
+                  <div className="label">IMEI</div>
+                  <div className="value mono">{viewing.imei}</div>
+                </div>
+              )}
               <div className="detail-item">
                 <div className="label">รุ่น</div>
                 <div className="value">{viewing.model}</div>
@@ -348,11 +349,12 @@ export default function PawnHistoryPage() {
             <h3>แก้ไขประวัติจำนำ</h3>
             <p className="modal-sub">แก้ไขรายละเอียด</p>
             <div className="form-grid">
-              <div className="field full">
-                <label>IMEI</label>
-                <input type="text" maxLength={15} value={editing.imei}
-                  onChange={(e) => setEditing({ ...editing, imei: e.target.value })} />
-              </div>
+              {editing.imei && (
+                <div className="field full">
+                  <label>IMEI</label>
+                  <input type="text" value={editing.imei} disabled />
+                </div>
+              )}
               <div className="field">
                 <label>รุ่น</label>
                 <input type="text" value={editing.model}
@@ -402,7 +404,7 @@ export default function PawnHistoryPage() {
           <div className="modal">
             <h3 style={{ color: 'var(--danger)' }}>ยืนยันการลบ</h3>
             <p className="modal-sub">
-              จะลบประวัติของ {deleting.model} (IMEI: {deleting.imei})?
+              จะลบประวัติของ {deleting.model}?
             </p>
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDelete}>ลบ</button>

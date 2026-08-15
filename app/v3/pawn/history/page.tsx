@@ -99,7 +99,7 @@ export default function V3PawnHistoryPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Prompt, Sarabun, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.model}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'monospace' }}>{item.imei}</div>
+                {item.imei && <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'monospace' }}>{item.imei}</div>}
                 <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-dim)', marginTop: 3, flexWrap: 'wrap' }}>
                   <span><User size={10} style={{ display: 'inline', verticalAlign: '-1px' }} /> {item.customer_name}</span>
                   <span><Calendar size={10} style={{ display: 'inline', verticalAlign: '-1px' }} /> {item.redeem_date ? new Date(item.redeem_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '-'}</span>
