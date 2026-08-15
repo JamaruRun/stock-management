@@ -1,67 +1,36 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { usePwaInstall } from '@/lib/use-pwa-install';
 
 const DISMISS_KEY = 'stock_pwa_install_dismissed_at';
 const DISMISS_DURATION_DAYS = 14;
 
 export default function PWAInstallPrompt() {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const { canInstall, isIOS, promptInstall } = usePwaInstall();
   const [show, setShow] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
-    // Detect iOS (Safari ไม่รองรับ install prompt - ต้องบอกวิธีเอง)
-    const ua = navigator.userAgent;
-    const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
-    const standalone = (window.navigator as any).standalone === true;
-    setIsIOS(iOS);
+    if (!canInstall) return;
 
-    // Already installed?
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || standalone;
-    if (isStandalone) return;
-
-    // ลูกค้าปิดไปแล้ว?
     const dismissedAt = localStorage.getItem(DISMISS_KEY);
     if (dismissedAt) {
       const daysAgo = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
       if (daysAgo < DISMISS_DURATION_DAYS) return;
     }
 
-    // Android/Desktop: ฟัง event
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setTimeout(() => setShow(true), 3000); // โชว์หลัง 3 วินาที
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-
-    // iOS: โชว์ guide หลัง 5 วินาที
-    if (iOS && !standalone) {
-      setTimeout(() => setShow(true), 5000);
-    }
-
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+    const t = setTimeout(() => setShow(true), isIOS ? 5000 : 3000);
+    return () => clearTimeout(t);
+  }, [canInstall, isIOS]);
 
   async function handleInstall() {
-    if (isIOS) {
+    const result = await promptInstall();
+    if (result === 'ios-guide') {
       setShowIOSGuide(true);
       return;
     }
-    if (!deferred) return;
-    await deferred.prompt();
-    const choice = await deferred.userChoice;
-    if (choice.outcome === 'accepted') {
-      setShow(false);
-      setDeferred(null);
-    }
+    if (result === 'accepted') setShow(false);
   }
 
   function handleDismiss() {
@@ -72,60 +41,7 @@ export default function PWAInstallPrompt() {
   if (!show) return null;
 
   if (showIOSGuide) {
-    return (
-      <div
-        onClick={() => setShowIOSGuide(false)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: 16,
-        }}
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            background: 'var(--surface)',
-            borderRadius: 12,
-            padding: 20,
-            maxWidth: 380,
-            width: '100%',
-            color: 'var(--text)',
-          }}
-        >
-          <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <img src="/icon-192.png" alt="logo" style={{ width: 64, height: 64, borderRadius: 12 }} />
-            <h3 style={{ margin: '12px 0 4px' }}>ติดตั้ง Stock บน iPhone</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>ใช้งานเหมือนแอปจริงไม่ต้องเปิด browser</p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Step n="1" text='แตะปุ่ม "แชร์" ที่ Safari' icon="⬆️" />
-            <Step n="2" text='เลื่อนลงหา "Add to Home Screen"' icon="➕" />
-            <Step n="3" text='แตะ "Add" มุมขวาบน' icon="✅" />
-          </div>
-          <button
-            onClick={() => setShowIOSGuide(false)}
-            style={{
-              width: '100%',
-              marginTop: 16,
-              padding: 12,
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >เข้าใจแล้ว</button>
-        </div>
-      </div>
-    );
+    return <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />;
   }
 
   return (
@@ -193,6 +109,63 @@ export default function PWAInstallPrompt() {
         >
           ภายหลัง
         </button>
+      </div>
+    </div>
+  );
+}
+
+export function IOSInstallGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 12,
+          padding: 20,
+          maxWidth: 380,
+          width: '100%',
+          color: 'var(--text)',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <img src="/icon-192.png" alt="logo" style={{ width: 64, height: 64, borderRadius: 12 }} />
+          <h3 style={{ margin: '12px 0 4px' }}>ติดตั้ง Stock บน iPhone</h3>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>ใช้งานเหมือนแอปจริงไม่ต้องเปิด browser</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Step n="1" text='แตะปุ่ม "แชร์" ที่ Safari' icon="⬆️" />
+          <Step n="2" text='เลื่อนลงหา "Add to Home Screen"' icon="➕" />
+          <Step n="3" text='แตะ "Add" มุมขวาบน' icon="✅" />
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%',
+            marginTop: 16,
+            padding: 12,
+            background: 'var(--accent)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >เข้าใจแล้ว</button>
       </div>
     </div>
   );

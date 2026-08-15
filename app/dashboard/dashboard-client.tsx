@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
 import TrialBanner from '@/components/TrialBanner';
 import UpdatePopup from '@/components/UpdatePopup';
+import InstallAppButton from '@/components/InstallAppButton';
 
 interface Props {
   profile: any;
@@ -303,7 +304,8 @@ export default function DashboardClient({ profile, children }: Props) {
             <div className="top-bar-title">{getPageTitle()}</div>
           </div>
           <div className="top-bar-actions">
-            <button 
+            <InstallAppButton className="top-bar-btn" style={{ display: 'flex' }} />
+            <button
               className="top-bar-btn"
               onClick={() => setShowThemeSwitcher(true)}
               title="เปลี่ยน Theme"

@@ -8,8 +8,9 @@ import {
   Home, Smartphone, Wrench, ShoppingBag, ShoppingCart, Hammer, Coins, CreditCard,
   Users, BarChart3, Settings, Menu, Bell, MapPin, Search,
   Package, Camera, ChevronDown, X, LogOut, Building2, Crown, Plus, TrendingUp,
-  Wallet, Truck, Database,
+  Wallet, Truck, Database, Download,
 } from 'lucide-react';
+import InstallAppButton from '@/components/InstallAppButton';
 
 interface Profile {
   id: string;
@@ -157,6 +158,16 @@ export default function V3Shell({
                 {(profile.shops?.name || profile.shops?.[0]?.name || '')} · {(profile.branches?.name || profile.branches?.[0]?.name || '')}
               </div>
             </div>
+            <InstallAppButton
+              style={{
+                width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                background: 'rgba(255,255,255,0.08)', border: '1px solid var(--sidebar-border)',
+                color: 'var(--sidebar-text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Download size={14} />
+            </InstallAppButton>
           </div>
         </aside>
 
