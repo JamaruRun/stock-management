@@ -10,7 +10,7 @@ import {
   RotateCcw, FileText, Eye, Trash2, RefreshCw, Pencil,
 } from 'lucide-react';
 import PawnAddModal from './PawnAddModal';
-import { PawnRedeemModal, PawnRenewModal, PawnEditModal, PawnDetailModal } from './PawnActionModals';
+import { PawnRedeemModal, PawnRenewModal, PawnEditModal, PawnDetailModal, PawnForfeitModal } from './PawnActionModals';
 
 interface PawnItem {
   id: string;
@@ -63,6 +63,18 @@ export default function V3PawnPage() {
   const [renewItem, setRenewItem] = useState<PawnItem | null>(null);
   const [editItem, setEditItem] = useState<PawnItem | null>(null);
   const [viewItem, setViewItem] = useState<PawnItem | null>(null);
+  const [forfeitItem, setForfeitItem] = useState<PawnItem | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: p } = await supabase.from('profiles').select('role, is_super_admin').eq('id', user.id).single();
+      setIsAdmin(p?.role === 'admin' || !!p?.is_super_admin);
+    }
+    loadProfile();
+  }, []);
 
   async function load() {
     try {
@@ -238,6 +250,8 @@ export default function V3PawnPage() {
               onRenew={() => { setMenuOpenId(null); setRenewItem(item); }}
               onEdit={() => { setMenuOpenId(null); setEditItem(item); }}
               onView={() => { setMenuOpenId(null); setViewItem(item); }}
+              onForfeit={() => { setMenuOpenId(null); setForfeitItem(item); }}
+              isAdmin={isAdmin}
             />
           ))}
         </div>
@@ -274,6 +288,13 @@ export default function V3PawnPage() {
         <PawnDetailModal
           item={viewItem}
           onClose={() => setViewItem(null)}
+        />
+      )}
+      {forfeitItem && (
+        <PawnForfeitModal
+          item={forfeitItem}
+          onClose={() => setForfeitItem(null)}
+          onSuccess={() => { setForfeitItem(null); load(); }}
         />
       )}
 
@@ -387,7 +408,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, onRenew, onEdit, onView }: any) {
+function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, onRenew, onEdit, onView, onForfeit, isAdmin }: any) {
   const status = getStatusOf(item);
   const info = STATUS_COLORS[status];
   const StatusIcon = info.Icon;
@@ -486,6 +507,11 @@ function PawnCard({ item, menuOpen, onToggleMenu, onClose, onDelete, onRedeem, o
                       <button onClick={onView} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                         <Eye size={14} /> ดูรายละเอียด
                       </button>
+                      {isAdmin && (
+                        <button onClick={onForfeit} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#d97706' }}>
+                          <AlertTriangle size={14} /> บันทึกหลุดจำนำ
+                        </button>
+                      )}
                       {item.customer_phone && (
                         <a href={`tel:${item.customer_phone}`} style={menuLinkStyle}>
                           <Phone size={14} /> โทรหาลูกค้า

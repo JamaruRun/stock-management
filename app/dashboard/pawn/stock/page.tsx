@@ -178,6 +178,7 @@ export default function PawnStockPage() {
         customer_note: editing.customer_note,
         reminder_due_sent_at: null,
         reminder_overdue_sent_at: null,
+        forfeit_alert_sent_at: null,
       })
       .eq('id', editing.id);
 
@@ -250,6 +251,7 @@ export default function PawnStockPage() {
       renew_count: (renewing.renew_count || 0) + 1,
       reminder_due_sent_at: null,
       reminder_overdue_sent_at: null,
+      forfeit_alert_sent_at: null,
     }).eq('id', renewing.id);
 
     if (updateError) {
@@ -287,6 +289,7 @@ export default function PawnStockPage() {
       model: forfeiting.model,
       color: forfeiting.color,
       spec: forfeiting.spec,
+      device_password: forfeiting.device_password,
       pawn_price: forfeiting.pawn_price,
       pawn_date: forfeiting.pawn_date,
       customer_name: forfeiting.customer_name,

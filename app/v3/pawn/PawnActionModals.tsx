@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import { sendLineNotify } from '@/lib/line-notify';
 import {
   RotateCcw, RefreshCw, X, Smartphone, User, Coins, Calendar,
-  Loader2, CheckCircle2, AlertCircle, Percent, Eye, EyeOff, Pencil, Lock, FileText,
+  Loader2, CheckCircle2, AlertCircle, Percent, Eye, EyeOff, Pencil, Lock, FileText, AlertTriangle,
 } from 'lucide-react';
 
 function Overlay({ onClose, children }: any) {
@@ -176,7 +176,7 @@ export function PawnRenewModal({ item, onClose, onSuccess }: any) {
 
     const { error: updateError } = await supabase.from('pawn_stock').update({
       due_date: newDueStr, status: 'active', renew_count: (item.renew_count || 0) + 1,
-      reminder_due_sent_at: null, reminder_overdue_sent_at: null,
+      reminder_due_sent_at: null, reminder_overdue_sent_at: null, forfeit_alert_sent_at: null,
     }).eq('id', item.id);
     if (updateError) { notify('เกิดข้อผิดพลาด: ' + updateError.message, false); setLoading(false); return; }
 
@@ -268,7 +268,7 @@ export function PawnEditModal({ item, onClose, onSuccess }: any) {
       interest_days: interestDays, interest_amount: parseFloat(form.interestAmount) || 0,
       due_date: dueDate,
       customer_name: form.customerName, customer_phone: form.customerPhone || null, customer_note: form.customerNote || null,
-      reminder_due_sent_at: null, reminder_overdue_sent_at: null,
+      reminder_due_sent_at: null, reminder_overdue_sent_at: null, forfeit_alert_sent_at: null,
     }).eq('id', item.id);
 
     setLoading(false);
@@ -450,6 +450,93 @@ export function PawnDetailModal({ item, onClose }: any) {
           <button onClick={onClose} style={{ width: '100%', padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ปิด</button>
         </div>
       </div>
+    </Overlay>
+  );
+}
+
+/* ============ บันทึกหลุดจำนำ ============ */
+export function PawnForfeitModal({ item, onClose, onSuccess }: any) {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(false);
+  const [totalInterest, setTotalInterest] = useState(0);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  function notify(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 2600); }
+
+  useEffect(() => {
+    async function loadInterest() {
+      const { data } = await supabase.from('pawn_renewals').select('interest_paid').eq('pawn_id', item.id);
+      setTotalInterest((data || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0));
+    }
+    loadInterest();
+  }, [item.id]);
+
+  async function confirm() {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
+    const { data: profile } = await supabase.from('profiles').select('full_name, shop_id').eq('id', user.id).single();
+
+    const { error: insertError } = await supabase.from('pawn_history').insert({
+      imei: item.imei, model: item.model, color: item.color, spec: item.spec,
+      device_password: item.device_password,
+      pawn_price: item.pawn_price, pawn_date: item.pawn_date,
+      customer_name: item.customer_name, customer_phone: item.customer_phone, customer_note: item.customer_note,
+      added_by: item.added_by, added_by_name: item.added_by_name,
+      redeemed_by: user.id, redeemed_by_name: profile?.full_name,
+      redeem_date: new Date().toISOString().split('T')[0],
+      branch_id: item.branch_id, shop_id: profile?.shop_id,
+      interest_days: item.interest_days || 30, renew_count: item.renew_count || 0,
+      total_interest_paid: totalInterest, exit_status: 'forfeited',
+    });
+    if (insertError) { notify('เกิดข้อผิดพลาด: ' + insertError.message, false); setLoading(false); return; }
+
+    await supabase.from('pawn_stock').delete().eq('id', item.id);
+
+    const lineMsg = `⚠️ บันทึกหลุดจำนำ\n━━━━━━━━━━━━━\n📦 ${item.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${item.customer_name}\n💵 ราคาจำนำเดิม: ฿${Number(item.pawn_price).toLocaleString()}\n💰 ดอกเบี้ยที่ได้รับ: ฿${totalInterest.toLocaleString()}\n🔢 ต่อมาแล้ว: ${item.renew_count || 0} ครั้ง\n\n📌 เครื่องเข้าครอบครองร้านแล้ว`;
+    sendLineNotify(lineMsg, 'pawn').catch(() => {});
+
+    setLoading(false);
+    notify('บันทึกหลุดจำนำแล้ว');
+    setTimeout(() => onSuccess(), 800);
+  }
+
+  return (
+    <Overlay onClose={onClose}>
+      <div style={headerSt}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AlertTriangle size={18} /></div>
+          <div><h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>บันทึกหลุดจำนำ</h2><p style={{ fontSize: 11, color: 'var(--text-dim)' }}>เครื่องเข้าครอบครองร้าน</p></div>
+        </div>
+        <button onClick={onClose} style={closeBtn}><X size={16} /></button>
+      </div>
+      <div style={{ padding: 18, overflowY: 'auto' }}>
+        <ItemSummary item={item} />
+        <div style={{ padding: 14, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+            <span style={{ color: '#92400e' }}>ราคาจำนำเดิม (เงินต้น)</span>
+            <strong style={{ color: '#92400e', fontFamily: 'Prompt, sans-serif' }}>฿{Number(item.pawn_price).toLocaleString()}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#b45309' }}>
+            <span>ดอกเบี้ยที่เก็บมาแล้ว</span>
+            <span>฿{totalInterest.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#b45309', marginTop: 2 }}>
+            <span>ต่อดอกมาแล้ว</span>
+            <span>{item.renew_count || 0} ครั้ง</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16, textAlign: 'center' }}>
+          ลูกค้าไม่มาไถ่/ต่อดอกตามกำหนด เครื่องจะเข้าครอบครองร้าน และย้ายไปประวัติจำนำ
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+          <button onClick={confirm} disabled={loading} style={{ flex: 2, padding: 13, background: loading ? 'var(--surface-2)' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            {loading ? <Loader2 size={17} className="v3-spin" /> : <AlertTriangle size={17} strokeWidth={2.4} />}
+            {loading ? 'กำลังบันทึก...' : 'ยืนยันหลุดจำนำ'}
+          </button>
+        </div>
+      </div>
+      <Toast toast={toast} />
     </Overlay>
   );
 }

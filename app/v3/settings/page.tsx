@@ -65,6 +65,8 @@ export default function V3SettingsPage() {
     line_notify_installment: true,
     line_notify_low_stock: true,
     line_notify_parts_low: true,
+    pawn_forfeit_after_cycles: 3,
+    pawn_summary_interval: 'off',
   });
 
   async function loadData() {
@@ -110,6 +112,8 @@ export default function V3SettingsPage() {
             line_notify_installment: s.line_notify_installment !== false,
             line_notify_low_stock: s.line_notify_low_stock !== false,
             line_notify_parts_low: s.line_notify_parts_low !== false,
+            pawn_forfeit_after_cycles: s.pawn_forfeit_after_cycles ?? 3,
+            pawn_summary_interval: s.pawn_summary_interval || 'off',
           });
         }
       }
@@ -1104,6 +1108,30 @@ function NotifyTab({ shop, profile, form, setForm, saving, onSave, isAdmin, relo
           checked={form.line_notify_parts_low}
           onChange={(v: boolean) => setForm({ ...form, line_notify_parts_low: v })}
         />
+      </div>
+
+      <div style={{ marginTop: 16, padding: 14, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🪙 ตั้งค่าจำนำเพิ่มเติม</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>จำนวนงวดที่เลยกำหนดก่อนแจ้งเตือนหลุดจำนำ</label>
+          <input type="number" min={1} value={form.pawn_forfeit_after_cycles}
+            onChange={(e) => setForm({ ...form, pawn_forfeit_after_cycles: parseInt(e.target.value) || 1 })}
+            style={{ width: 100, height: 40, padding: '0 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
+          <div style={{ fontSize: 10.5, color: 'var(--text-dim)', marginTop: 4 }}>
+            นับเป็น N × ระยะเวลาต่อดอกของเครื่องนั้นๆ (เช่น 30 วัน/งวด × 3 งวด = แจ้งเตือนเมื่อเลยกำหนด 90 วัน) ระบบแจ้งเตือนอย่างเดียว ไม่หลุดจำนำอัตโนมัติ
+          </div>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>รอบสรุปยอดรับจำนำ (แจ้งไลน์)</label>
+          <select value={form.pawn_summary_interval}
+            onChange={(e) => setForm({ ...form, pawn_summary_interval: e.target.value })}
+            style={{ width: '100%', height: 40, padding: '0 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}>
+            <option value="off">ปิด</option>
+            <option value="daily">รายวัน</option>
+            <option value="weekly">รายสัปดาห์</option>
+            <option value="monthly">รายเดือน</option>
+          </select>
+        </div>
       </div>
 
       <button

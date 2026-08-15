@@ -35,6 +35,8 @@ function SettingsPageContent() {
     line_notify_installment: true,
     line_notify_low_stock: true,
     line_notify_parts_low: true,
+    pawn_forfeit_after_cycles: 3,
+    pawn_summary_interval: 'off',
   });
   const [disconnecting, setDisconnecting] = useState(false);
   const [otherAdmins, setOtherAdmins] = useState<any[]>([]);
@@ -76,6 +78,8 @@ function SettingsPageContent() {
             line_notify_installment: s.line_notify_installment !== false,
             line_notify_low_stock: s.line_notify_low_stock !== false,
             line_notify_parts_low: s.line_notify_parts_low !== false,
+            pawn_forfeit_after_cycles: s.pawn_forfeit_after_cycles ?? 3,
+            pawn_summary_interval: s.pawn_summary_interval || 'off',
           });
         }
 
@@ -124,6 +128,8 @@ function SettingsPageContent() {
       line_notify_installment: lineForm.line_notify_installment,
       line_notify_low_stock: lineForm.line_notify_low_stock,
       line_notify_parts_low: lineForm.line_notify_parts_low,
+      pawn_forfeit_after_cycles: parseInt(String(lineForm.pawn_forfeit_after_cycles)) || 3,
+      pawn_summary_interval: lineForm.pawn_summary_interval,
     }).eq('id', shop.id);
 
     setSavingLine(false);
@@ -860,6 +866,32 @@ function SettingsPageContent() {
                   title="อะไหล่ซ่อมใกล้หมด"
                   desc="แจ้งเมื่ออะไหล่ในสต๊อกใกล้หมด"
                 />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={{ marginBottom: 10 }}>
+                ตั้งค่าจำนำเพิ่มเติม
+              </label>
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label>จำนวนงวดที่เลยกำหนดก่อนแจ้งเตือนหลุดจำนำ</label>
+                <input type="number" min={1} value={lineForm.pawn_forfeit_after_cycles}
+                  onChange={(e) => setLineForm({ ...lineForm, pawn_forfeit_after_cycles: parseInt(e.target.value) || 1 })}
+                  style={{ maxWidth: 120 }} />
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                  💡 นับเป็น N × ระยะเวลาต่อดอกของเครื่องนั้นๆ เช่น เครื่อง 30 วัน/งวด ตั้ง 3 งวด = เลยกำหนด 90 วันแล้วแจ้งเตือน (ไม่หลุดอัตโนมัติ ต้องกดยืนยันเอง)
+                </div>
+              </div>
+              <div className="field">
+                <label>รอบสรุปยอดรับจำนำ (แจ้งไลน์)</label>
+                <select value={lineForm.pawn_summary_interval}
+                  onChange={(e) => setLineForm({ ...lineForm, pawn_summary_interval: e.target.value })}
+                  style={{ maxWidth: 200 }}>
+                  <option value="off">ปิด</option>
+                  <option value="daily">รายวัน</option>
+                  <option value="weekly">รายสัปดาห์</option>
+                  <option value="monthly">รายเดือน</option>
+                </select>
               </div>
             </div>
 
