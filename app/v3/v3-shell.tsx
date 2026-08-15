@@ -278,7 +278,6 @@ export default function V3Shell({
                         <Settings size={14} /> ตั้งค่า
                       </Link>
                       <InstallAppButton
-                        onClick={() => setProfileMenuOpen(false)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
