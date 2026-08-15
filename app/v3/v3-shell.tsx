@@ -277,6 +277,26 @@ export default function V3Shell({
                       >
                         <Settings size={14} /> ตั้งค่า
                       </Link>
+                      <InstallAppButton
+                        onClick={() => setProfileMenuOpen(false)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 12px',
+                          width: '100%',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 6,
+                          color: 'var(--text)',
+                          fontSize: 13,
+                          fontFamily: 'inherit',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <Download size={14} /> ติดตั้งแอป
+                      </InstallAppButton>
                       <button
                         onClick={handleLogout}
                         style={{

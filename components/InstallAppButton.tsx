@@ -8,12 +8,13 @@ interface Props {
   className?: string;
   style?: React.CSSProperties;
   children?: React.ReactNode;
+  onClick?: () => void;
 }
 
 /** Small persistent install button - a supplement to the auto-popup banner,
  * for when the browser never fires beforeinstallprompt (or the user already dismissed it).
  * Always visible unless the app is already running standalone/installed. */
-export default function InstallAppButton({ className, style, children }: Props) {
+export default function InstallAppButton({ className, style, children, onClick }: Props) {
   const { canInstall, promptInstall } = usePwaInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showManualGuide, setShowManualGuide] = useState(false);
@@ -21,6 +22,7 @@ export default function InstallAppButton({ className, style, children }: Props) 
   if (!canInstall) return null;
 
   async function handleClick() {
+    onClick?.();
     const result = await promptInstall();
     if (result === 'ios-guide') setShowIOSGuide(true);
     else if (result === 'manual-guide') setShowManualGuide(true);
