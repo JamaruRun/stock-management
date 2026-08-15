@@ -27,16 +27,18 @@ export function usePwaInstall() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const canInstall = !installed && (isIOS || !!deferred);
+  // ปุ่มติดตั้งเล็กควรโชว์เสมอเว้นแต่ติดตั้งไปแล้วจริงๆ - ไม่ผูกกับ event beforeinstallprompt
+  // เพราะเบราว์เซอร์บางตัว/บางจังหวะไม่ยิง event นี้เลย (นั่นคือปัญหาเดิมของ popup อัตโนมัติ)
+  const canInstall = !installed;
 
-  async function promptInstall(): Promise<'ios-guide' | 'accepted' | 'dismissed' | 'unavailable'> {
+  async function promptInstall(): Promise<'ios-guide' | 'accepted' | 'dismissed' | 'manual-guide'> {
     if (isIOS) return 'ios-guide';
-    if (!deferred) return 'unavailable';
+    if (!deferred) return 'manual-guide';
     await deferred.prompt();
     const choice = await deferred.userChoice;
     if (choice.outcome === 'accepted') setDeferred(null);
     return choice.outcome;
   }
 
-  return { canInstall, isIOS, installed, promptInstall };
+  return { canInstall, isIOS, installed, hasNativePrompt: !!deferred, promptInstall };
 }

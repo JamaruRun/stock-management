@@ -7,12 +7,14 @@ const DISMISS_KEY = 'stock_pwa_install_dismissed_at';
 const DISMISS_DURATION_DAYS = 14;
 
 export default function PWAInstallPrompt() {
-  const { canInstall, isIOS, promptInstall } = usePwaInstall();
+  const { isIOS, hasNativePrompt, promptInstall } = usePwaInstall();
   const [show, setShow] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
-    if (!canInstall) return;
+    // popup อัตโนมัติโชว์เฉพาะตอนที่รู้แน่ว่าติดตั้งได้จริง (iOS หรือมี native prompt แล้ว)
+    // ถ้าเบราว์เซอร์ไม่รองรับ/ยังไม่ยิง event ให้ไปพึ่งปุ่มติดตั้งเล็กแทน (ซึ่งโชว์เสมอ)
+    if (!isIOS && !hasNativePrompt) return;
 
     const dismissedAt = localStorage.getItem(DISMISS_KEY);
     if (dismissedAt) {
@@ -22,7 +24,7 @@ export default function PWAInstallPrompt() {
 
     const t = setTimeout(() => setShow(true), isIOS ? 5000 : 3000);
     return () => clearTimeout(t);
-  }, [canInstall, isIOS]);
+  }, [isIOS, hasNativePrompt]);
 
   async function handleInstall() {
     const result = await promptInstall();
