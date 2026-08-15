@@ -11,9 +11,9 @@ const TYPE_TOGGLE_MAP: Record<string, string> = {
 
 /**
  * Server-side LINE push, for use where there's no request cookie session (e.g. cron jobs).
- * Sends to the shop's LINE group (if connected) AND every connected admin, always both -
- * not a fallback, so nobody misses a pawn reminder/forfeit-alert/summary just because
- * they're not in the group chat.
+ * If the shop has a LINE group connected, send there ONLY (saves messaging quota - a group
+ * push counts once instead of once per admin). Falls back to pushing each connected admin's
+ * private chat only when there's no group, or the group push itself fails.
  */
 export async function sendShopLinePush(admin: SupabaseClient, shopId: string, message: string, type: string) {
   const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
@@ -40,7 +40,10 @@ export async function sendShopLinePush(admin: SupabaseClient, shopId: string, me
     return true;
   }
 
-  const groupSent = shop.line_group_id ? await push(shop.line_group_id) : false;
+  if (shop.line_group_id) {
+    const sent = await push(shop.line_group_id);
+    if (sent) return { sent: true, target: 'group' };
+  }
 
   const { data: admins } = await admin
     .from('profiles')
@@ -54,9 +57,7 @@ export async function sendShopLinePush(admin: SupabaseClient, shopId: string, me
     .filter(Boolean)));
 
   const results = await Promise.allSettled(adminTargets.map((id: string) => push(id)));
-  const individualsSent = results.filter((r) => r.status === 'fulfilled' && r.value === true).length;
+  const sentCount = results.filter((r) => r.status === 'fulfilled' && r.value === true).length;
 
-  const target = groupSent && individualsSent > 0 ? 'group+individuals' : groupSent ? 'group' : individualsSent > 0 ? 'individuals' : 'none';
-
-  return { sent: groupSent || individualsSent > 0, target, groupSent, individualsSent };
+  return { sent: sentCount > 0, target: 'individuals', sentTo: sentCount };
 }
