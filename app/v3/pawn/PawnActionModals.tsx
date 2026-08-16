@@ -6,7 +6,7 @@ import { sendLineNotify } from '@/lib/line-notify';
 import PatternLockPad from '@/components/PatternLockPad';
 import {
   RotateCcw, RefreshCw, X, Smartphone, User, Coins, Calendar,
-  Loader2, CheckCircle2, AlertCircle, Percent, Eye, EyeOff, Pencil, Lock, FileText, AlertTriangle,
+  Loader2, CheckCircle2, AlertCircle, Percent, Eye, EyeOff, Pencil, Lock, FileText, AlertTriangle, Trash2,
 } from 'lucide-react';
 
 function parsePattern(str: string | null | undefined): number[] {
@@ -489,6 +489,30 @@ export function PawnDetailModal({ item, onClose, onSuccess }: any) {
     setTimeout(() => onSuccess?.(), 800);
   }
 
+  // ลบประวัติต่อดอก - ถ้าลบรายการล่าสุด (ที่กำหนดวันครบกำหนดปัจจุบัน) จะย้อนวันครบกำหนดกลับไปก่อนหน้าให้ด้วย
+  async function deleteRenewal(r: any) {
+    if (!confirm(`ลบประวัติต่อดอกวันที่ ${r.renewal_date} (฿${Number(r.interest_paid || 0).toLocaleString()})?\n\nย้อนกลับไม่ได้`)) return;
+
+    const isLatest = renewals[0]?.id === r.id;
+
+    const { error: delErr } = await supabase.from('pawn_renewals').delete().eq('id', r.id);
+    if (delErr) { notifyRenewal('เกิดข้อผิดพลาด: ' + delErr.message, false); return; }
+
+    const newRenewCount = Math.max((item.renew_count || 1) - 1, 0);
+    const updatePayload: any = { renew_count: newRenewCount };
+    if (isLatest) {
+      updatePayload.due_date = r.old_due_date || item.due_date;
+      updatePayload.reminder_due_sent_at = null;
+      updatePayload.reminder_overdue_sent_at = null;
+      updatePayload.forfeit_alert_sent_at = null;
+    }
+    const { error: updErr } = await supabase.from('pawn_stock').update(updatePayload).eq('id', item.id);
+    if (updErr) { notifyRenewal('เกิดข้อผิดพลาด: ' + updErr.message, false); return; }
+
+    notifyRenewal('ลบประวัติต่อดอกแล้ว');
+    setTimeout(() => onSuccess?.(), 800);
+  }
+
   const row = (label: string, value: any) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
       <span style={{ color: 'var(--text-dim)' }}>{label}</span>
@@ -581,6 +605,11 @@ export function PawnDetailModal({ item, onClose, onSuccess }: any) {
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', padding: 0 }}
                         title="แก้ไข">
                         <Pencil size={13} />
+                      </button>
+                      <button type="button" onClick={() => deleteRenewal(r)}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', padding: 0 }}
+                        title="ลบ">
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>

@@ -248,6 +248,38 @@ export default function PawnStockPage() {
     return d.toISOString().split('T')[0];
   }
 
+  // ลบประวัติต่อดอก - ถ้าลบรายการล่าสุด (ที่กำหนดวันครบกำหนดปัจจุบัน) จะย้อนวันครบกำหนดกลับไปก่อนหน้าให้ด้วย
+  async function handleDeleteRenewal(r: any) {
+    if (!viewing) return;
+    if (!confirm(`ลบประวัติต่อดอกวันที่ ${r.renewal_date} (฿${Number(r.interest_paid || 0).toLocaleString()})?\n\nย้อนกลับไม่ได้`)) return;
+
+    const isLatest = renewals[0]?.id === r.id;
+
+    const { error: delErr } = await supabase.from('pawn_renewals').delete().eq('id', r.id);
+    if (delErr) {
+      showToast('เกิดข้อผิดพลาด', delErr.message, 'danger');
+      return;
+    }
+
+    const newRenewCount = Math.max((viewing.renew_count || 1) - 1, 0);
+    const updatePayload: any = { renew_count: newRenewCount };
+    if (isLatest) {
+      updatePayload.due_date = r.old_due_date || viewing.due_date;
+      updatePayload.reminder_due_sent_at = null;
+      updatePayload.reminder_overdue_sent_at = null;
+      updatePayload.forfeit_alert_sent_at = null;
+    }
+    const { error: updErr } = await supabase.from('pawn_stock').update(updatePayload).eq('id', viewing.id);
+    if (updErr) {
+      showToast('เกิดข้อผิดพลาด', updErr.message, 'danger');
+      return;
+    }
+
+    setViewing(null);
+    showToast('ลบประวัติต่อดอกแล้ว', '');
+    loadData();
+  }
+
   // เพิ่มประวัติต่อดอกย้อนหลัง (เช่น ลืมบันทึกไปงวดนึง) - ต่อท้าย chain จากวันครบกำหนดปัจจุบันของเครื่อง
   async function handleAddRenewalHistory() {
     if (!viewing) return;
@@ -782,6 +814,12 @@ export default function PawnStockPage() {
                               style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0, fontSize: 12 }}
                               title="แก้ไข"
                             >✎</button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRenewal(r)}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 0, fontSize: 12 }}
+                              title="ลบ"
+                            >×</button>
                           </div>
                         </div>
                         <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>
