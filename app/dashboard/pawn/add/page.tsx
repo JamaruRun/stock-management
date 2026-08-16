@@ -22,10 +22,41 @@ export default function AddPawnPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
+  const [priorRenewals, setPriorRenewals] = useState<{ date: string; interestPaid: string }[]>([]);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
     setTimeout(() => setToast(null), 2500);
+  }
+
+  function addPriorRenewal() {
+    setPriorRenewals([...priorRenewals, { date: '', interestPaid: '' }]);
+  }
+  function updatePriorRenewal(i: number, field: 'date' | 'interestPaid', value: string) {
+    setPriorRenewals(priorRenewals.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
+  }
+  function removePriorRenewal(i: number) {
+    setPriorRenewals(priorRenewals.filter((_, idx) => idx !== i));
+  }
+
+  function addDays(dateStr: string, days: number) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  }
+
+  // คำนวณ due_date ปัจจุบัน + สร้าง record ต่อดอกย้อนหลัง จากรายการที่กรอก (นับต่อรอบ ไม่สนวันที่จริงที่กรอก)
+  function computeRenewalChain() {
+    const interestDays = parseInt(form.interestDays) || 30;
+    const sorted = [...priorRenewals].filter(r => r.date).sort((a, b) => a.date.localeCompare(b.date));
+    let runningDue = addDays(form.pawnDate, interestDays);
+    const records = sorted.map(r => {
+      const oldDue = runningDue;
+      const newDue = addDays(oldDue, interestDays);
+      runningDue = newDue;
+      return { old_due_date: oldDue, new_due_date: newDue, renewal_date: r.date, interest_paid: parseFloat(r.interestPaid) || 0 };
+    });
+    return { finalDueDate: runningDue, records };
   }
 
   useEffect(() => {
@@ -52,6 +83,7 @@ export default function AddPawnPage() {
       customerName: '', customerPhone: '', customerNote: '',
       branchId: profile?.branch_id || '',
     });
+    setPriorRenewals([]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -69,14 +101,10 @@ export default function AddPawnPage() {
     const { data: profileWithShop } = await supabase
       .from('profiles').select('shop_id').eq('id', user.id).single();
 
-    // คำนวณ due_date จาก pawn_date + interest_days
     const interestDays = parseInt(form.interestDays) || 30;
-    const pawnDate = new Date(form.pawnDate);
-    const dueDate = new Date(pawnDate);
-    dueDate.setDate(dueDate.getDate() + interestDays);
-    const dueDateStr = dueDate.toISOString().split('T')[0];
+    const { finalDueDate: dueDateStr, records: renewalRecords } = computeRenewalChain();
 
-    const { error } = await supabase.from('pawn_stock').insert({
+    const { data: newItem, error } = await supabase.from('pawn_stock').insert({
       model: form.model,
       color: form.color || null, spec: form.spec || null,
       device_password: form.devicePassword || null,
@@ -85,21 +113,44 @@ export default function AddPawnPage() {
       interest_amount: parseFloat(form.interestAmount) || 0,
       due_date: dueDateStr,
       status: 'active',
-      renew_count: 0,
+      renew_count: renewalRecords.length,
       customer_name: form.customerName,
       customer_phone: form.customerPhone || null,
       customer_note: form.customerNote || null,
       added_by: user.id, added_by_name: profile.full_name,
       branch_id: form.branchId,
       shop_id: profileWithShop?.shop_id,
-    });
+    }).select('id').single();
 
-    setLoading(false);
     if (error) {
+      setLoading(false);
       showToast('เกิดข้อผิดพลาด', error.message, 'danger');
       return;
     }
 
+    if (renewalRecords.length > 0) {
+      const { error: renewalsError } = await supabase.from('pawn_renewals').insert(
+        renewalRecords.map(r => ({
+          pawn_id: newItem.id,
+          renewal_date: r.renewal_date,
+          interest_paid: r.interest_paid,
+          old_due_date: r.old_due_date,
+          new_due_date: r.new_due_date,
+          note: 'นำเข้าประวัติเก่า',
+          renewed_by: user.id,
+          renewed_by_name: profile.full_name,
+          branch_id: form.branchId,
+          shop_id: profileWithShop?.shop_id,
+        }))
+      );
+      if (renewalsError) {
+        setLoading(false);
+        showToast('บันทึกเครื่องสำเร็จ แต่บันทึกประวัติต่อดอกเก่าไม่สำเร็จ', renewalsError.message, 'danger');
+        return;
+      }
+    }
+
+    setLoading(false);
     showToast('รับจำนำสำเร็จ', `${form.model} • ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
 
     // 🔔 LINE Notify
@@ -189,6 +240,33 @@ export default function AddPawnPage() {
             </div>
           </div>
         </form>
+      </div>
+
+      <div className="form-card">
+        <h3>🔄 ประวัติต่อดอกเก่า (ถ้ามี)</h3>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -4, marginBottom: 12 }}>
+          ถ้าเครื่องนี้เคยต่อดอกมาก่อนจะนำเข้าระบบ ใส่แต่ละครั้งไว้ตรงนี้ ระบบจะคำนวณวันครบกำหนดปัจจุบันให้อัตโนมัติ
+        </p>
+        {priorRenewals.map((r, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <input type="date" value={r.date}
+              onChange={(e) => updatePriorRenewal(i, 'date', e.target.value)}
+              style={{ flex: 2 }} />
+            <input type="number" inputMode="numeric" value={r.interestPaid}
+              onChange={(e) => updatePriorRenewal(i, 'interestPaid', e.target.value)}
+              placeholder="ดอกที่จ่าย (บาท)" style={{ flex: 2 }} />
+            <button type="button" className="btn btn-sec" onClick={() => removePriorRenewal(i)}
+              style={{ width: 'auto', padding: '0 12px', flex: '0 0 auto' }}>×</button>
+          </div>
+        ))}
+        <button type="button" className="btn btn-sec" onClick={addPriorRenewal} style={{ width: 'auto' }}>
+          + เพิ่มรายการต่อดอกเก่า
+        </button>
+        {priorRenewals.filter(r => r.date).length > 0 && (
+          <div style={{ marginTop: 12, padding: 10, background: 'var(--surface-2)', borderLeft: '3px solid var(--accent)', fontSize: 13 }}>
+            ✓ นับต่อดอกเก่า {priorRenewals.filter(r => r.date).length} ครั้ง → ครบกำหนดปัจจุบัน: <strong>{computeRenewalChain().finalDueDate}</strong>
+          </div>
+        )}
       </div>
 
       <div className="form-card">

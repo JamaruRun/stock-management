@@ -6,6 +6,7 @@ import { sendLineNotify } from '@/lib/line-notify';
 import {
   Coins, X, Smartphone, User, Phone, Calendar,
   DollarSign, Percent, MapPin, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, Lock,
+  RefreshCw, Plus, Trash2,
 } from 'lucide-react';
 
 interface Props {
@@ -27,10 +28,41 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [priorRenewals, setPriorRenewals] = useState<{ date: string; interestPaid: string }[]>([]);
 
   function notify(msg: string, ok = true) {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 2600);
+  }
+
+  function addPriorRenewal() {
+    setPriorRenewals([...priorRenewals, { date: '', interestPaid: '' }]);
+  }
+  function updatePriorRenewal(i: number, field: 'date' | 'interestPaid', value: string) {
+    setPriorRenewals(priorRenewals.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
+  }
+  function removePriorRenewal(i: number) {
+    setPriorRenewals(priorRenewals.filter((_, idx) => idx !== i));
+  }
+
+  function addDays(dateStr: string, days: number) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  }
+
+  // คำนวณ due_date ปัจจุบัน + สร้าง record ต่อดอกย้อนหลัง จากรายการที่กรอก (นับต่อรอบ ไม่สนวันที่จริงที่กรอก)
+  function computeRenewalChain() {
+    const interestDays = parseInt(form.interestDays) || 30;
+    const sorted = [...priorRenewals].filter(r => r.date).sort((a, b) => a.date.localeCompare(b.date));
+    let runningDue = addDays(form.pawnDate, interestDays);
+    const records = sorted.map(r => {
+      const oldDue = runningDue;
+      const newDue = addDays(oldDue, interestDays);
+      runningDue = newDue;
+      return { old_due_date: oldDue, new_due_date: newDue, renewal_date: r.date, interest_paid: parseFloat(r.interestPaid) || 0 };
+    });
+    return { finalDueDate: runningDue, records };
   }
 
   useEffect(() => {
@@ -50,10 +82,8 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
   }, []);
 
   const dueDatePreview = (() => {
-    const days = parseInt(form.interestDays) || 30;
-    const d = new Date(form.pawnDate);
-    d.setDate(d.getDate() + days);
-    return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    const { finalDueDate } = computeRenewalChain();
+    return new Date(finalDueDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   })();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -71,28 +101,47 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
       .from('profiles').select('shop_id').eq('id', user.id).single();
 
     const interestDays = parseInt(form.interestDays) || 30;
-    const pawnDate = new Date(form.pawnDate);
-    const dueDate = new Date(pawnDate);
-    dueDate.setDate(dueDate.getDate() + interestDays);
-    const dueDateStr = dueDate.toISOString().split('T')[0];
+    const { finalDueDate: dueDateStr, records: renewalRecords } = computeRenewalChain();
 
-    const { error } = await supabase.from('pawn_stock').insert({
+    const { data: newItem, error } = await supabase.from('pawn_stock').insert({
       model: form.model,
       color: form.color || null, spec: form.spec || null,
       device_password: form.devicePassword || null,
       pawn_price: parseFloat(form.pawnPrice), pawn_date: form.pawnDate,
       interest_days: interestDays,
       interest_amount: parseFloat(form.interestAmount) || 0,
-      due_date: dueDateStr, status: 'active', renew_count: 0,
+      due_date: dueDateStr, status: 'active', renew_count: renewalRecords.length,
       customer_name: form.customerName,
       customer_phone: form.customerPhone || null,
       customer_note: form.customerNote || null,
       added_by: user.id, added_by_name: profile.full_name,
       branch_id: form.branchId, shop_id: profileWithShop?.shop_id,
-    });
+    }).select('id').single();
+
+    if (error) { setLoading(false); notify('เกิดข้อผิดพลาด: ' + error.message, false); return; }
+
+    if (renewalRecords.length > 0) {
+      const { error: renewalsError } = await supabase.from('pawn_renewals').insert(
+        renewalRecords.map(r => ({
+          pawn_id: newItem.id,
+          renewal_date: r.renewal_date,
+          interest_paid: r.interest_paid,
+          old_due_date: r.old_due_date,
+          new_due_date: r.new_due_date,
+          note: 'นำเข้าประวัติเก่า',
+          renewed_by: user.id,
+          renewed_by_name: profile.full_name,
+          branch_id: form.branchId, shop_id: profileWithShop?.shop_id,
+        }))
+      );
+      if (renewalsError) {
+        setLoading(false);
+        notify('บันทึกเครื่องสำเร็จ แต่บันทึกประวัติต่อดอกเก่าไม่สำเร็จ: ' + renewalsError.message, false);
+        return;
+      }
+    }
 
     setLoading(false);
-    if (error) { notify('เกิดข้อผิดพลาด: ' + error.message, false); return; }
 
     const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';
     const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;
@@ -167,6 +216,34 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
             <div style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, fontSize: 12, color: '#78350f', display: 'flex', alignItems: 'center', gap: 6 }}>
               <Calendar size={13} /> ครบกำหนด: <strong>{dueDatePreview}</strong>
             </div>
+          </div>
+
+          {/* ประวัติต่อดอกเก่า */}
+          <div>
+            <SectionTitle Icon={RefreshCw} color="#0ea5e9" label="ประวัติต่อดอกเก่า (ถ้ามี)" />
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: -6, marginBottom: 10 }}>
+              ถ้าเครื่องนี้เคยต่อดอกมาก่อนจะนำเข้าระบบ ใส่แต่ละครั้งไว้ตรงนี้ ระบบจะคำนวณวันครบกำหนดปัจจุบันให้เอง
+            </p>
+            {priorRenewals.map((r, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <input type="date" value={r.date}
+                  onChange={(e) => updatePriorRenewal(i, 'date', e.target.value)}
+                  style={{ ...inputSt, flex: 2 }} onFocus={fOn} onBlur={fOff} />
+                <input type="number" inputMode="decimal" value={r.interestPaid}
+                  onChange={(e) => updatePriorRenewal(i, 'interestPaid', e.target.value)}
+                  placeholder="ดอกที่จ่าย" style={{ ...inputSt, flex: 1 }} onFocus={fOn} onBlur={fOff} />
+                <button type="button" onClick={() => removePriorRenewal(i)} style={{ width: 46, height: 46, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={addPriorRenewal} style={{
+              width: '100%', padding: 10, background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10,
+              color: 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <Plus size={14} /> เพิ่มรายการต่อดอกเก่า
+            </button>
           </div>
 
           {/* ลูกค้า */}
