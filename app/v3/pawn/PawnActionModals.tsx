@@ -410,15 +410,37 @@ export function PawnDetailModal({ item, onClose }: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [renewals, setRenewals] = useState<any[]>([]);
   const [loadingRenewals, setLoadingRenewals] = useState(true);
+  const [editingRenewal, setEditingRenewal] = useState<any>(null);
+  const [renewalEditForm, setRenewalEditForm] = useState({ renewalDate: '', interestPaid: '', note: '' });
+  const [savingRenewal, setSavingRenewal] = useState(false);
+  const [renewalToast, setRenewalToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  function notifyRenewal(msg: string, ok = true) { setRenewalToast({ msg, ok }); setTimeout(() => setRenewalToast(null), 2600); }
+
+  async function loadRenewals() {
+    const { data } = await supabase.from('pawn_renewals').select('*').eq('pawn_id', item.id).order('renewal_date', { ascending: false });
+    setRenewals(data || []);
+    setLoadingRenewals(false);
+  }
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase.from('pawn_renewals').select('*').eq('pawn_id', item.id).order('renewal_date', { ascending: false });
-      setRenewals(data || []);
-      setLoadingRenewals(false);
-    }
-    load();
+    loadRenewals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
+
+  async function saveRenewalEdit() {
+    if (!editingRenewal) return;
+    setSavingRenewal(true);
+    const { error } = await supabase.from('pawn_renewals').update({
+      renewal_date: renewalEditForm.renewalDate,
+      interest_paid: parseFloat(renewalEditForm.interestPaid) || 0,
+      note: renewalEditForm.note || null,
+    }).eq('id', editingRenewal.id);
+    setSavingRenewal(false);
+    if (error) { notifyRenewal('เกิดข้อผิดพลาด: ' + error.message, false); return; }
+    setEditingRenewal(null);
+    notifyRenewal('แก้ไขประวัติต่อดอกสำเร็จ');
+    loadRenewals();
+  }
 
   const row = (label: string, value: any) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
@@ -428,6 +450,7 @@ export function PawnDetailModal({ item, onClose }: any) {
   );
 
   return (
+    <>
     <Overlay onClose={onClose}>
       <div style={headerSt}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -488,9 +511,20 @@ export function PawnDetailModal({ item, onClose }: any) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {renewals.map((r) => (
                 <div key={r.id} style={{ padding: 10, background: 'var(--surface-2)', borderRadius: 10, fontSize: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{r.renewal_date}</span>
-                    <span style={{ color: '#16a34a', fontWeight: 700 }}>฿{Number(r.interest_paid || 0).toLocaleString()}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: '#16a34a', fontWeight: 700 }}>฿{Number(r.interest_paid || 0).toLocaleString()}</span>
+                      <button type="button"
+                        onClick={() => {
+                          setEditingRenewal(r);
+                          setRenewalEditForm({ renewalDate: r.renewal_date || '', interestPaid: String(r.interest_paid ?? ''), note: r.note || '' });
+                        }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', padding: 0 }}
+                        title="แก้ไข">
+                        <Pencil size={13} />
+                      </button>
+                    </div>
                   </div>
                   <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>
                     {r.old_due_date || '-'} → {r.new_due_date}{r.note ? ` • ${r.note}` : ''}
@@ -506,6 +540,47 @@ export function PawnDetailModal({ item, onClose }: any) {
         </div>
       </div>
     </Overlay>
+
+    {editingRenewal && (
+      <Overlay onClose={() => setEditingRenewal(null)}>
+        <div style={headerSt}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#ede9fe', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Pencil size={18} /></div>
+            <div><h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>แก้ไขประวัติต่อดอก</h2><p style={{ fontSize: 11, color: 'var(--text-dim)' }}>แก้วันที่/จำนวนเงินของรายการนี้</p></div>
+          </div>
+          <button onClick={() => setEditingRenewal(null)} style={closeBtn}><X size={16} /></button>
+        </div>
+        <div style={{ padding: 18, overflowY: 'auto' }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>วันที่ต่อดอก</label>
+            <input type="date" value={renewalEditForm.renewalDate}
+              onChange={(e) => setRenewalEditForm({ ...renewalEditForm, renewalDate: e.target.value })} style={inputSt} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>ดอกที่จ่าย (฿)</label>
+            <input type="number" inputMode="decimal" value={renewalEditForm.interestPaid}
+              onChange={(e) => setRenewalEditForm({ ...renewalEditForm, interestPaid: e.target.value })} style={inputSt} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>หมายเหตุ</label>
+            <input value={renewalEditForm.note}
+              onChange={(e) => setRenewalEditForm({ ...renewalEditForm, note: e.target.value })} style={inputSt} />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 16 }}>
+            💡 แก้ได้เฉพาะวันที่/จำนวนเงิน/หมายเหตุ ไม่กระทบวันครบกำหนดของเครื่อง
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setEditingRenewal(null)} style={{ flex: 1, padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+            <button onClick={saveRenewalEdit} disabled={savingRenewal} style={{ flex: 2, padding: 13, background: savingRenewal ? 'var(--surface-2)' : 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: savingRenewal ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {savingRenewal ? <Loader2 size={17} className="v3-spin" /> : <Pencil size={17} strokeWidth={2.4} />}
+              {savingRenewal ? 'กำลังบันทึก...' : 'บันทึก'}
+            </button>
+          </div>
+        </div>
+      </Overlay>
+    )}
+    {renewalToast && <Toast toast={renewalToast} />}
+    </>
   );
 }
 

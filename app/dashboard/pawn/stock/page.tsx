@@ -31,6 +31,8 @@ export default function PawnStockPage() {
   const [renewForm, setRenewForm] = useState({ interestPaid: '', note: '', newDueDate: '' });
   const [showOverdueAlert, setShowOverdueAlert] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
+  const [editingRenewal, setEditingRenewal] = useState<any>(null);
+  const [renewalEditForm, setRenewalEditForm] = useState({ renewalDate: '', interestPaid: '', note: '' });
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
   const [renewals, setRenewals] = useState<any[]>([]);
   const [showViewPassword, setShowViewPassword] = useState(false);
@@ -211,6 +213,31 @@ export default function PawnStockPage() {
     showToast('ลบแล้ว', '');
     setDeleting(null);
     loadData();
+  }
+
+  async function handleSaveRenewalEdit() {
+    if (!editingRenewal) return;
+    const interestPaid = parseFloat(renewalEditForm.interestPaid) || 0;
+    if (interestPaid < 0) {
+      showToast('ดอกเบี้ยติดลบไม่ได้', '', 'danger');
+      return;
+    }
+
+    const { error } = await supabase.from('pawn_renewals').update({
+      renewal_date: renewalEditForm.renewalDate,
+      interest_paid: interestPaid,
+      note: renewalEditForm.note || null,
+    }).eq('id', editingRenewal.id);
+
+    if (error) {
+      showToast('เกิดข้อผิดพลาด', error.message, 'danger');
+      return;
+    }
+
+    const { data } = await supabase.from('pawn_renewals').select('*').eq('pawn_id', editingRenewal.pawn_id).order('renewal_date', { ascending: false });
+    setRenewals(data || []);
+    setEditingRenewal(null);
+    showToast('แก้ไขประวัติต่อดอกสำเร็จ', '');
   }
 
   async function handleRenew() {
@@ -673,9 +700,20 @@ export default function PawnStockPage() {
                         borderRadius: 6,
                         fontSize: 12,
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span>{r.renewal_date}</span>
-                          <span style={{ color: 'var(--success)', fontWeight: 600 }}>฿{Number(r.interest_paid || 0).toLocaleString()}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>฿{Number(r.interest_paid || 0).toLocaleString()}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRenewal(r);
+                                setRenewalEditForm({ renewalDate: r.renewal_date || '', interestPaid: String(r.interest_paid ?? ''), note: r.note || '' });
+                              }}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 0, fontSize: 12 }}
+                              title="แก้ไข"
+                            >✎</button>
+                          </div>
                         </div>
                         <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>
                           {r.old_due_date || '-'} → {r.new_due_date}
@@ -689,6 +727,39 @@ export default function PawnStockPage() {
             </div>
             <div className="modal-actions">
               <button className="btn btn-sec" onClick={() => setViewing(null)}>ปิด</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingRenewal && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditingRenewal(null)}>
+          <div className="modal">
+            <h3>✎ แก้ไขประวัติต่อดอก</h3>
+            <p className="modal-sub">แก้ไขวันที่/จำนวนเงินของรายการนี้</p>
+            <div className="form-grid">
+              <div className="field full">
+                <label>วันที่ต่อดอก</label>
+                <input type="date" value={renewalEditForm.renewalDate}
+                  onChange={(e) => setRenewalEditForm({ ...renewalEditForm, renewalDate: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label>ดอกที่จ่าย (บาท)</label>
+                <input type="number" inputMode="numeric" value={renewalEditForm.interestPaid}
+                  onChange={(e) => setRenewalEditForm({ ...renewalEditForm, interestPaid: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label>หมายเหตุ</label>
+                <input type="text" value={renewalEditForm.note}
+                  onChange={(e) => setRenewalEditForm({ ...renewalEditForm, note: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: -8, marginBottom: 16 }}>
+              💡 แก้ได้เฉพาะวันที่/จำนวนเงิน/หมายเหตุ ไม่กระทบวันครบกำหนดของเครื่อง (ถ้าต้องแก้วันครบกำหนด ให้แก้ที่หน้าแก้ไขเครื่องแทน)
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={handleSaveRenewalEdit}>บันทึก ✓</button>
+              <button className="btn btn-sec" onClick={() => setEditingRenewal(null)}>ยกเลิก</button>
             </div>
           </div>
         </div>
