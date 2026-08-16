@@ -33,6 +33,8 @@ export default function PawnStockPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [editingRenewal, setEditingRenewal] = useState<any>(null);
   const [renewalEditForm, setRenewalEditForm] = useState({ renewalDate: '', interestPaid: '', note: '' });
+  const [addingRenewal, setAddingRenewal] = useState(false);
+  const [newRenewalForm, setNewRenewalForm] = useState({ date: new Date().toISOString().split('T')[0], interestPaid: '', note: '' });
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
   const [renewals, setRenewals] = useState<any[]>([]);
   const [showViewPassword, setShowViewPassword] = useState(false);
@@ -238,6 +240,56 @@ export default function PawnStockPage() {
     setRenewals(data || []);
     setEditingRenewal(null);
     showToast('แก้ไขประวัติต่อดอกสำเร็จ', '');
+  }
+
+  function addDays(dateStr: string, days: number) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  }
+
+  // เพิ่มประวัติต่อดอกย้อนหลัง (เช่น ลืมบันทึกไปงวดนึง) - ต่อท้าย chain จากวันครบกำหนดปัจจุบันของเครื่อง
+  async function handleAddRenewalHistory() {
+    if (!viewing) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const interestDays = viewing.interest_days || 30;
+    const oldDue = viewing.due_date || viewing.pawn_date;
+    const newDue = addDays(oldDue, interestDays);
+
+    const { error: insErr } = await supabase.from('pawn_renewals').insert({
+      pawn_id: viewing.id,
+      renewal_date: newRenewalForm.date,
+      interest_paid: parseFloat(newRenewalForm.interestPaid) || 0,
+      old_due_date: oldDue,
+      new_due_date: newDue,
+      note: newRenewalForm.note || 'เพิ่มย้อนหลัง',
+      renewed_by: user.id,
+      renewed_by_name: profile.full_name,
+      branch_id: viewing.branch_id,
+      shop_id: viewing.shop_id,
+    });
+    if (insErr) {
+      showToast('เกิดข้อผิดพลาด', insErr.message, 'danger');
+      return;
+    }
+
+    const { error: updErr } = await supabase.from('pawn_stock').update({
+      due_date: newDue,
+      status: 'active',
+      renew_count: (viewing.renew_count || 0) + 1,
+      reminder_due_sent_at: null, reminder_overdue_sent_at: null, forfeit_alert_sent_at: null,
+    }).eq('id', viewing.id);
+    if (updErr) {
+      showToast('เกิดข้อผิดพลาด', updErr.message, 'danger');
+      return;
+    }
+
+    setAddingRenewal(false);
+    setViewing(null);
+    showToast('เพิ่มประวัติต่อดอกย้อนหลังสำเร็จ', '');
+    loadData();
   }
 
   async function handleRenew() {
@@ -689,9 +741,26 @@ export default function PawnStockPage() {
                       : '-'}
                 </div>
               </div>
-              {renewals.length > 0 && (
-                <div className="detail-item full">
+              <div className="detail-item full">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div className="label">ประวัติการต่อดอก</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewRenewalForm({ date: new Date().toISOString().split('T')[0], interestPaid: '', note: '' });
+                      setAddingRenewal(true);
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px dashed var(--border)',
+                      borderRadius: 8, padding: '4px 10px', color: 'var(--accent)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    + เพิ่มย้อนหลัง
+                  </button>
+                </div>
+                {renewals.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>ยังไม่เคยต่อดอก</div>
+                ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
                     {renewals.map((r) => (
                       <div key={r.id} style={{
@@ -722,8 +791,8 @@ export default function PawnStockPage() {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
             <div className="modal-actions">
               <button className="btn btn-sec" onClick={() => setViewing(null)}>ปิด</button>
@@ -760,6 +829,39 @@ export default function PawnStockPage() {
             <div className="modal-actions">
               <button className="btn" onClick={handleSaveRenewalEdit}>บันทึก ✓</button>
               <button className="btn btn-sec" onClick={() => setEditingRenewal(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addingRenewal && viewing && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setAddingRenewal(false)}>
+          <div className="modal">
+            <h3>🔄 เพิ่มประวัติต่อดอกย้อนหลัง</h3>
+            <p className="modal-sub">เช่น ลืมบันทึกไปงวดนึง</p>
+            <div className="form-grid">
+              <div className="field full">
+                <label>วันที่ต่อดอก</label>
+                <input type="date" value={newRenewalForm.date}
+                  onChange={(e) => setNewRenewalForm({ ...newRenewalForm, date: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label>ดอกที่จ่าย (บาท)</label>
+                <input type="number" inputMode="numeric" value={newRenewalForm.interestPaid}
+                  onChange={(e) => setNewRenewalForm({ ...newRenewalForm, interestPaid: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label>หมายเหตุ</label>
+                <input type="text" value={newRenewalForm.note} placeholder="เพิ่มย้อนหลัง"
+                  onChange={(e) => setNewRenewalForm({ ...newRenewalForm, note: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--accent-text, var(--accent))', background: 'var(--surface-2)', padding: 10, borderRadius: 6, marginTop: -8, marginBottom: 16 }}>
+              📅 นับต่อจากวันครบกำหนดปัจจุบัน ({viewing.due_date}) + {viewing.interest_days || 30} วัน = ครบกำหนดใหม่ <strong>{addDays(viewing.due_date || viewing.pawn_date, viewing.interest_days || 30)}</strong>
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={handleAddRenewalHistory}>เพิ่ม ✓</button>
+              <button className="btn btn-sec" onClick={() => setAddingRenewal(false)}>ยกเลิก</button>
             </div>
           </div>
         </div>

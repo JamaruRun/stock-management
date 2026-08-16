@@ -289,6 +289,7 @@ export default function V3PawnPage() {
         <PawnDetailModal
           item={viewItem}
           onClose={() => setViewItem(null)}
+          onSuccess={() => { setViewItem(null); load(); }}
         />
       )}
       {forfeitItem && (

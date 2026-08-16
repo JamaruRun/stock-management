@@ -404,8 +404,14 @@ export function PawnEditModal({ item, onClose, onSuccess }: any) {
   );
 }
 
+function addDays(dateStr: string, days: number) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
 /* ============ ดูรายละเอียด ============ */
-export function PawnDetailModal({ item, onClose }: any) {
+export function PawnDetailModal({ item, onClose, onSuccess }: any) {
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
   const [renewals, setRenewals] = useState<any[]>([]);
@@ -414,6 +420,8 @@ export function PawnDetailModal({ item, onClose }: any) {
   const [renewalEditForm, setRenewalEditForm] = useState({ renewalDate: '', interestPaid: '', note: '' });
   const [savingRenewal, setSavingRenewal] = useState(false);
   const [renewalToast, setRenewalToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [addingRenewal, setAddingRenewal] = useState(false);
+  const [newRenewalForm, setNewRenewalForm] = useState({ date: new Date().toISOString().split('T')[0], interestPaid: '', note: '' });
   function notifyRenewal(msg: string, ok = true) { setRenewalToast({ msg, ok }); setTimeout(() => setRenewalToast(null), 2600); }
 
   async function loadRenewals() {
@@ -440,6 +448,45 @@ export function PawnDetailModal({ item, onClose }: any) {
     setEditingRenewal(null);
     notifyRenewal('แก้ไขประวัติต่อดอกสำเร็จ');
     loadRenewals();
+  }
+
+  // เพิ่มประวัติต่อดอกย้อนหลัง (เช่น ลืมบันทึกไปงวดนึง) - ต่อท้าย chain จากวันครบกำหนดปัจจุบันของเครื่อง
+  async function saveNewRenewal() {
+    setSavingRenewal(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingRenewal(false); return; }
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+
+    const interestDays = item.interest_days || 30;
+    const oldDue = item.due_date || item.pawn_date;
+    const newDue = addDays(oldDue, interestDays);
+
+    const { error: insErr } = await supabase.from('pawn_renewals').insert({
+      pawn_id: item.id,
+      renewal_date: newRenewalForm.date,
+      interest_paid: parseFloat(newRenewalForm.interestPaid) || 0,
+      old_due_date: oldDue,
+      new_due_date: newDue,
+      note: newRenewalForm.note || 'เพิ่มย้อนหลัง',
+      renewed_by: user.id,
+      renewed_by_name: profile?.full_name,
+      branch_id: item.branch_id,
+      shop_id: item.shop_id,
+    });
+    if (insErr) { setSavingRenewal(false); notifyRenewal('เกิดข้อผิดพลาด: ' + insErr.message, false); return; }
+
+    const { error: updErr } = await supabase.from('pawn_stock').update({
+      due_date: newDue,
+      status: 'active',
+      renew_count: (item.renew_count || 0) + 1,
+      reminder_due_sent_at: null, reminder_overdue_sent_at: null, forfeit_alert_sent_at: null,
+    }).eq('id', item.id);
+    setSavingRenewal(false);
+    if (updErr) { notifyRenewal('เกิดข้อผิดพลาด: ' + updErr.message, false); return; }
+
+    setAddingRenewal(false);
+    notifyRenewal('เพิ่มประวัติต่อดอกย้อนหลังสำเร็จ');
+    setTimeout(() => onSuccess?.(), 800);
   }
 
   const row = (label: string, value: any) => (
@@ -502,7 +549,18 @@ export function PawnDetailModal({ item, onClose }: any) {
         {item.added_by_name && row('เพิ่มโดย', item.added_by_name)}
 
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>ประวัติการต่อดอก</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>ประวัติการต่อดอก</div>
+            <button type="button" onClick={() => {
+              setNewRenewalForm({ date: new Date().toISOString().split('T')[0], interestPaid: '', note: '' });
+              setAddingRenewal(true);
+            }} style={{
+              display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px dashed var(--border)',
+              borderRadius: 8, padding: '4px 10px', color: 'var(--accent)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              + เพิ่มย้อนหลัง
+            </button>
+          </div>
           {loadingRenewals ? (
             <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>กำลังโหลด...</div>
           ) : renewals.length === 0 ? (
@@ -574,6 +632,45 @@ export function PawnDetailModal({ item, onClose }: any) {
             <button onClick={saveRenewalEdit} disabled={savingRenewal} style={{ flex: 2, padding: 13, background: savingRenewal ? 'var(--surface-2)' : 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: savingRenewal ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {savingRenewal ? <Loader2 size={17} className="v3-spin" /> : <Pencil size={17} strokeWidth={2.4} />}
               {savingRenewal ? 'กำลังบันทึก...' : 'บันทึก'}
+            </button>
+          </div>
+        </div>
+      </Overlay>
+    )}
+
+    {addingRenewal && (
+      <Overlay onClose={() => setAddingRenewal(false)}>
+        <div style={headerSt}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dbeafe', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RefreshCw size={18} /></div>
+            <div><h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>เพิ่มประวัติต่อดอกย้อนหลัง</h2><p style={{ fontSize: 11, color: 'var(--text-dim)' }}>เช่น ลืมบันทึกไปงวดนึง</p></div>
+          </div>
+          <button onClick={() => setAddingRenewal(false)} style={closeBtn}><X size={16} /></button>
+        </div>
+        <div style={{ padding: 18, overflowY: 'auto' }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>วันที่ต่อดอก</label>
+            <input type="date" value={newRenewalForm.date}
+              onChange={(e) => setNewRenewalForm({ ...newRenewalForm, date: e.target.value })} style={inputSt} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>ดอกที่จ่าย (฿)</label>
+            <input type="number" inputMode="decimal" value={newRenewalForm.interestPaid}
+              onChange={(e) => setNewRenewalForm({ ...newRenewalForm, interestPaid: e.target.value })} style={inputSt} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>หมายเหตุ</label>
+            <input value={newRenewalForm.note} placeholder="เพิ่มย้อนหลัง"
+              onChange={(e) => setNewRenewalForm({ ...newRenewalForm, note: e.target.value })} style={inputSt} />
+          </div>
+          <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 12, color: '#1e40af', marginBottom: 16 }}>
+            📅 นับต่อจากวันครบกำหนดปัจจุบัน ({item.due_date}) + {item.interest_days || 30} วัน = ครบกำหนดใหม่ <strong>{addDays(item.due_date || item.pawn_date, item.interest_days || 30)}</strong>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setAddingRenewal(false)} style={{ flex: 1, padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+            <button onClick={saveNewRenewal} disabled={savingRenewal} style={{ flex: 2, padding: 13, background: savingRenewal ? 'var(--surface-2)' : 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: savingRenewal ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {savingRenewal ? <Loader2 size={17} className="v3-spin" /> : <RefreshCw size={17} strokeWidth={2.4} />}
+              {savingRenewal ? 'กำลังบันทึก...' : 'เพิ่ม'}
             </button>
           </div>
         </div>
