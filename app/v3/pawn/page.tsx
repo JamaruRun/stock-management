@@ -19,6 +19,7 @@ interface PawnItem {
   color?: string | null;
   spec?: string | null;
   device_password?: string | null;
+  device_lock_type?: string | null;
   pawn_price: number;
   pawn_date: string;
   interest_days: number;

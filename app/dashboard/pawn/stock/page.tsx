@@ -6,7 +6,12 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import ImportExcel from '@/components/ImportExcel';
 import { sendLineNotify } from '@/lib/line-notify';
+import PatternLockPad from '@/components/PatternLockPad';
 import { Eye, EyeOff } from 'lucide-react';
+
+function parsePattern(str: string | null | undefined): number[] {
+  return (str || '').split(',').map((n) => parseInt(n)).filter((n) => !isNaN(n));
+}
 
 export default function PawnStockPage() {
   const supabase = createClient();
@@ -168,6 +173,7 @@ export default function PawnStockPage() {
         color: editing.color,
         spec: editing.spec,
         device_password: editing.device_password || null,
+        device_lock_type: editing.device_lock_type || 'password',
         pawn_price: parseFloat(editing.pawn_price),
         pawn_date: editing.pawn_date,
         interest_days: interestDays,
@@ -290,6 +296,7 @@ export default function PawnStockPage() {
       color: forfeiting.color,
       spec: forfeiting.spec,
       device_password: forfeiting.device_password,
+      device_lock_type: forfeiting.device_lock_type,
       pawn_price: forfeiting.pawn_price,
       pawn_date: forfeiting.pawn_date,
       customer_name: forfeiting.customer_name,
@@ -547,7 +554,7 @@ export default function PawnStockPage() {
                       >
                         ⚠
                       </button>
-                      <button className="icon-btn" onClick={() => setEditing({ ...item })} title="แก้ไข">✎</button>
+                      <button className="icon-btn" onClick={() => { setEditing({ ...item }); setShowViewPassword(false); }} title="แก้ไข">✎</button>
                       <button className="icon-btn danger" onClick={() => setDeleting(item)} title="ลบ">×</button>
                     </>
                   )}
@@ -584,21 +591,38 @@ export default function PawnStockPage() {
                 <div className="value">{viewing.spec || '-'}</div>
               </div>
               <div className="detail-item full">
-                <div className="label">รหัสผ่านเครื่อง</div>
-                <div className="value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {viewing.device_password
-                    ? (showViewPassword ? viewing.device_password : '••••••••')
-                    : '-'}
-                  {viewing.device_password && (
-                    <button
-                      type="button"
-                      onClick={() => setShowViewPassword(!showViewPassword)}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center' }}
-                    >
-                      {showViewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                <div className="label">รหัสปลดล็อกเครื่อง{viewing.device_lock_type === 'pattern' ? ' (แพทเทิร์น)' : ''}</div>
+                {viewing.device_lock_type === 'pattern' && viewing.device_password ? (
+                  showViewPassword ? (
+                    <div>
+                      <PatternLockPad readOnly value={parsePattern(viewing.device_password)} size={140} />
+                      <button type="button" onClick={() => setShowViewPassword(false)}
+                        style={{ display: 'block', margin: '6px auto 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 12 }}>
+                        <EyeOff size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }} />ซ่อน
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setShowViewPassword(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13, padding: 0 }}>
+                      🔒 ซ่อนไว้ (แพทเทิร์น) <Eye size={15} />
                     </button>
-                  )}
-                </div>
+                  )
+                ) : (
+                  <div className="value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {viewing.device_password
+                      ? (showViewPassword ? viewing.device_password : '••••••••')
+                      : '-'}
+                    {viewing.device_password && (
+                      <button
+                        type="button"
+                        onClick={() => setShowViewPassword(!showViewPassword)}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showViewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="detail-item">
                 <div className="label">ราคาจำนำ</div>
@@ -698,17 +722,43 @@ export default function PawnStockPage() {
                   onChange={(e) => setEditing({ ...editing, spec: e.target.value })} />
               </div>
               <div className="field full">
-                <label>รหัสผ่านเครื่อง</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input type={showViewPassword ? 'text' : 'password'} value={editing.device_password || ''}
-                    onChange={(e) => setEditing({ ...editing, device_password: e.target.value })}
-                    style={{ flex: 1 }} />
-                  <button type="button" className="btn btn-sec"
-                    onClick={() => setShowViewPassword(!showViewPassword)}
-                    style={{ width: 'auto', padding: '0 16px' }}>
-                    {showViewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                <label>รหัสปลดล็อกเครื่อง</label>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <button type="button"
+                    onClick={() => setEditing({ ...editing, device_lock_type: 'password' })}
+                    className={(editing.device_lock_type || 'password') === 'password' ? 'btn' : 'btn btn-sec'}
+                    style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}>
+                    รหัสผ่าน/PIN
+                  </button>
+                  <button type="button"
+                    onClick={() => setEditing({ ...editing, device_lock_type: 'pattern' })}
+                    className={editing.device_lock_type === 'pattern' ? 'btn' : 'btn btn-sec'}
+                    style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}>
+                    แพทเทิร์น (ลากจุด)
                   </button>
                 </div>
+                {!showViewPassword ? (
+                  <button type="button" className="btn btn-sec" onClick={() => setShowViewPassword(true)} style={{ width: 'auto' }}>
+                    🔒 ซ่อนไว้ — กดเพื่อแก้ไข
+                  </button>
+                ) : editing.device_lock_type === 'pattern' ? (
+                  <PatternLockPad
+                    value={parsePattern(editing.device_password)}
+                    onChange={(arr) => setEditing({ ...editing, device_password: arr.join(',') })}
+                    size={180}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={editing.device_password || ''}
+                      onChange={(e) => setEditing({ ...editing, device_password: e.target.value })}
+                      style={{ flex: 1 }} />
+                    <button type="button" className="btn btn-sec"
+                      onClick={() => setShowViewPassword(false)}
+                      style={{ width: 'auto', padding: '0 16px' }}>
+                      <EyeOff size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="field">
                 <label>ราคาจำนำ</label>

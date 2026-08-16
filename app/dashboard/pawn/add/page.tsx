@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
+import PatternLockPad from '@/components/PatternLockPad';
 import { Eye, EyeOff } from 'lucide-react';
 import { sendLineNotify } from '@/lib/line-notify';
 
@@ -23,6 +24,8 @@ export default function AddPawnPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
   const [priorRenewals, setPriorRenewals] = useState<{ date: string; interestPaid: string }[]>([]);
+  const [deviceLockType, setDeviceLockType] = useState<'password' | 'pattern'>('password');
+  const [devicePattern, setDevicePattern] = useState<number[]>([]);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -84,6 +87,8 @@ export default function AddPawnPage() {
       branchId: profile?.branch_id || '',
     });
     setPriorRenewals([]);
+    setDeviceLockType('password');
+    setDevicePattern([]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -107,7 +112,8 @@ export default function AddPawnPage() {
     const { data: newItem, error } = await supabase.from('pawn_stock').insert({
       model: form.model,
       color: form.color || null, spec: form.spec || null,
-      device_password: form.devicePassword || null,
+      device_password: deviceLockType === 'pattern' ? (devicePattern.join(',') || null) : (form.devicePassword || null),
+      device_lock_type: deviceLockType,
       pawn_price: parseFloat(form.pawnPrice), pawn_date: form.pawnDate,
       interest_days: interestDays,
       interest_amount: parseFloat(form.interestAmount) || 0,
@@ -195,18 +201,36 @@ export default function AddPawnPage() {
             </div>
 
             <div className="field full">
-              <label>รหัสผ่านเครื่อง (ถ้ามี)</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
-                  onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
-                  placeholder="รหัสปลดล็อกเครื่อง"
-                  style={{ flex: 1 }} />
-                <button type="button" className="btn btn-sec"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ width: 'auto', padding: '0 16px' }}>
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              <label>รหัสปลดล็อกเครื่อง (ถ้ามี)</label>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <button type="button"
+                  onClick={() => setDeviceLockType('password')}
+                  className={deviceLockType === 'password' ? 'btn' : 'btn btn-sec'}
+                  style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}>
+                  รหัสผ่าน/PIN
+                </button>
+                <button type="button"
+                  onClick={() => setDeviceLockType('pattern')}
+                  className={deviceLockType === 'pattern' ? 'btn' : 'btn btn-sec'}
+                  style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}>
+                  แพทเทิร์น (ลากจุด)
                 </button>
               </div>
+              {deviceLockType === 'password' ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
+                    onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
+                    placeholder="รหัสปลดล็อกเครื่อง"
+                    style={{ flex: 1 }} />
+                  <button type="button" className="btn btn-sec"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ width: 'auto', padding: '0 16px' }}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              ) : (
+                <PatternLockPad value={devicePattern} onChange={setDevicePattern} size={180} />
+              )}
             </div>
 
             <div className="field">

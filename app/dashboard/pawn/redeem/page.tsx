@@ -63,6 +63,7 @@ export default function RedeemPage() {
       color: foundItem.color,
       spec: foundItem.spec,
       device_password: foundItem.device_password,
+      device_lock_type: foundItem.device_lock_type,
       pawn_price: foundItem.pawn_price,
       pawn_date: foundItem.pawn_date,
       customer_name: foundItem.customer_name,

@@ -3,10 +3,15 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { sendLineNotify } from '@/lib/line-notify';
+import PatternLockPad from '@/components/PatternLockPad';
 import {
   RotateCcw, RefreshCw, X, Smartphone, User, Coins, Calendar,
   Loader2, CheckCircle2, AlertCircle, Percent, Eye, EyeOff, Pencil, Lock, FileText, AlertTriangle,
 } from 'lucide-react';
+
+function parsePattern(str: string | null | undefined): number[] {
+  return (str || '').split(',').map((n) => parseInt(n)).filter((n) => !isNaN(n));
+}
 
 function Overlay({ onClose, children }: any) {
   return (
@@ -46,6 +51,18 @@ const closeBtn: React.CSSProperties = { width: 32, height: 32, background: 'var(
 const inputSt: React.CSSProperties = { width: '100%', height: 46, padding: '0 12px 0 40px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
 const iconSt: React.CSSProperties = { position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' };
 
+function TabBtn({ active, onClick, children }: any) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      padding: '6px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+      background: active ? 'var(--accent)' : 'var(--surface-2)', color: active ? '#fff' : 'var(--text-dim)',
+      border: '1px solid ' + (active ? 'var(--accent)' : 'var(--border)'),
+    }}>
+      {children}
+    </button>
+  );
+}
+
 function Toast({ toast }: any) {
   if (!toast) return null;
   return (
@@ -80,6 +97,7 @@ export function PawnRedeemModal({ item, onClose, onSuccess }: any) {
     const { error: insertError } = await supabase.from('pawn_history').insert({
       imei: item.imei, model: item.model, color: item.color, spec: item.spec,
       device_password: item.device_password,
+      device_lock_type: item.device_lock_type,
       pawn_price: item.pawn_price, pawn_date: item.pawn_date,
       customer_name: item.customer_name, customer_phone: item.customer_phone, customer_note: item.customer_note,
       added_by: item.added_by, added_by_name: item.added_by_name,
@@ -250,6 +268,7 @@ export function PawnEditModal({ item, onClose, onSuccess }: any) {
     customerName: item.customer_name || '', customerPhone: item.customer_phone || '', customerNote: item.customer_note || '',
     recalcDue: false,
   });
+  const [deviceLockType, setDeviceLockType] = useState<'password' | 'pattern'>(item.device_lock_type === 'pattern' ? 'pattern' : 'password');
 
   async function save() {
     setLoading(true);
@@ -264,6 +283,7 @@ export function PawnEditModal({ item, onClose, onSuccess }: any) {
     const { error } = await supabase.from('pawn_stock').update({
       model: form.model, color: form.color || null, spec: form.spec || null,
       device_password: form.devicePassword || null,
+      device_lock_type: deviceLockType,
       pawn_price: parseFloat(form.pawnPrice) || 0, pawn_date: form.pawnDate,
       interest_days: interestDays, interest_amount: parseFloat(form.interestAmount) || 0,
       due_date: dueDate,
@@ -308,16 +328,31 @@ export function PawnEditModal({ item, onClose, onSuccess }: any) {
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>รหัสผ่านเครื่อง</label>
-          <div style={{ position: 'relative' }}>
-            <Lock size={16} style={iconSt} />
-            <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
-              onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
-              style={{ ...inputSt, paddingRight: 40 }} />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>รหัสปลดล็อกเครื่อง</label>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <TabBtn active={deviceLockType === 'password'} onClick={() => setDeviceLockType('password')}>รหัสผ่าน/PIN</TabBtn>
+            <TabBtn active={deviceLockType === 'pattern'} onClick={() => setDeviceLockType('pattern')}>แพทเทิร์น (ลากจุด)</TabBtn>
           </div>
+          {!showPassword ? (
+            <button type="button" onClick={() => setShowPassword(true)} style={{
+              width: '100%', padding: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12,
+              color: 'var(--text-dim)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              🔒 ซ่อนไว้ — กดเพื่อแก้ไข <Eye size={14} />
+            </button>
+          ) : deviceLockType === 'pattern' ? (
+            <PatternLockPad value={parsePattern(form.devicePassword)} onChange={(arr) => setForm({ ...form, devicePassword: arr.join(',') })} size={180} />
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <Lock size={16} style={iconSt} />
+              <input type="text" value={form.devicePassword}
+                onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
+                style={{ ...inputSt, paddingRight: 40 }} />
+              <button type="button" onClick={() => setShowPassword(false)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+                <EyeOff size={16} />
+              </button>
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
@@ -406,14 +441,34 @@ export function PawnDetailModal({ item, onClose }: any) {
         {row('รุ่น', item.model)}
         {row('สี', item.color)}
         {row('สเปค', item.spec)}
-        {row('รหัสผ่านเครื่อง', item.device_password ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {showPassword ? item.device_password : '••••••••'}
-            <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}>
-              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-          </span>
-        ) : '-')}
+        {item.device_lock_type === 'pattern' && item.device_password ? (
+          <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 8 }}>รหัสปลดล็อกเครื่อง (แพทเทิร์น)</div>
+            {showPassword ? (
+              <div>
+                <PatternLockPad readOnly value={parsePattern(item.device_password)} size={140} />
+                <button type="button" onClick={() => setShowPassword(false)}
+                  style={{ display: 'block', margin: '6px auto 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 12 }}>
+                  <EyeOff size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }} />ซ่อน
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowPassword(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13, padding: 0 }}>
+                🔒 ซ่อนไว้ (แพทเทิร์น) <Eye size={15} />
+              </button>
+            )}
+          </div>
+        ) : (
+          row('รหัสผ่านเครื่อง', item.device_password ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {showPassword ? item.device_password : '••••••••'}
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}>
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </span>
+          ) : '-')
+        )}
         {row('ราคาจำนำ', `฿${Number(item.pawn_price).toLocaleString()}`)}
         {row('วันที่รับจำนำ', item.pawn_date)}
         {row('วันครบกำหนด', item.due_date)}
@@ -479,6 +534,7 @@ export function PawnForfeitModal({ item, onClose, onSuccess }: any) {
     const { error: insertError } = await supabase.from('pawn_history').insert({
       imei: item.imei, model: item.model, color: item.color, spec: item.spec,
       device_password: item.device_password,
+      device_lock_type: item.device_lock_type,
       pawn_price: item.pawn_price, pawn_date: item.pawn_date,
       customer_name: item.customer_name, customer_phone: item.customer_phone, customer_note: item.customer_note,
       added_by: item.added_by, added_by_name: item.added_by_name,

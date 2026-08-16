@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import { sendLineNotify } from '@/lib/line-notify';
+import PatternLockPad from '@/components/PatternLockPad';
 import {
   Coins, ArrowLeft, Smartphone, User, Phone, Calendar,
   DollarSign, Percent, FileText, MapPin, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, Lock,
@@ -27,6 +28,8 @@ export default function V3PawnAddPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [priorRenewals, setPriorRenewals] = useState<{ date: string; interestPaid: string }[]>([]);
+  const [deviceLockType, setDeviceLockType] = useState<'password' | 'pattern'>('password');
+  const [devicePattern, setDevicePattern] = useState<number[]>([]);
 
   function notify(msg: string, ok = true) {
     setToast({ msg, ok });
@@ -104,7 +107,8 @@ export default function V3PawnAddPage() {
     const { data: newItem, error } = await supabase.from('pawn_stock').insert({
       model: form.model,
       color: form.color || null, spec: form.spec || null,
-      device_password: form.devicePassword || null,
+      device_password: deviceLockType === 'pattern' ? (devicePattern.join(',') || null) : (form.devicePassword || null),
+      device_lock_type: deviceLockType,
       pawn_price: parseFloat(form.pawnPrice), pawn_date: form.pawnDate,
       interest_days: interestDays,
       interest_amount: parseFloat(form.interestAmount) || 0,
@@ -175,16 +179,24 @@ export default function V3PawnAddPage() {
             <F label="สี"><Inp value={form.color} onChange={(v) => setForm({ ...form, color: v })} placeholder="Midnight" /></F>
             <F label="ความจุ/สเปก"><Inp value={form.spec} onChange={(v) => setForm({ ...form, spec: v })} placeholder="256GB" /></F>
           </div>
-          <F label="รหัสผ่านเครื่อง (ถ้ามี)">
-            <div style={{ position: 'relative' }}>
-              <Lock size={17} style={iconSt} />
-              <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
-                onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
-                placeholder="รหัสปลดล็อกเครื่อง" style={{ ...inputSt, paddingRight: 40 }} onFocus={fOn} onBlur={fOff} />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+          <F label="รหัสปลดล็อกเครื่อง (ถ้ามี)">
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <TabBtn active={deviceLockType === 'password'} onClick={() => setDeviceLockType('password')}>รหัสผ่าน/PIN</TabBtn>
+              <TabBtn active={deviceLockType === 'pattern'} onClick={() => setDeviceLockType('pattern')}>แพทเทิร์น (ลากจุด)</TabBtn>
             </div>
+            {deviceLockType === 'password' ? (
+              <div style={{ position: 'relative' }}>
+                <Lock size={17} style={iconSt} />
+                <input type={showPassword ? 'text' : 'password'} value={form.devicePassword}
+                  onChange={(e) => setForm({ ...form, devicePassword: e.target.value })}
+                  placeholder="รหัสปลดล็อกเครื่อง" style={{ ...inputSt, paddingRight: 40 }} onFocus={fOn} onBlur={fOff} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            ) : (
+              <PatternLockPad value={devicePattern} onChange={setDevicePattern} size={180} />
+            )}
           </F>
         </div>
 
@@ -291,6 +303,17 @@ function F({ label, req, children }: any) {
       </label>
       {children}
     </div>
+  );
+}
+function TabBtn({ active, onClick, children }: any) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      padding: '6px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+      background: active ? 'var(--accent)' : 'var(--surface-2)', color: active ? '#fff' : 'var(--text-dim)',
+      border: '1px solid ' + (active ? 'var(--accent)' : 'var(--border)'),
+    }}>
+      {children}
+    </button>
   );
 }
 function Inp({ Icon, value, onChange, placeholder, type = 'text' }: any) {
