@@ -15,12 +15,14 @@ interface Part {
   phone_model: string;
   grade?: string;
   cost_price: number;
+  wholesale_price?: number;
   sell_price: number;
   stock_qty: number;
   low_stock_alert: number;
   supplier_id?: string;
   sku?: string;
   note?: string;
+  added_by_name?: string;
   suppliers?: { name: string } | null;
 }
 
@@ -44,6 +46,7 @@ export default function PartsPage() {
   
   // Print label
   const [printingLabel, setPrintingLabel] = useState<Part | null>(null);
+  const [viewing, setViewing] = useState<Part | null>(null);
   const [adjustNote, setAdjustNote] = useState('');
   const [adjustType, setAdjustType] = useState<'in' | 'out' | 'set'>('in');
   const [savingAdjust, setSavingAdjust] = useState(false);
@@ -418,14 +421,16 @@ export default function PartsPage() {
             const gradeInfo = p.grade ? getGradeInfo(p.grade) : null;
 
             return (
-              <div 
-                key={p.id} 
+              <div
+                key={p.id}
+                onClick={() => setViewing(p)}
                 style={{
                   background: 'var(--surface)',
                   border: `1px solid ${isOut ? '#ef4444' : isLow ? '#f59e0b' : 'var(--border)'}`,
                   borderRadius: 'var(--radius-sm)',
                   padding: 12,
                   transition: 'all 0.15s',
+                  cursor: 'pointer',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -468,7 +473,7 @@ export default function PartsPage() {
                     <span>ต้นทุน <strong style={{ color: 'var(--text)' }}>฿{Number(p.cost_price).toLocaleString()}</strong></span>
                     <span>ขาย <strong style={{ color: 'var(--accent)' }}>฿{Number(p.sell_price).toLocaleString()}</strong></span>
                   </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setPrintingLabel(p)}
                       style={{
@@ -605,8 +610,117 @@ export default function PartsPage() {
         />
       )}
 
+      {viewing && (
+        <PartViewModal
+          item={viewing}
+          compatModels={modelsByPart[viewing.id]}
+          onClose={() => setViewing(null)}
+          onEdit={() => setViewing(null)}
+        />
+      )}
+
       {toast && <Toast {...toast} />}
     </>
+  );
+}
+
+function PartViewModal({ item, compatModels, onClose, onEdit }: { item: Part; compatModels?: string[]; onClose: () => void; onEdit: () => void }) {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [compatRows, setCompatRows] = useState<any[]>([]);
+  const gradeInfo = item.grade ? getGradeInfo(item.grade) : null;
+  const profit = item.cost_price ? Number(item.sell_price) - Number(item.cost_price) : 0;
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('part_compatibility')
+        .select('cost_price, labor_cost, sell_price, device_models(model_name)')
+        .eq('part_id', item.id);
+      setCompatRows((data || []).map((r: any) => ({ ...r, model_name: r.device_models?.model_name || '-' })));
+      setLoading(false);
+    }
+    load();
+  }, [item.id]);
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <h3>{item.name}</h3>
+        <p className="modal-sub">{getCategoryLabel(item.category)}{gradeInfo ? ` · ${gradeInfo.label}` : ''}</p>
+        <div className="detail-grid">
+          <div className="detail-item">
+            <div className="label">ราคาทุน</div>
+            <div className="value">฿{Number(item.cost_price || 0).toLocaleString()}</div>
+          </div>
+          <div className="detail-item">
+            <div className="label">ราคาส่ง</div>
+            <div className="value">฿{Number(item.wholesale_price || 0).toLocaleString()}</div>
+          </div>
+          <div className="detail-item">
+            <div className="label">ราคาหน้าร้าน</div>
+            <div className="value" style={{ color: 'var(--accent)' }}>฿{Number(item.sell_price || 0).toLocaleString()}</div>
+          </div>
+          <div className="detail-item">
+            <div className="label">กำไร (ทุน→หน้าร้าน)</div>
+            <div className="value" style={{ color: profit > 0 ? '#10b981' : undefined }}>฿{profit.toLocaleString()}</div>
+          </div>
+          <div className="detail-item">
+            <div className="label">คงเหลือ</div>
+            <div className="value">{item.stock_qty} ชิ้น</div>
+          </div>
+          <div className="detail-item">
+            <div className="label">เตือนเมื่อเหลือ</div>
+            <div className="value">{item.low_stock_alert ?? 2} ชิ้น</div>
+          </div>
+          {item.sku && (
+            <div className="detail-item">
+              <div className="label">SKU</div>
+              <div className="value mono">{item.sku}</div>
+            </div>
+          )}
+          {item.suppliers?.name && (
+            <div className="detail-item">
+              <div className="label">ซัพพลายเออร์</div>
+              <div className="value">{item.suppliers.name}</div>
+            </div>
+          )}
+          {item.added_by_name && (
+            <div className="detail-item">
+              <div className="label">เพิ่มโดย</div>
+              <div className="value">{item.added_by_name}</div>
+            </div>
+          )}
+          {item.note && (
+            <div className="detail-item full">
+              <div className="label">หมายเหตุ</div>
+              <div className="value">{item.note}</div>
+            </div>
+          )}
+          <div className="detail-item full">
+            <div className="label">รุ่นมือถือที่ใช้ได้</div>
+            {loading ? (
+              <div className="value">กำลังโหลด...</div>
+            ) : compatRows.length === 0 ? (
+              <div className="value">{item.phone_model || 'ทั่วไป (ยังไม่ได้ผูกกับรุ่นเฉพาะ)'}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                {compatRows.map((r, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, background: 'var(--surface-2)', borderRadius: 6, padding: '6px 8px' }}>
+                    <strong>{r.model_name}</strong>
+                    <span style={{ color: 'var(--text-dim)' }}>ทุน ฿{Number(r.cost_price || 0).toLocaleString()} · ขาย ฿{Number(r.sell_price || 0).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button className="btn btn-sec" onClick={onClose}>ปิด</button>
+          <Link href={`/dashboard/parts/edit?id=${item.id}`} className="btn" onClick={onEdit}>✏️ แก้ไข</Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

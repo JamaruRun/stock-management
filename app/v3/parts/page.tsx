@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Wrench, MoreVertical, Smartphone,
   AlertTriangle, Eye, Trash2, ShoppingCart,
-  TrendingUp, Edit2, Box,
+  TrendingUp, Edit2, Box, X, Loader2,
 } from 'lucide-react';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getGradeInfo } from '@/lib/parts-constants';
 import PartAddModal from './PartAddModal';
@@ -22,10 +22,14 @@ interface PartItem {
   phone_model: string;
   grade?: string | null;
   cost_price?: number | null;
+  wholesale_price?: number | null;
   sell_price: number;
   stock_qty: number;
   low_stock_alert?: number | null;
   note?: string | null;
+  supplier_id?: string | null;
+  added_by_name?: string | null;
+  created_at?: string;
   branch_id?: string;
   shop_id?: string;
 }
@@ -43,6 +47,7 @@ export default function V3PartsPage() {
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
   const [editItem, setEditItem] = useState<any>(null);
+  const [viewItem, setViewItem] = useState<any>(null);
   const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
   const [searchMode, setSearchMode] = useState<'part' | 'model'>('part');
   const [modelQuery, setModelQuery] = useState('');
@@ -472,6 +477,7 @@ export default function V3PartsPage() {
               onDelete={() => handleDelete(item)}
               onSell={() => { setMenuOpenId(null); setShowSell(true); }}
               onEdit={() => { setMenuOpenId(null); setEditItem(item); }}
+              onView={() => { setMenuOpenId(null); setViewItem(item); }}
             />
           ))}
         </div>
@@ -487,6 +493,14 @@ export default function V3PartsPage() {
       )}
       {editItem && (
         <PartEditModal item={editItem} onClose={() => setEditItem(null)} onSuccess={() => { setEditItem(null); load(); }} />
+      )}
+      {viewItem && (
+        <PartDetailModal
+          item={viewItem}
+          isAdmin={isAdmin}
+          onClose={() => setViewItem(null)}
+          onEdit={() => { setViewItem(null); setEditItem(viewItem); }}
+        />
       )}
 
       <style jsx>{`
@@ -573,7 +587,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit }: any) {
+function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit, onView }: any) {
   const qty = Number(item.stock_qty || 0);
   const lowAlert = Number(item.low_stock_alert || 2);
   const isOut = qty === 0;
@@ -584,7 +598,7 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
     : 0;
 
   return (
-    <div style={{
+    <div onClick={onView} style={{
       background: 'var(--surface)',
       border: '1px solid',
       borderColor: isOut ? '#fecaca' : isLow ? '#fde68a' : 'var(--border)',
@@ -596,6 +610,7 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
       flexDirection: 'column',
       height: '100%',
       boxSizing: 'border-box',
+      cursor: 'pointer',
     }}>
       {(isOut || isLow) && (
         <div style={{
@@ -631,7 +646,7 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
         {menuOpen && (
           <>
             <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
-            <div style={{
+            <div onClick={(e) => e.stopPropagation()} style={{
               position: 'absolute',
               top: 28, right: 0,
               background: 'var(--surface)',
@@ -642,6 +657,9 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
               padding: 4,
               zIndex: 20,
             }}>
+              <button onClick={onView} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+                <Eye size={13} /> ดูรายละเอียด
+              </button>
               <button onClick={onSell} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                 <ShoppingCart size={13} /> ขาย
               </button>
@@ -785,6 +803,110 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
           {qty} ชิ้น
         </div>
       </div>
+    </div>
+  );
+}
+
+function PartDetailModal({ item, isAdmin, onClose, onEdit }: any) {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [compatRows, setCompatRows] = useState<any[]>([]);
+  const [supplierName, setSupplierName] = useState<string | null>(null);
+  const gradeInfo = item.grade ? getGradeInfo(item.grade) : null;
+  const profit = item.cost_price ? Number(item.sell_price) - Number(item.cost_price) : 0;
+
+  useEffect(() => {
+    async function load() {
+      const [{ data: compat }, supplierRes] = await Promise.all([
+        supabase.from('part_compatibility').select('cost_price, labor_cost, sell_price, device_models(model_name)').eq('part_id', item.id),
+        item.supplier_id ? supabase.from('suppliers').select('name').eq('id', item.supplier_id).single() : Promise.resolve({ data: null } as any),
+      ]);
+      setCompatRows((compat || []).map((r: any) => ({ ...r, model_name: r.device_models?.model_name || '-' })));
+      setSupplierName(supplierRes?.data?.name || null);
+      setLoading(false);
+    }
+    load();
+  }, [item.id]);
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="v3-card" style={{ maxWidth: 480, width: '100%', padding: 0, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fce7f3', color: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Wrench size={18} /></div>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, fontFamily: 'Prompt, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</h2>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)' }}>{getCategoryLabel(item.category)}{gradeInfo ? ` · ${gradeInfo.label}` : ''}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, background: 'var(--surface-2)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={16} /></button>
+        </div>
+
+        <div style={{ padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <PriceBox label="ทุน" value={item.cost_price} />
+            <PriceBox label="ส่ง" value={item.wholesale_price} />
+            <PriceBox label="หน้าร้าน" value={item.sell_price} accent />
+          </div>
+          {isAdmin && item.cost_price > 0 && (
+            <div style={{ fontSize: 12, color: profit > 0 ? '#16a34a' : 'var(--text-dim)', fontWeight: 600 }}>
+              กำไร (ทุน→หน้าร้าน) ฿{profit.toLocaleString()}
+            </div>
+          )}
+
+          <DetailRow label="คงเหลือ" value={`${item.stock_qty} ชิ้น`} />
+          <DetailRow label="เตือนเมื่อเหลือ" value={`${item.low_stock_alert ?? 2} ชิ้น`} />
+          {item.sku && <DetailRow label="SKU" value={<span style={{ fontFamily: 'monospace' }}>{item.sku}</span>} />}
+          {supplierName && <DetailRow label="ซัพพลายเออร์" value={supplierName} />}
+          {item.note && <DetailRow label="หมายเหตุ" value={item.note} />}
+          {item.added_by_name && <DetailRow label="เพิ่มโดย" value={item.added_by_name} />}
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 6 }}>รุ่นมือถือที่ใช้ได้</div>
+            {loading ? (
+              <div style={{ padding: 12, textAlign: 'center', color: 'var(--text-dim)' }}><Loader2 size={18} className="v3-spin" /></div>
+            ) : compatRows.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{item.phone_model || 'ทั่วไป (ยังไม่ได้ผูกกับรุ่นเฉพาะ)'}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {compatRows.map((r, idx) => (
+                  <div key={idx} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.model_name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-dim)', flexShrink: 0 }}>
+                      ทุน ฿{Number(r.cost_price || 0).toLocaleString()} · ขาย ฿{Number(r.sell_price || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: 18, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: 12, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ปิด</button>
+          <button onClick={onEdit} style={{ flex: 2, padding: 12, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'linear-gradient(135deg, #ec4899, #db2777)' }}>
+            <Edit2 size={15} /> แก้ไข
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function PriceBox({ label, value, accent }: any) {
+  return (
+    <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: 'Prompt, sans-serif', color: accent ? 'var(--accent)' : 'var(--text)' }}>
+        ฿{Number(value || 0).toLocaleString()}
+      </div>
+    </div>
+  );
+}
+function DetailRow({ label, value }: any) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, borderBottom: '1px dashed var(--border)', paddingBottom: 8 }}>
+      <span style={{ color: 'var(--text-dim)', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontWeight: 600, textAlign: 'right' }}>{value}</span>
     </div>
   );
 }
