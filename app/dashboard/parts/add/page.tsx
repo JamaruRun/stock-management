@@ -24,6 +24,7 @@ export default function AddPartPage() {
     category: 'battery',
     grade: 'oem',
     cost_price: '',
+    wholesale_price: '',
     sell_price: '',
     stock_qty: '1',
     low_stock_alert: '2',
@@ -61,6 +62,45 @@ export default function AddPartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.category, compatRows]);
 
+  // จำราคาทุน/ส่ง/หน้าร้านที่เคยกรอกไว้ (เฉพาะร้านตัวเอง) มาเติมให้อัตโนมัติเมื่อยังไม่ได้กรอกราคาเอง
+  useEffect(() => {
+    if (!profile || form.cost_price !== '' || form.wholesale_price !== '' || form.sell_price !== '') return;
+    let cancelled = false;
+    async function recallPrice() {
+      let matched: any = null;
+      const modelName = compatRows[0]?.model_name;
+      if (modelName) {
+        const { data: dm } = await supabase.from('device_models').select('id').ilike('model_name', modelName).limit(1);
+        if (dm && dm[0]) {
+          const { data: compat } = await supabase.from('part_compatibility').select('part_id').eq('device_model_id', dm[0].id);
+          const partIds = (compat || []).map((c: any) => c.part_id);
+          if (partIds.length > 0) {
+            const { data: rows } = await supabase.from('parts').select('cost_price, wholesale_price, sell_price')
+              .in('id', partIds).eq('category', form.category).eq('shop_id', profile.shop_id)
+              .order('created_at', { ascending: false }).limit(1);
+            if (rows && rows[0]) matched = rows[0];
+          }
+        }
+      }
+      if (!matched) {
+        const { data: rows } = await supabase.from('parts').select('cost_price, wholesale_price, sell_price')
+          .eq('category', form.category).eq('shop_id', profile.shop_id)
+          .order('created_at', { ascending: false }).limit(1);
+        if (rows && rows[0]) matched = rows[0];
+      }
+      if (cancelled || !matched) return;
+      const cost = String(matched.cost_price ?? '');
+      const wholesale = String(matched.wholesale_price ?? '');
+      const sell = String(matched.sell_price ?? '');
+      setForm(prev => (prev.cost_price === '' && prev.wholesale_price === '' && prev.sell_price === '')
+        ? { ...prev, cost_price: cost, wholesale_price: wholesale, sell_price: sell } : prev);
+      setCompatRows(prevRows => prevRows.map(r => (r.cost_price === '' && r.sell_price === '') ? { ...r, cost_price: cost, sell_price: sell } : r));
+    }
+    recallPrice();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.category, compatRows.length, compatRows[0]?.model_name, profile]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
@@ -85,6 +125,7 @@ export default function AddPartPage() {
         phone_model: compatRows[0]?.model_name || '',
         grade: form.grade || null,
         cost_price: costPrice,
+        wholesale_price: parseFloat(form.wholesale_price) || 0,
         sell_price: parseFloat(form.sell_price) || 0,
         stock_qty: stockQty,
         low_stock_alert: parseInt(form.low_stock_alert) || 2,
@@ -223,8 +264,11 @@ export default function AddPartPage() {
           </div>
 
           {/* Prices */}
+          <div className="field full" style={{ marginBottom: -6 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>ระบบจำราคาที่เคยกรอกของร้านนี้ให้อัตโนมัติตามประเภท/รุ่น — แก้ไขได้ตามจริง</div>
+          </div>
           <div className="field">
-            <label>ต้นทุนเริ่มต้น/ชิ้น</label>
+            <label>ราคาทุน/ชิ้น</label>
             <input
               type="number"
               value={form.cost_price}
@@ -236,7 +280,19 @@ export default function AddPartPage() {
           </div>
 
           <div className="field">
-            <label>ราคาขายเริ่มต้น</label>
+            <label>ราคาส่ง/ชิ้น</label>
+            <input
+              type="number"
+              value={form.wholesale_price}
+              onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })}
+              inputMode="decimal"
+              placeholder="0"
+              step="0.01"
+            />
+          </div>
+
+          <div className="field">
+            <label>ราคาหน้าร้าน/ชิ้น</label>
             <input
               type="number"
               value={form.sell_price}

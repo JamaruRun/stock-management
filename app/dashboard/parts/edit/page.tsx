@@ -30,6 +30,7 @@ function EditPartContent() {
     category: 'battery',
     grade: 'oem',
     cost_price: '',
+    wholesale_price: '',
     sell_price: '',
     low_stock_alert: '2',
     supplier_id: '',
@@ -72,6 +73,7 @@ function EditPartContent() {
         category: part.category,
         grade: part.grade || '',
         cost_price: String(part.cost_price),
+        wholesale_price: String(part.wholesale_price ?? ''),
         sell_price: String(part.sell_price),
         low_stock_alert: String(part.low_stock_alert),
         supplier_id: part.supplier_id || '',
@@ -122,6 +124,7 @@ function EditPartContent() {
         phone_model: first?.model_name || '',
         grade: form.grade || null,
         cost_price: first ? (parseFloat(first.cost_price) || 0) : (parseFloat(form.cost_price) || 0),
+        wholesale_price: parseFloat(form.wholesale_price) || 0,
         sell_price: first ? (parseFloat(first.sell_price) || 0) : (parseFloat(form.sell_price) || 0),
         low_stock_alert: parseInt(form.low_stock_alert) || 2,
         supplier_id: form.supplier_id || null,
@@ -263,7 +266,7 @@ function EditPartContent() {
           </div>
 
           <div className="field">
-            <label>ต้นทุนเริ่มต้น/ชิ้น</label>
+            <label>ราคาทุน/ชิ้น</label>
             <input
               type="number"
               value={form.cost_price}
@@ -274,7 +277,18 @@ function EditPartContent() {
           </div>
 
           <div className="field">
-            <label>ราคาขายเริ่มต้น</label>
+            <label>ราคาส่ง/ชิ้น</label>
+            <input
+              type="number"
+              value={form.wholesale_price}
+              onChange={(e) => setForm({ ...form, wholesale_price: e.target.value })}
+              inputMode="decimal"
+              step="0.01"
+            />
+          </div>
+
+          <div className="field">
+            <label>ราคาหน้าร้าน/ชิ้น</label>
             <input
               type="number"
               value={form.sell_price}

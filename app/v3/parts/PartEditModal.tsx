@@ -17,7 +17,8 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
     name: item.name || '', category: item.category || 'battery',
     grade: item.grade || 'oem',
-    cost_price: String(item.cost_price ?? ''), sell_price: String(item.sell_price ?? ''),
+    cost_price: String(item.cost_price ?? ''), wholesale_price: String(item.wholesale_price ?? ''),
+    sell_price: String(item.sell_price ?? ''),
     low_stock_alert: String(item.low_stock_alert ?? '2'),
     supplier_id: item.supplier_id || '', sku: item.sku || '', note: item.note || '',
   });
@@ -45,6 +46,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
       phone_model: first?.model_name || '',
       grade: form.grade || null,
       cost_price: first ? (parseFloat(first.cost_price) || 0) : (parseFloat(form.cost_price) || 0),
+      wholesale_price: parseFloat(form.wholesale_price) || 0,
       sell_price: first ? (parseFloat(first.sell_price) || 0) : (parseFloat(form.sell_price) || 0),
       low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
@@ -80,9 +82,10 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
               </Sel>
             </F>
           </div>
-          <div style={g2}>
-            <F label="ราคาทุนเริ่มต้น (฿)"><Inp Icon={DollarSign} type="number" value={form.cost_price} onChange={(v: string) => setForm({ ...form, cost_price: v })} placeholder="0" /></F>
-            <F label="ราคาขายเริ่มต้น (฿)"><Inp Icon={DollarSign} type="number" value={form.sell_price} onChange={(v: string) => setForm({ ...form, sell_price: v })} placeholder="0" /></F>
+          <div style={g3}>
+            <F label="ราคาทุน (฿)"><Inp Icon={DollarSign} type="number" value={form.cost_price} onChange={(v: string) => setForm({ ...form, cost_price: v })} placeholder="0" /></F>
+            <F label="ราคาส่ง (฿)"><Inp Icon={DollarSign} type="number" value={form.wholesale_price} onChange={(v: string) => setForm({ ...form, wholesale_price: v })} placeholder="0" /></F>
+            <F label="ราคาหน้าร้าน (฿)"><Inp Icon={DollarSign} type="number" value={form.sell_price} onChange={(v: string) => setForm({ ...form, sell_price: v })} placeholder="0" /></F>
           </div>
           <F label="รุ่นมือถือที่ใช้ได้ (เลือกได้หลายรุ่น)">
             <PartModelCompatibilityEditor
@@ -158,5 +161,6 @@ const closeBtn: React.CSSProperties = { width: 32, height: 32, background: 'var(
 const iconSt: React.CSSProperties = { position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' };
 const inputSt: React.CSSProperties = { width: '100%', height: 46, padding: '0 12px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
 const g2: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 };
+const g3: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 };
 const secBtn: React.CSSProperties = { flex: 1, padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
 const priBtn: React.CSSProperties = { flex: 2, padding: 13, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 };

@@ -8,6 +8,7 @@ import Toast from '@/components/Toast';
 import { REPAIR_STATUSES, getStatusInfo, type RepairStatus } from '@/lib/repair-constants';
 import { sendLinePush } from '@/lib/line-notify';
 import { getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
+import DeviceModelPicker from '@/components/DeviceModelPicker';
 
 function EditRepairContent() {
   const supabase = createClient();
@@ -26,7 +27,8 @@ function EditRepairContent() {
   const [allParts, setAllParts] = useState<any[]>([]);
   const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
   const [showAddPart, setShowAddPart] = useState(false);
-  const [searchPart, setSearchPart] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [showAllParts, setShowAllParts] = useState(false);
   const [selectedPartId, setSelectedPartId] = useState('');
   const [partQty, setPartQty] = useState('1');
   const [partUnitPrice, setPartUnitPrice] = useState('');
@@ -79,6 +81,11 @@ function EditRepairContent() {
     setAllParts(allPartsRes.data || []);
     setPaidInput(String(jobRes.data.paid_amount || 0));
 
+    if (jobRes.data.device_model) {
+      const { data: matched } = await supabase.from('device_models').select('model_name').ilike('model_name', jobRes.data.device_model).limit(1);
+      if (matched && matched[0]) setSelectedModel(matched[0].model_name);
+    }
+
     const map: Record<string, string[]> = {};
     (compatRes.data || []).forEach((r: any) => {
       const name = r.device_models?.model_name;
@@ -94,14 +101,10 @@ function EditRepairContent() {
   useEffect(() => { load(); }, [jobId]);
 
   const filteredParts = useMemo(() => {
-    if (!searchPart.trim()) return allParts.slice(0, 20);
-    const q = searchPart.toLowerCase();
-    return allParts.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.phone_model.toLowerCase().includes(q) ||
-      (modelsByPart[p.id] || []).some(m => m.toLowerCase().includes(q))
-    ).slice(0, 20);
-  }, [allParts, searchPart, modelsByPart]);
+    if (showAllParts) return allParts.slice(0, 30);
+    if (!selectedModel) return [];
+    return allParts.filter(p => (modelsByPart[p.id] || []).includes(selectedModel)).slice(0, 30);
+  }, [allParts, selectedModel, showAllParts, modelsByPart]);
 
   async function handleAddPart() {
     if (!selectedPartId || !profile || !job) return;
@@ -154,7 +157,6 @@ function EditRepairContent() {
     showToast('เพิ่มอะไหล่แล้ว', `${part.name} × ${qty}`);
     setShowAddPart(false);
     setSelectedPartId('');
-    setSearchPart('');
     setPartQty('1');
     setPartUnitPrice('');
     await load();
@@ -603,26 +605,24 @@ function EditRepairContent() {
             <h3>+ เพิ่มอะไหล่</h3>
             
             <div className="field full" style={{ marginTop: 14 }}>
-              <label>ค้นหาอะไหล่</label>
-              <input
-                type="text"
-                value={searchPart}
-                onChange={(e) => setSearchPart(e.target.value)}
-                placeholder="ชื่ออะไหล่ / รุ่นมือถือ"
-                autoFocus
-              />
+              <label>รุ่นเครื่อง</label>
+              <DeviceModelPicker value={selectedModel} onChange={(v) => { setSelectedModel(v); setShowAllParts(false); }} />
             </div>
 
-            <div style={{ 
-              maxHeight: 240, 
-              overflow: 'auto', 
+            <div style={{
+              maxHeight: 240,
+              overflow: 'auto',
               border: '1px solid var(--border)',
               borderRadius: 6,
-              marginBottom: 14,
+              marginBottom: 6,
             }}>
-              {filteredParts.length === 0 ? (
+              {!selectedModel && !showAllParts ? (
                 <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-dim)', fontSize: 12 }}>
-                  ไม่พบอะไหล่ {!searchPart && '- ลองพิมพ์ค้นหา'}
+                  เลือกรุ่นเครื่องด้านบนเพื่อดูอะไหล่ที่ใช้ได้
+                </div>
+              ) : filteredParts.length === 0 ? (
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-dim)', fontSize: 12 }}>
+                  ไม่มีอะไหล่ที่ผูกกับรุ่นนี้ (หรือสต๊อกหมด)
                 </div>
               ) : (
                 filteredParts.map(p => (
@@ -666,6 +666,14 @@ function EditRepairContent() {
                 ))
               )}
             </div>
+
+            {selectedModel && !showAllParts && (
+              <button
+                type="button"
+                onClick={() => setShowAllParts(true)}
+                style={{ marginBottom: 14, background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', padding: 0 }}
+              >ดูอะไหล่ทั้งหมด (ไม่กรองตามรุ่น)</button>
+            )}
 
             {selectedPartId && (
               <div className="form-grid">

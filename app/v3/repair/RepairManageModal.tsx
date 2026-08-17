@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { sendLinePush } from '@/lib/line-notify';
 import { REPAIR_STATUSES, getStatusInfo } from '@/lib/repair-constants';
+import { getCategoryShort } from '@/lib/parts-constants';
+import DeviceModelPicker from '@/components/DeviceModelPicker';
 import {
-  Wrench, X, Smartphone, User, Phone, Search, Plus, Minus, Trash2,
+  Wrench, X, Smartphone, User, Phone, Plus, Minus, Trash2,
   DollarSign, Loader2, CheckCircle2, AlertCircle, RefreshCw, History, Package2,
 } from 'lucide-react';
 
@@ -25,8 +27,9 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
 
   const [statusNote, setStatusNote] = useState('');
   const [showStatusPick, setShowStatusPick] = useState(false);
-  const [searchPart, setSearchPart] = useState('');
   const [showAddPart, setShowAddPart] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [showAllParts, setShowAllParts] = useState(false);
   const [laborInput, setLaborInput] = useState('');
   const [paidInput, setPaidInput] = useState('');
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -47,6 +50,10 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
       setJob(jobRes.data);
       setLaborInput(String(jobRes.data.labor_cost || 0));
       setPaidInput(String(jobRes.data.paid_amount || 0));
+      if (jobRes.data.device_model) {
+        const { data: matched } = await supabase.from('device_models').select('model_name').ilike('model_name', jobRes.data.device_model).limit(1);
+        if (matched && matched[0]) setSelectedModel(matched[0].model_name);
+      }
     }
     setJobParts(partsRes.data || []);
     setStatusLog(logRes.data || []);
@@ -71,14 +78,10 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
   function closeWithRefresh() { if (dirty) onChanged(); else onClose(); }
 
   const filteredParts = useMemo(() => {
-    const q = searchPart.trim().toLowerCase();
-    const list = !q ? allParts : allParts.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      (p.phone_model || '').toLowerCase().includes(q) ||
-      (modelsByPart[p.id] || []).some(m => m.toLowerCase().includes(q))
-    );
-    return list.filter(p => p.stock_qty > 0).slice(0, 12);
-  }, [allParts, searchPart, modelsByPart]);
+    if (showAllParts) return allParts.filter(p => p.stock_qty > 0).slice(0, 30);
+    if (!selectedModel) return [];
+    return allParts.filter(p => (modelsByPart[p.id] || []).includes(selectedModel) && p.stock_qty > 0).slice(0, 30);
+  }, [allParts, selectedModel, showAllParts, modelsByPart]);
 
   async function changeStatus(newStatus: string) {
     if (!job || !profile) return;
@@ -117,7 +120,7 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
       note: `ใช้ในงานซ่อม ${job.job_no}`, done_by: profile.id, done_by_name: profile.full_name || profile.username,
     });
     setSaving(false);
-    setDirty(true); setSearchPart(''); setShowAddPart(false);
+    setDirty(true); setShowAddPart(false);
     notify('เพิ่ม: ' + part.name);
     await load();
   }
@@ -214,24 +217,31 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
                 </div>
                 {showAddPart && (
                   <div style={{ marginBottom: 10, padding: 12, background: 'var(--surface-2)', borderRadius: 10 }}>
-                    <div style={{ position: 'relative', marginBottom: 8 }}>
-                      <Search size={15} style={iconSt} />
-                      <input value={searchPart} onChange={(e) => setSearchPart(e.target.value)} placeholder="ค้นหาอะไหล่..." style={{ ...inputSt, paddingLeft: 38 }} onFocus={fOn} onBlur={fOff} />
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6, fontWeight: 600 }}>รุ่นเครื่อง</div>
+                    <div style={{ marginBottom: 8 }}>
+                      <DeviceModelPicker value={selectedModel} onChange={(v) => { setSelectedModel(v); setShowAllParts(false); }} />
                     </div>
                     <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {filteredParts.length === 0 ? (
-                        <div style={{ padding: 12, textAlign: 'center', fontSize: 12, color: 'var(--text-dim)' }}>ไม่พบอะไหล่ (หรือสต๊อกหมด)</div>
+                      {!selectedModel && !showAllParts ? (
+                        <div style={{ padding: 12, textAlign: 'center', fontSize: 12, color: 'var(--text-dim)' }}>เลือกรุ่นเครื่องด้านบนเพื่อดูอะไหล่ที่ใช้ได้</div>
+                      ) : filteredParts.length === 0 ? (
+                        <div style={{ padding: 12, textAlign: 'center', fontSize: 12, color: 'var(--text-dim)' }}>ไม่มีอะไหล่ที่ผูกกับรุ่นนี้ (หรือสต๊อกหมด)</div>
                       ) : filteredParts.map(p => (
                         <button key={p.id} onClick={() => addPart(p)} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                           <Wrench size={14} style={{ color: '#ec4899', flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{(modelsByPart[p.id]?.join(' / ')) || p.phone_model} · เหลือ {p.stock_qty}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{getCategoryShort(p.category)}{p.grade ? ` · ${p.grade}` : ''} · เหลือ {p.stock_qty}</div>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>฿{Number(p.sell_price).toLocaleString()}</span>
                         </button>
                       ))}
                     </div>
+                    {selectedModel && !showAllParts && (
+                      <button type="button" onClick={() => setShowAllParts(true)} style={{ marginTop: 6, background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                        ดูอะไหล่ทั้งหมด (ไม่กรองตามรุ่น)
+                      </button>
+                    )}
                   </div>
                 )}
                 {jobParts.length === 0 ? (

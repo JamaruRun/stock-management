@@ -15,7 +15,6 @@ export const PART_CATEGORIES = [
 ] as const;
 
 export const PART_GRADES = [
-  { id: 'original', label: 'แท้', color: '#10b981' },
   { id: 'refurb', label: 'แท้ถอด', color: '#3b82f6' },
   { id: 'oem', label: 'OEM', color: '#8b5cf6' },
   { id: 'oled', label: 'OLED', color: '#ec4899' },

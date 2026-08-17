@@ -16,7 +16,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
   const supabase = createClient();
   const [form, setForm] = useState({
     name: '', category: 'battery', grade: 'oem',
-    cost_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '2',
+    cost_price: '', wholesale_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '2',
     supplier_id: '', sku: '', note: '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
@@ -47,6 +47,45 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.category, compatRows]);
 
+  // จำราคาทุน/ส่ง/หน้าร้านที่เคยกรอกไว้ (เฉพาะร้านตัวเอง) มาเติมให้อัตโนมัติเมื่อยังไม่ได้กรอกราคาเอง
+  useEffect(() => {
+    if (!profile || form.cost_price !== '' || form.wholesale_price !== '' || form.sell_price !== '') return;
+    let cancelled = false;
+    async function recallPrice() {
+      let matched: any = null;
+      const modelName = compatRows[0]?.model_name;
+      if (modelName) {
+        const { data: dm } = await supabase.from('device_models').select('id').ilike('model_name', modelName).limit(1);
+        if (dm && dm[0]) {
+          const { data: compat } = await supabase.from('part_compatibility').select('part_id').eq('device_model_id', dm[0].id);
+          const partIds = (compat || []).map((c: any) => c.part_id);
+          if (partIds.length > 0) {
+            const { data: rows } = await supabase.from('parts').select('cost_price, wholesale_price, sell_price')
+              .in('id', partIds).eq('category', form.category).eq('shop_id', profile.shop_id)
+              .order('created_at', { ascending: false }).limit(1);
+            if (rows && rows[0]) matched = rows[0];
+          }
+        }
+      }
+      if (!matched) {
+        const { data: rows } = await supabase.from('parts').select('cost_price, wholesale_price, sell_price')
+          .eq('category', form.category).eq('shop_id', profile.shop_id)
+          .order('created_at', { ascending: false }).limit(1);
+        if (rows && rows[0]) matched = rows[0];
+      }
+      if (cancelled || !matched) return;
+      const cost = String(matched.cost_price ?? '');
+      const wholesale = String(matched.wholesale_price ?? '');
+      const sell = String(matched.sell_price ?? '');
+      setForm(prev => (prev.cost_price === '' && prev.wholesale_price === '' && prev.sell_price === '')
+        ? { ...prev, cost_price: cost, wholesale_price: wholesale, sell_price: sell } : prev);
+      setCompatRows(prevRows => prevRows.map(r => (r.cost_price === '' && r.sell_price === '') ? { ...r, cost_price: cost, sell_price: sell } : r));
+    }
+    recallPrice();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.category, compatRows.length, compatRows[0]?.model_name, profile]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.sell_price) return notify('กรอกชื่ออะไหล่ + ราคาขาย', false);
@@ -58,7 +97,8 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
     const { data: newPart, error } = await supabase.from('parts').insert({
       shop_id: profile.shop_id, branch_id: profile.branch_id,
       name: form.name.trim(), category: form.category, phone_model: compatRows[0]?.model_name || '',
-      grade: form.grade || null, cost_price: costPrice, sell_price: parseFloat(form.sell_price) || 0,
+      grade: form.grade || null, cost_price: costPrice, wholesale_price: parseFloat(form.wholesale_price) || 0,
+      sell_price: parseFloat(form.sell_price) || 0,
       stock_qty: stockQty, low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
       added_by: profile.id, added_by_name: profile.full_name,
@@ -121,9 +161,11 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
 
           <div>
             <SectionTitle Icon={DollarSign} color="#3b82f6" label="ราคาเริ่มต้น + สต๊อก" />
-            <div style={g2}>
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6 }}>ระบบจำราคาที่เคยกรอกของร้านนี้ให้อัตโนมัติตามประเภท/รุ่น — แก้ไขได้ตามจริง</div>
+            <div style={g3}>
               <F label="ราคาทุน (฿)"><Inp Icon={DollarSign} type="number" value={form.cost_price} onChange={(v: string) => setForm({ ...form, cost_price: v })} placeholder="0" /></F>
-              <F label="ราคาขาย (฿)" req><Inp Icon={DollarSign} type="number" value={form.sell_price} onChange={(v: string) => setForm({ ...form, sell_price: v })} placeholder="0" /></F>
+              <F label="ราคาส่ง (฿)"><Inp Icon={DollarSign} type="number" value={form.wholesale_price} onChange={(v: string) => setForm({ ...form, wholesale_price: v })} placeholder="0" /></F>
+              <F label="ราคาหน้าร้าน (฿)" req><Inp Icon={DollarSign} type="number" value={form.sell_price} onChange={(v: string) => setForm({ ...form, sell_price: v })} placeholder="0" /></F>
             </div>
             <div style={g2}>
               <F label="จำนวน"><Inp Icon={Boxes} type="number" value={form.stock_qty} onChange={(v: string) => setForm({ ...form, stock_qty: v })} placeholder="1" /></F>
@@ -220,5 +262,6 @@ const closeBtn: React.CSSProperties = { width: 32, height: 32, background: 'var(
 const iconSt: React.CSSProperties = { position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' };
 const inputSt: React.CSSProperties = { width: '100%', height: 46, padding: '0 12px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
 const g2: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 };
+const g3: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 };
 const secBtn: React.CSSProperties = { flex: 1, padding: 13, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
 const priBtn: React.CSSProperties = { flex: 2, padding: 13, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 };
