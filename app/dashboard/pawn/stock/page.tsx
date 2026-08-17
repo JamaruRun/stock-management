@@ -21,7 +21,6 @@ export default function PawnStockPage() {
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterModel, setFilterModel] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
@@ -38,6 +37,7 @@ export default function PawnStockPage() {
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
   const [renewals, setRenewals] = useState<any[]>([]);
   const [showViewPassword, setShowViewPassword] = useState(false);
+  const [totalInterestCollected, setTotalInterestCollected] = useState(0);
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -89,6 +89,9 @@ export default function PawnStockPage() {
 
     setItems(stockData || []);
 
+    const { data: renewalsAll } = await supabase.from('pawn_renewals').select('interest_paid');
+    setTotalInterestCollected((renewalsAll || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0));
+
     if (profileData?.role === 'admin') {
       const { data: branchesData } = await supabase.from('branches').select('*').order('name');
       setBranches(branchesData || []);
@@ -116,7 +119,12 @@ export default function PawnStockPage() {
   }, []);
 
   const isAdmin = profile?.role === 'admin';
-  const models = Array.from(new Set(items.map((i) => i.model)));
+  const activeItems = items.filter((i) => i.status !== 'forfeited');
+  const totalPrincipal = activeItems.reduce((s, i) => s + Number(i.pawn_price || 0), 0);
+  const totalInterestAmount = activeItems.reduce((s, i) => s + Number(i.interest_amount || 0), 0);
+  const totalInterestDays = activeItems.reduce((s, i) => s + Number(i.interest_days || 30), 0);
+  const dailyInterestRate = totalInterestDays > 0 ? totalInterestAmount / totalInterestDays : 0;
+  const grandTotal = totalPrincipal + totalInterestCollected;
   const countByBranch = branches.reduce((acc: any, b) => {
     acc[b.id] = items.filter((i) => i.branch_id === b.id).length;
     return acc;
@@ -131,14 +139,13 @@ export default function PawnStockPage() {
       (item.color && item.color.toLowerCase().includes(s)) ||
       item.customer_name.toLowerCase().includes(s) ||
       (item.customer_phone && item.customer_phone.includes(s));
-    const matchModel = !filterModel || item.model === filterModel;
     const matchBranch = !filterBranch || item.branch_id === filterBranch;
-    
+
     // filter status
     const st = getItemStatus(item);
     const matchStatus = !filterStatus || st.type === filterStatus;
-    
-    return matchSearch && matchModel && matchBranch && matchStatus;
+
+    return matchSearch && matchBranch && matchStatus;
   });
 
   // นับสถานะ
@@ -500,6 +507,25 @@ export default function PawnStockPage() {
         </div>
       </div>
 
+      <div className="stats">
+        <div className="stat">
+          <div className="label">💰 ทุนรวม</div>
+          <div className="value accent">฿{totalPrincipal.toLocaleString()}</div>
+        </div>
+        <div className="stat">
+          <div className="label">📈 กำไรสะสม (ดอก)</div>
+          <div className="value success">฿{totalInterestCollected.toLocaleString()}</div>
+        </div>
+        <div className="stat">
+          <div className="label">🧮 รวม</div>
+          <div className="value" style={{ color: '#8b5cf6' }}>฿{grandTotal.toLocaleString()}</div>
+        </div>
+        <div className="stat">
+          <div className="label">📆 ดอกเฉลี่ย/วัน</div>
+          <div className="value" style={{ color: '#f59e0b' }}>฿{dailyInterestRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <Link href="/dashboard/pawn/add" className="btn" style={{ width: 'auto', flex: '1 1 200px' }}>
           ➕ รับจำนำใหม่
@@ -563,12 +589,6 @@ export default function PawnStockPage() {
           <option value="soon">🟡 ใกล้ครบ</option>
           <option value="overdue">🔴 เลยกำหนด</option>
         </select>
-        <select className="filter-select" value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
-          <option value="">ทุกรุ่น</option>
-          {models.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
       </div>
 
       {filtered.length === 0 ? (
@@ -576,7 +596,7 @@ export default function PawnStockPage() {
           <div className="empty-icon">💰</div>
           <div className="empty-title">ไม่มีเครื่องจำนำ</div>
           <div className="empty-sub">
-            {search || filterModel ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีเครื่องที่รับจำนำ'}
+            {search ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีเครื่องที่รับจำนำ'}
           </div>
         </div>
       ) : (

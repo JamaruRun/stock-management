@@ -8,6 +8,7 @@ import {
   Plus, Search, Coins, Smartphone, MoreVertical, Phone,
   CheckCircle2, Clock, AlertTriangle, Calendar, User,
   RotateCcw, FileText, Eye, Trash2, RefreshCw, Pencil,
+  Wallet, TrendingUp, Percent,
 } from 'lucide-react';
 import PawnAddModal from './PawnAddModal';
 import { PawnRedeemModal, PawnRenewModal, PawnEditModal, PawnDetailModal, PawnForfeitModal } from './PawnActionModals';
@@ -66,6 +67,7 @@ export default function V3PawnPage() {
   const [viewItem, setViewItem] = useState<PawnItem | null>(null);
   const [forfeitItem, setForfeitItem] = useState<PawnItem | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [totalInterestCollected, setTotalInterestCollected] = useState(0);
 
   useEffect(() => {
     async function loadProfile() {
@@ -84,6 +86,9 @@ export default function V3PawnPage() {
         .select('*, branch:branches(name)')
         .order('pawn_date', { ascending: false });
       setItems((data || []) as PawnItem[]);
+
+      const { data: renewalsAll } = await supabase.from('pawn_renewals').select('interest_paid');
+      setTotalInterestCollected((renewalsAll || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0));
     } catch (e) {
       console.error(e);
     } finally {
@@ -102,6 +107,14 @@ export default function V3PawnPage() {
     }
     return c;
   }, [items]);
+
+  const finance = useMemo(() => {
+    const totalPrincipal = items.reduce((s, i) => s + Number(i.pawn_price || 0), 0);
+    const totalInterestAmount = items.reduce((s, i) => s + Number(i.interest_amount || 0), 0);
+    const totalInterestDays = items.reduce((s, i) => s + Number(i.interest_days || 30), 0);
+    const dailyRate = totalInterestDays > 0 ? totalInterestAmount / totalInterestDays : 0;
+    return { totalPrincipal, dailyRate, grandTotal: totalPrincipal + totalInterestCollected };
+  }, [items, totalInterestCollected]);
 
   const filtered = useMemo(() => {
     return items.filter(it => {
@@ -179,6 +192,18 @@ export default function V3PawnPage() {
         <StatCard label="ปกติ" value={counts.normal} sub="ยังไม่ครบ" color="#22c55e" Icon={CheckCircle2} />
         <StatCard label="ใกล้ครบ" value={counts.due_soon} sub="ภายใน 7 วัน" color="#f59e0b" Icon={Clock} />
         <StatCard label="เลยกำหนด" value={counts.overdue} sub="ต้องติดตาม" color="#ef4444" Icon={AlertTriangle} />
+      </div>
+
+      <div className="v3-pawn-stats" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 10,
+        marginBottom: 14,
+      }}>
+        <StatCard label="ทุนรวม" value={`฿${finance.totalPrincipal.toLocaleString()}`} sub="เงินต้นค้างอยู่" color="#3b82f6" Icon={Wallet} />
+        <StatCard label="กำไรสะสม" value={`฿${totalInterestCollected.toLocaleString()}`} sub="ดอกที่เก็บได้จริง" color="#16a34a" Icon={TrendingUp} />
+        <StatCard label="รวม" value={`฿${finance.grandTotal.toLocaleString()}`} sub="ทุน+ดอก" color="#8b5cf6" Icon={Coins} />
+        <StatCard label="ดอกเฉลี่ย/วัน" value={`฿${finance.dailyRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} sub="ทั้งร้าน" color="#f59e0b" Icon={Percent} />
       </div>
 
       <div style={{
