@@ -23,6 +23,7 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
   const [query, setQuery] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+  const [resultModels, setResultModels] = useState<Record<string, string[]>>({});
   const [searching, setSearching] = useState(false);
   const [discount, setDiscount] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -42,12 +43,43 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
 
   useEffect(() => {
     const q = query.trim();
-    if (!q) { setResults([]); return; }
+    if (!q) { setResults([]); setResultModels({}); return; }
     setSearching(true);
     const t = setTimeout(async () => {
-      const { data } = await supabase.from('parts').select('*')
+      const { data: direct } = await supabase.from('parts').select('*')
         .or(`name.ilike.%${q}%,phone_model.ilike.%${q}%,sku.ilike.%${q}%`).gt('stock_qty', 0).limit(8);
-      setResults(data || []);
+
+      const { data: models } = await supabase.from('device_models').select('id').ilike('model_name', `%${q}%`).limit(20);
+      const modelIds = (models || []).map((m: any) => m.id);
+      let viaModel: any[] = [];
+      if (modelIds.length > 0) {
+        const { data: compat } = await supabase.from('part_compatibility').select('part_id').in('device_model_id', modelIds);
+        const partIds = Array.from(new Set((compat || []).map((c: any) => c.part_id)));
+        if (partIds.length > 0) {
+          const { data: viaModelParts } = await supabase.from('parts').select('*').in('id', partIds).gt('stock_qty', 0).limit(8);
+          viaModel = viaModelParts || [];
+        }
+      }
+
+      const merged: any[] = [...(direct || [])];
+      viaModel.forEach(p => { if (!merged.some(m => m.id === p.id)) merged.push(p); });
+      const final = merged.slice(0, 8);
+      setResults(final);
+
+      if (final.length > 0) {
+        const { data: compatRows } = await supabase.from('part_compatibility')
+          .select('part_id, device_models(model_name)').in('part_id', final.map(p => p.id));
+        const map: Record<string, string[]> = {};
+        (compatRows || []).forEach((r: any) => {
+          const name = r.device_models?.model_name;
+          if (!name) return;
+          if (!map[r.part_id]) map[r.part_id] = [];
+          map[r.part_id].push(name);
+        });
+        setResultModels(map);
+      } else {
+        setResultModels({});
+      }
       setSearching(false);
     }, 250);
     return () => clearTimeout(t);
@@ -166,7 +198,7 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
                   <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--surface-2)', color: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Wrench size={16} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{r.phone_model || getCategoryShort(r.category)} {grade && `· ${grade.label}`} · เหลือ {r.stock_qty}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{(resultModels[r.id]?.join(' / ')) || r.phone_model || getCategoryShort(r.category)} {grade && `· ${grade.label}`} · เหลือ {r.stock_qty}</div>
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>฿{Number(r.sell_price).toLocaleString()}</div>
                 </button>

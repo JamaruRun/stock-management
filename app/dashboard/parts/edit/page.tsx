@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
-import { PART_CATEGORIES, PART_GRADES, COMMON_PHONE_MODELS, getCategoryLabel } from '@/lib/parts-constants';
+import { PART_CATEGORIES, PART_GRADES, getCategoryLabel } from '@/lib/parts-constants';
+import { loadCompatibilityRows, saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility';
+import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
 
 function EditPartContent() {
   const supabase = createClient();
@@ -21,11 +23,11 @@ function EditPartContent() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
+  const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
 
   const [form, setForm] = useState({
     name: '',
     category: 'battery',
-    phone_model: '',
     grade: 'oem',
     cost_price: '',
     sell_price: '',
@@ -68,7 +70,6 @@ function EditPartContent() {
       setForm({
         name: part.name,
         category: part.category,
-        phone_model: part.phone_model,
         grade: part.grade || '',
         cost_price: String(part.cost_price),
         sell_price: String(part.sell_price),
@@ -82,6 +83,8 @@ function EditPartContent() {
       const { data: sup } = await supabase
         .from('suppliers').select('id, name').order('name');
       setSuppliers(sup || []);
+
+      loadCompatibilityRows(supabase, partId).then(setCompatRows);
 
       // Load transactions
       const { data: tx } = await supabase
@@ -101,22 +104,25 @@ function EditPartContent() {
     e.preventDefault();
     if (!partId || !profile) return;
     
-    if (!form.name.trim() || !form.phone_model.trim()) {
+    if (!form.name.trim()) {
       showToast('กรอกข้อมูลให้ครบ', '', 'danger');
       return;
     }
 
     setSaving(true);
 
+    const resolved = compatRows.length > 0 ? await saveCompatibilityRows(supabase, partId, compatRows) : [];
+    const first = resolved[0];
+
     const { error } = await supabase
       .from('parts')
       .update({
         name: form.name.trim(),
         category: form.category,
-        phone_model: form.phone_model.trim(),
+        phone_model: first?.model_name || '',
         grade: form.grade || null,
-        cost_price: parseFloat(form.cost_price) || 0,
-        sell_price: parseFloat(form.sell_price) || 0,
+        cost_price: first ? (parseFloat(first.cost_price) || 0) : (parseFloat(form.cost_price) || 0),
+        sell_price: first ? (parseFloat(first.sell_price) || 0) : (parseFloat(form.sell_price) || 0),
         low_stock_alert: parseInt(form.low_stock_alert) || 2,
         supplier_id: form.supplier_id || null,
         sku: form.sku.trim() || null,
@@ -223,20 +229,6 @@ function EditPartContent() {
           </div>
 
           <div className="field full">
-            <label>รุ่นมือถือ <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <input
-              type="text"
-              value={form.phone_model}
-              onChange={(e) => setForm({ ...form, phone_model: e.target.value })}
-              list="phone-models"
-              required
-            />
-            <datalist id="phone-models">
-              {COMMON_PHONE_MODELS.map(m => <option key={m} value={m} />)}
-            </datalist>
-          </div>
-
-          <div className="field full">
             <label>ชื่ออะไหล่ <span style={{ color: 'var(--danger)' }}>*</span></label>
             <input
               type="text"
@@ -271,7 +263,7 @@ function EditPartContent() {
           </div>
 
           <div className="field">
-            <label>ต้นทุน/ชิ้น</label>
+            <label>ต้นทุนเริ่มต้น/ชิ้น</label>
             <input
               type="number"
               value={form.cost_price}
@@ -282,13 +274,23 @@ function EditPartContent() {
           </div>
 
           <div className="field">
-            <label>ราคาขาย/เปลี่ยน</label>
+            <label>ราคาขายเริ่มต้น</label>
             <input
               type="number"
               value={form.sell_price}
               onChange={(e) => setForm({ ...form, sell_price: e.target.value })}
               inputMode="decimal"
               step="0.01"
+            />
+          </div>
+
+          <div className="field full">
+            <label>รุ่นมือถือที่ใช้ได้ (เลือกได้หลายรุ่น)</label>
+            <PartModelCompatibilityEditor
+              rows={compatRows}
+              onChange={setCompatRows}
+              defaultCostPrice={form.cost_price}
+              defaultSellPrice={form.sell_price}
             />
           </div>
 

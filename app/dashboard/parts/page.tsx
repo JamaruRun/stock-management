@@ -49,6 +49,7 @@ export default function PartsPage() {
   const [savingAdjust, setSavingAdjust] = useState(false);
 
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
+  const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
 
   function showToast(title: string, msg: string, type: 'success' | 'danger' = 'success') {
     setToast({ title, msg, type });
@@ -70,6 +71,19 @@ export default function PartsPage() {
       .order('updated_at', { ascending: false });
     
     setParts(data || []);
+
+    const { data: compatRows } = await supabase
+      .from('part_compatibility')
+      .select('part_id, device_models(model_name)');
+    const map: Record<string, string[]> = {};
+    (compatRows || []).forEach((r: any) => {
+      const name = r.device_models?.model_name;
+      if (!name) return;
+      if (!map[r.part_id]) map[r.part_id] = [];
+      map[r.part_id].push(name);
+    });
+    setModelsByPart(map);
+
     setLoading(false);
   }
 
@@ -580,7 +594,7 @@ export default function PartsPage() {
           items={[{
             shopName: profile.shops?.name,
             productName: printingLabel.name,
-            variant: `${printingLabel.phone_model}${printingLabel.grade ? ' • ' + (getGradeInfo(printingLabel.grade)?.label || printingLabel.grade) : ''}`,
+            variant: `${(modelsByPart[printingLabel.id]?.join(' / ')) || printingLabel.phone_model}${printingLabel.grade ? ' • ' + (getGradeInfo(printingLabel.grade)?.label || printingLabel.grade) : ''}`,
             price: Number(printingLabel.sell_price),
             code: printingLabel.sku || printingLabel.id,
             showBarcode: true,

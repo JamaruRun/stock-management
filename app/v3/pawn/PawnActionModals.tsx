@@ -95,7 +95,7 @@ export function PawnRedeemModal({ item, onClose, onSuccess }: any) {
     const { data: profile } = await supabase.from('profiles').select('full_name, shop_id').eq('id', user.id).single();
 
     const { error: insertError } = await supabase.from('pawn_history').insert({
-      imei: item.imei, model: item.model, color: item.color, spec: item.spec,
+      imei: item.imei || '', model: item.model, color: item.color, spec: item.spec,
       device_password: item.device_password,
       device_lock_type: item.device_lock_type,
       pawn_price: item.pawn_price, pawn_date: item.pawn_date,
@@ -733,7 +733,7 @@ export function PawnForfeitModal({ item, onClose, onSuccess }: any) {
     const { data: profile } = await supabase.from('profiles').select('full_name, shop_id').eq('id', user.id).single();
 
     const { error: insertError } = await supabase.from('pawn_history').insert({
-      imei: item.imei, model: item.model, color: item.color, spec: item.spec,
+      imei: item.imei || '', model: item.model, color: item.color, spec: item.spec,
       device_password: item.device_password,
       device_lock_type: item.device_lock_type,
       pawn_price: item.pawn_price, pawn_date: item.pawn_date,

@@ -24,6 +24,7 @@ function EditRepairContent() {
   
   // ค้นหา + เพิ่มอะไหล่
   const [allParts, setAllParts] = useState<any[]>([]);
+  const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
   const [showAddPart, setShowAddPart] = useState(false);
   const [searchPart, setSearchPart] = useState('');
   const [selectedPartId, setSelectedPartId] = useState('');
@@ -58,11 +59,12 @@ function EditRepairContent() {
       .from('profiles').select('*').eq('id', user.id).single();
     setProfile(p);
 
-    const [jobRes, partsRes, logRes, allPartsRes] = await Promise.all([
+    const [jobRes, partsRes, logRes, allPartsRes, compatRes] = await Promise.all([
       supabase.from('repair_jobs').select('*').eq('id', jobId).single(),
       supabase.from('repair_job_parts').select('*').eq('job_id', jobId).order('created_at'),
       supabase.from('repair_status_log').select('*').eq('job_id', jobId).order('created_at', { ascending: false }).limit(20),
       supabase.from('parts').select('id, name, phone_model, category, grade, stock_qty, cost_price, sell_price').order('name'),
+      supabase.from('part_compatibility').select('part_id, device_models(model_name)'),
     ]);
 
     if (jobRes.error || !jobRes.data) {
@@ -76,6 +78,16 @@ function EditRepairContent() {
     setStatusLog(logRes.data || []);
     setAllParts(allPartsRes.data || []);
     setPaidInput(String(jobRes.data.paid_amount || 0));
+
+    const map: Record<string, string[]> = {};
+    (compatRes.data || []).forEach((r: any) => {
+      const name = r.device_models?.model_name;
+      if (!name) return;
+      if (!map[r.part_id]) map[r.part_id] = [];
+      map[r.part_id].push(name);
+    });
+    setModelsByPart(map);
+
     setLoading(false);
   }
 
@@ -84,11 +96,12 @@ function EditRepairContent() {
   const filteredParts = useMemo(() => {
     if (!searchPart.trim()) return allParts.slice(0, 20);
     const q = searchPart.toLowerCase();
-    return allParts.filter(p => 
+    return allParts.filter(p =>
       p.name.toLowerCase().includes(q) ||
-      p.phone_model.toLowerCase().includes(q)
+      p.phone_model.toLowerCase().includes(q) ||
+      (modelsByPart[p.id] || []).some(m => m.toLowerCase().includes(q))
     ).slice(0, 20);
-  }, [allParts, searchPart]);
+  }, [allParts, searchPart, modelsByPart]);
 
   async function handleAddPart() {
     if (!selectedPartId || !profile || !job) return;
@@ -124,13 +137,20 @@ function EditRepairContent() {
       added_by_name: profile.full_name || profile.username,
     });
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       showToast('เพิ่มอะไหล่ไม่สำเร็จ', error.message, 'danger');
       return;
     }
 
+    await supabase.from('parts').update({ stock_qty: Number(part.stock_qty) - qty }).eq('id', part.id);
+    await supabase.from('part_transactions').insert({
+      shop_id: profile.shop_id, part_id: part.id, type: 'out', qty_change: -qty,
+      cost_at_transaction: Number(part.cost_price), reference_type: 'used_in_repair',
+      note: `ใช้ในงานซ่อม ${job.job_no}`, done_by: profile.id, done_by_name: profile.full_name || profile.username,
+    });
+
+    setSaving(false);
     showToast('เพิ่มอะไหล่แล้ว', `${part.name} × ${qty}`);
     setShowAddPart(false);
     setSelectedPartId('');
@@ -142,14 +162,28 @@ function EditRepairContent() {
 
   async function handleRemovePart(partRow: any) {
     if (!confirm(`ลบ "${partRow.part_name}" × ${partRow.qty}?\n\nสต๊อกจะถูกคืนอัตโนมัติ`)) return;
+    if (!profile || !job) return;
 
     const { error } = await supabase
       .from('repair_job_parts').delete().eq('id', partRow.id);
-    
+
     if (error) {
       showToast('ลบไม่สำเร็จ', error.message, 'danger');
       return;
     }
+
+    if (partRow.part_id) {
+      const { data: partNow } = await supabase.from('parts').select('stock_qty').eq('id', partRow.part_id).single();
+      if (partNow) {
+        await supabase.from('parts').update({ stock_qty: Number(partNow.stock_qty) + Number(partRow.qty || 1) }).eq('id', partRow.part_id);
+      }
+      await supabase.from('part_transactions').insert({
+        shop_id: profile.shop_id, part_id: partRow.part_id, type: 'in', qty_change: Number(partRow.qty || 1),
+        cost_at_transaction: Number(partRow.unit_cost || 0), reference_type: 'used_in_repair',
+        note: `คืนสต๊อกจากงานซ่อม ${job.job_no}`, done_by: profile.id, done_by_name: profile.full_name || profile.username,
+      });
+    }
+
     showToast('ลบอะไหล่แล้ว', 'คืนสต๊อกอัตโนมัติ');
     await load();
   }
@@ -611,7 +645,7 @@ function EditRepairContent() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                          {p.phone_model} • {getCategoryShort(p.category)}
+                          {(modelsByPart[p.id]?.join(' / ')) || p.phone_model} • {getCategoryShort(p.category)}
                           {p.grade && ` • ${getGradeInfo(p.grade)?.label}`}
                         </div>
                       </div>

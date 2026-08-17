@@ -18,6 +18,7 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
   const [jobParts, setJobParts] = useState<any[]>([]);
   const [statusLog, setStatusLog] = useState<any[]>([]);
   const [allParts, setAllParts] = useState<any[]>([]);
+  const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -50,6 +51,19 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
     setJobParts(partsRes.data || []);
     setStatusLog(logRes.data || []);
     setAllParts(allPartsRes.data || []);
+
+    const { data: compatRows } = await supabase
+      .from('part_compatibility')
+      .select('part_id, device_models(model_name)');
+    const map: Record<string, string[]> = {};
+    (compatRows || []).forEach((r: any) => {
+      const name = r.device_models?.model_name;
+      if (!name) return;
+      if (!map[r.part_id]) map[r.part_id] = [];
+      map[r.part_id].push(name);
+    });
+    setModelsByPart(map);
+
     setLoading(false);
   }
   useEffect(() => { load(); }, [jobId]);
@@ -58,9 +72,13 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
 
   const filteredParts = useMemo(() => {
     const q = searchPart.trim().toLowerCase();
-    const list = !q ? allParts : allParts.filter(p => p.name.toLowerCase().includes(q) || (p.phone_model || '').toLowerCase().includes(q));
+    const list = !q ? allParts : allParts.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.phone_model || '').toLowerCase().includes(q) ||
+      (modelsByPart[p.id] || []).some(m => m.toLowerCase().includes(q))
+    );
     return list.filter(p => p.stock_qty > 0).slice(0, 12);
-  }, [allParts, searchPart]);
+  }, [allParts, searchPart, modelsByPart]);
 
   async function changeStatus(newStatus: string) {
     if (!job || !profile) return;
@@ -91,8 +109,14 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
       unit_cost: Number(part.cost_price), unit_price: Number(part.sell_price),
       added_by: profile.id, added_by_name: profile.full_name || profile.username,
     });
+    if (error) { setSaving(false); notify('เพิ่มอะไหล่ไม่สำเร็จ', false); return; }
+    await supabase.from('parts').update({ stock_qty: Number(part.stock_qty) - 1 }).eq('id', part.id);
+    await supabase.from('part_transactions').insert({
+      shop_id: profile.shop_id, part_id: part.id, type: 'out', qty_change: -1,
+      cost_at_transaction: Number(part.cost_price), reference_type: 'used_in_repair',
+      note: `ใช้ในงานซ่อม ${job.job_no}`, done_by: profile.id, done_by_name: profile.full_name || profile.username,
+    });
     setSaving(false);
-    if (error) { notify('เพิ่มอะไหล่ไม่สำเร็จ', false); return; }
     setDirty(true); setSearchPart(''); setShowAddPart(false);
     notify('เพิ่ม: ' + part.name);
     await load();
@@ -100,8 +124,21 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
 
   async function removePart(row: any) {
     if (!confirm(`ลบ "${row.part_name}" × ${row.qty}? (คืนสต๊อกอัตโนมัติ)`)) return;
+    setSaving(true);
     const { error } = await supabase.from('repair_job_parts').delete().eq('id', row.id);
-    if (error) { notify('ลบไม่สำเร็จ', false); return; }
+    if (error) { setSaving(false); notify('ลบไม่สำเร็จ', false); return; }
+    if (row.part_id) {
+      const { data: partNow } = await supabase.from('parts').select('stock_qty').eq('id', row.part_id).single();
+      if (partNow) {
+        await supabase.from('parts').update({ stock_qty: Number(partNow.stock_qty) + Number(row.qty || 1) }).eq('id', row.part_id);
+      }
+      await supabase.from('part_transactions').insert({
+        shop_id: profile.shop_id, part_id: row.part_id, type: 'in', qty_change: Number(row.qty || 1),
+        cost_at_transaction: Number(row.unit_cost || 0), reference_type: 'used_in_repair',
+        note: `คืนสต๊อกจากงานซ่อม ${job.job_no}`, done_by: profile.id, done_by_name: profile.full_name || profile.username,
+      });
+    }
+    setSaving(false);
     setDirty(true); notify('ลบอะไหล่แล้ว'); await load();
   }
 
@@ -189,7 +226,7 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
                           <Wrench size={14} style={{ color: '#ec4899', flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.phone_model} · เหลือ {p.stock_qty}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{(modelsByPart[p.id]?.join(' / ')) || p.phone_model} · เหลือ {p.stock_qty}</div>
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>฿{Number(p.sell_price).toLocaleString()}</span>
                         </button>

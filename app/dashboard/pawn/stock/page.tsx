@@ -409,7 +409,7 @@ export default function PawnStockPage() {
 
     // 2. ย้ายไป pawn_history พร้อม exit_status = 'forfeited'
     const { error: insertError } = await supabase.from('pawn_history').insert({
-      imei: forfeiting.imei,
+      imei: forfeiting.imei || '',
       model: forfeiting.model,
       color: forfeiting.color,
       spec: forfeiting.spec,

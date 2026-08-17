@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
-import { PART_CATEGORIES, PART_GRADES, COMMON_PHONE_MODELS } from '@/lib/parts-constants';
+import { PART_CATEGORIES, PART_GRADES, getCategoryPlainLabel } from '@/lib/parts-constants';
+import { saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility';
+import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
 
 export default function AddPartPage() {
   const supabase = createClient();
@@ -14,11 +16,12 @@ export default function AddPartPage() {
   const [profile, setProfile] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ title: string; msg: string; type: string } | null>(null);
+  const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
+  const [autoName, setAutoName] = useState('');
 
   const [form, setForm] = useState({
     name: '',
     category: 'battery',
-    phone_model: '',
     grade: 'oem',
     cost_price: '',
     sell_price: '',
@@ -50,16 +53,20 @@ export default function AddPartPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const modelsPart = compatRows.length > 0 ? ' - ' + compatRows.map(r => r.model_name).join(' / ') : '';
+    const newAuto = `${getCategoryPlainLabel(form.category)}${modelsPart}`;
+    setForm(prev => (prev.name === '' || prev.name === autoName) ? { ...prev, name: newAuto } : prev);
+    setAutoName(newAuto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.category, compatRows]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
     
     if (!form.name.trim()) {
       showToast('กรอกชื่ออะไหล่', '', 'danger');
-      return;
-    }
-    if (!form.phone_model.trim()) {
-      showToast('กรอกรุ่นมือถือ', '', 'danger');
       return;
     }
 
@@ -75,7 +82,7 @@ export default function AddPartPage() {
         branch_id: profile.branch_id,
         name: form.name.trim(),
         category: form.category,
-        phone_model: form.phone_model.trim(),
+        phone_model: compatRows[0]?.model_name || '',
         grade: form.grade || null,
         cost_price: costPrice,
         sell_price: parseFloat(form.sell_price) || 0,
@@ -94,6 +101,18 @@ export default function AddPartPage() {
       showToast('บันทึกไม่สำเร็จ', error?.message || '', 'danger');
       setSaving(false);
       return;
+    }
+
+    if (compatRows.length > 0) {
+      const resolved = await saveCompatibilityRows(supabase, newPart.id, compatRows);
+      const first = resolved[0];
+      if (first) {
+        await supabase.from('parts').update({
+          phone_model: first.model_name,
+          cost_price: parseFloat(first.cost_price) || 0,
+          sell_price: parseFloat(first.sell_price) || 0,
+        }).eq('id', newPart.id);
+      }
     }
 
     // บันทึก transaction "in" สำหรับ stock เริ่มต้น
@@ -166,22 +185,6 @@ export default function AddPartPage() {
             </div>
           </div>
 
-          {/* Phone model */}
-          <div className="field full">
-            <label>รุ่นมือถือ <span style={{ color: 'var(--danger)' }}>*</span></label>
-            <input
-              type="text"
-              value={form.phone_model}
-              onChange={(e) => setForm({ ...form, phone_model: e.target.value })}
-              placeholder="เช่น iPhone 11, Samsung A12"
-              list="phone-models"
-              required
-            />
-            <datalist id="phone-models">
-              {COMMON_PHONE_MODELS.map(m => <option key={m} value={m} />)}
-            </datalist>
-          </div>
-
           {/* Name */}
           <div className="field full">
             <label>ชื่ออะไหล่ <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -189,7 +192,7 @@ export default function AddPartPage() {
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="เช่น แบต iPhone 11 OEM, จอ Samsung A12 OLED"
+              placeholder="เติมอัตโนมัติจากประเภท+รุ่น (แก้ไขเพิ่มเติมได้)"
               required
             />
           </div>
@@ -221,7 +224,7 @@ export default function AddPartPage() {
 
           {/* Prices */}
           <div className="field">
-            <label>ต้นทุน/ชิ้น</label>
+            <label>ต้นทุนเริ่มต้น/ชิ้น</label>
             <input
               type="number"
               value={form.cost_price}
@@ -233,7 +236,7 @@ export default function AddPartPage() {
           </div>
 
           <div className="field">
-            <label>ราคาขาย/ราคาเปลี่ยน</label>
+            <label>ราคาขายเริ่มต้น</label>
             <input
               type="number"
               value={form.sell_price}
@@ -241,6 +244,17 @@ export default function AddPartPage() {
               inputMode="decimal"
               placeholder="0"
               step="0.01"
+            />
+          </div>
+
+          {/* Model compatibility */}
+          <div className="field full">
+            <label>รุ่นมือถือที่ใช้ได้ (เลือกได้หลายรุ่น)</label>
+            <PartModelCompatibilityEditor
+              rows={compatRows}
+              onChange={setCompatRows}
+              defaultCostPrice={form.cost_price}
+              defaultSellPrice={form.sell_price}
             />
           </div>
 
@@ -307,7 +321,7 @@ export default function AddPartPage() {
         </div>
 
         {/* Preview */}
-        {form.name && form.phone_model && (
+        {form.name && (
           <div style={{
             padding: 12,
             background: 'var(--surface-2)',
@@ -319,7 +333,9 @@ export default function AddPartPage() {
               👁️ ตัวอย่าง
             </div>
             <div style={{ fontWeight: 700 }}>{form.name}</div>
-            <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>📱 {form.phone_model}</div>
+            <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>
+              📱 {compatRows.length > 0 ? compatRows.map(r => r.model_name).join(' / ') : 'ยังไม่ได้เลือกรุ่น'}
+            </div>
             {parseFloat(form.cost_price) > 0 && parseFloat(form.sell_price) > 0 && (
               <div style={{ marginTop: 4, color: '#10b981' }}>
                 💰 กำไร: ฿{((parseFloat(form.sell_price) - parseFloat(form.cost_price))).toLocaleString()}/ชิ้น

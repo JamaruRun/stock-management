@@ -43,6 +43,14 @@ export default function V3PartsPage() {
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
   const [editItem, setEditItem] = useState<any>(null);
+  const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
+  const [searchMode, setSearchMode] = useState<'part' | 'model'>('part');
+  const [modelQuery, setModelQuery] = useState('');
+  const [modelSuggestions, setModelSuggestions] = useState<{ id: string; model_name: string }[]>([]);
+  const [selectedModel, setSelectedModel] = useState<{ id: string; model_name: string } | null>(null);
+  const [viewMode, setViewMode] = useState<'active' | 'dead'>('active');
+  const [lastMoveByPart, setLastMoveByPart] = useState<Record<string, string>>({});
+  const [deadStockDays, setDeadStockDays] = useState(90);
 
   async function load() {
     try {
@@ -60,6 +68,29 @@ export default function V3PartsPage() {
         .select('*')
         .order('phone_model', { ascending: true });
       setItems((data || []) as PartItem[]);
+
+      const { data: compatRows } = await supabase
+        .from('part_compatibility')
+        .select('part_id, device_models(model_name)');
+      const map: Record<string, string[]> = {};
+      (compatRows || []).forEach((r: any) => {
+        const name = r.device_models?.model_name;
+        if (!name) return;
+        if (!map[r.part_id]) map[r.part_id] = [];
+        map[r.part_id].push(name);
+      });
+      setModelsByPart(map);
+
+      const { data: txRows } = await supabase
+        .from('part_transactions')
+        .select('part_id, type, created_at')
+        .in('type', ['out', 'used_in_repair']);
+      const lastMove: Record<string, string> = {};
+      (txRows || []).forEach((t: any) => {
+        if (!t.part_id || !t.created_at) return;
+        if (!lastMove[t.part_id] || t.created_at > lastMove[t.part_id]) lastMove[t.part_id] = t.created_at;
+      });
+      setLastMoveByPart(lastMove);
     } catch (e) {
       console.error(e);
     } finally {
@@ -68,6 +99,21 @@ export default function V3PartsPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const q = modelQuery.trim();
+    if (!q) { setModelSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('device_models')
+        .select('id, model_name')
+        .ilike('model_name', `%${q}%`)
+        .order('model_name')
+        .limit(8);
+      setModelSuggestions(data || []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [modelQuery]);
 
   const stats = useMemo(() => {
     let totalQty = 0;
@@ -96,15 +142,36 @@ export default function V3PartsPage() {
     return items.filter(i => {
       if (activeCategory !== 'all' && i.category !== activeCategory) return false;
       if (activeGrade !== 'all' && i.grade !== activeGrade) return false;
+      if (searchMode === 'model') {
+        if (!selectedModel) return false;
+        if (!(modelsByPart[i.id] || []).includes(selectedModel.model_name)) return false;
+        return true;
+      }
       if (search) {
         const s = search.toLowerCase();
+        const compatModels = modelsByPart[i.id] || [];
+        const matchesCompat = compatModels.some(m => m.toLowerCase().includes(s));
         if (!i.name.toLowerCase().includes(s) &&
             !i.phone_model.toLowerCase().includes(s) &&
+            !matchesCompat &&
             !(i.sku || '').toLowerCase().includes(s)) return false;
       }
       return true;
     });
-  }, [items, activeCategory, activeGrade, search]);
+  }, [items, activeCategory, activeGrade, search, searchMode, selectedModel, modelsByPart]);
+
+  const deadStockItems = useMemo(() => {
+    const cutoff = Date.now() - deadStockDays * 24 * 60 * 60 * 1000;
+    return items
+      .filter(i => Number(i.stock_qty || 0) > 0)
+      .filter(i => {
+        const last = lastMoveByPart[i.id];
+        if (!last) return true;
+        return new Date(last).getTime() < cutoff;
+      })
+      .map(i => ({ ...i, lastMoveAt: lastMoveByPart[i.id] || null }))
+      .sort((a, b) => (a.lastMoveAt || '').localeCompare(b.lastMoveAt || ''));
+  }, [items, lastMoveByPart, deadStockDays]);
 
   async function handleDelete(item: PartItem) {
     if (!confirm(`ลบอะไหล่ "${item.name}"?\n\nย้อนกลับไม่ได้`)) return;
@@ -124,6 +191,17 @@ export default function V3PartsPage() {
           <p className="v3-page-subtitle">{stats.totalSkus} รายการ · {stats.totalQty} ชิ้น · มูลค่า ฿{stats.totalValue.toLocaleString()}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setViewMode(viewMode === 'dead' ? 'active' : 'dead')}
+            className="v3-btn v3-btn-secondary"
+            style={{
+              border: 'none', cursor: 'pointer',
+              background: viewMode === 'dead' ? '#f59e0b' : undefined,
+              color: viewMode === 'dead' ? '#fff' : undefined,
+            }}
+          >
+            <Box size={16} /> เดดสต็อค{deadStockItems.length > 0 ? ` (${deadStockItems.length})` : ''}
+          </button>
           <button onClick={() => setShowSell(true)} className="v3-btn v3-btn-secondary" style={{ border: 'none', cursor: 'pointer' }}>
             <ShoppingCart size={16} /> ขาย
           </button>
@@ -148,6 +226,22 @@ export default function V3PartsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setViewMode(viewMode === 'dead' ? 'active' : 'dead')} style={{
+            width: 40, height: 40,
+            borderRadius: 10,
+            background: viewMode === 'dead' ? '#f59e0b' : 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: viewMode === 'dead' ? '#fff' : 'var(--text)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', position: 'relative',
+          }}>
+            <Box size={18} />
+            {deadStockItems.length > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 100, minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
+                {deadStockItems.length}
+              </span>
+            )}
+          </button>
           <button onClick={() => setShowSell(true)} style={{
             width: 40, height: 40,
             borderRadius: 10,
@@ -187,32 +281,112 @@ export default function V3PartsPage() {
         <StatCard label="หมดสต๊อก" value={stats.outOfStock} sub="ต้องเติม" color="#dc2626" Icon={Box} />
       </div>
 
+      {viewMode === 'dead' ? (
+        <DeadStockView
+          items={deadStockItems}
+          days={deadStockDays}
+          onDaysChange={setDeadStockDays}
+          loading={loading}
+          modelsByPart={modelsByPart}
+        />
+      ) : (
+      <>
       <div className="v3-card" style={{ marginBottom: 12, padding: 10 }}>
-        <div style={{ position: 'relative', marginBottom: 10 }}>
-          <Search size={16} style={{
-            position: 'absolute', left: 12, top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text-muted)', pointerEvents: 'none',
-          }} />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหา ชื่ออะไหล่ / รุ่นเครื่อง / SKU..."
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          <button
+            type="button"
+            onClick={() => { setSearchMode('part'); setSelectedModel(null); setModelQuery(''); }}
             style={{
-              width: '100%',
-              height: 38,
-              padding: '0 12px 0 36px',
-              background: 'var(--surface-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 10,
-              color: 'var(--text)',
-              fontSize: 13,
-              fontFamily: 'inherit',
-              outline: 'none',
+              flex: 1, padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+              background: searchMode === 'part' ? 'var(--accent)' : 'var(--surface-2)',
+              color: searchMode === 'part' ? '#fff' : 'var(--text)',
             }}
-          />
+          >อะไหล่ → รุ่น</button>
+          <button
+            type="button"
+            onClick={() => { setSearchMode('model'); setSearch(''); }}
+            style={{
+              flex: 1, padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+              background: searchMode === 'model' ? 'var(--accent)' : 'var(--surface-2)',
+              color: searchMode === 'model' ? '#fff' : 'var(--text)',
+            }}
+          >รุ่น → อะไหล่</button>
         </div>
+
+        {searchMode === 'part' ? (
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <Search size={16} style={{
+              position: 'absolute', left: 12, top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)', pointerEvents: 'none',
+            }} />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ค้นหา ชื่ออะไหล่ / รุ่นเครื่อง / SKU..."
+              style={{
+                width: '100%',
+                height: 38,
+                padding: '0 12px 0 36px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                color: 'var(--text)',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                outline: 'none',
+              }}
+            />
+          </div>
+        ) : (
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <Smartphone size={16} style={{
+              position: 'absolute', left: 12, top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)', pointerEvents: 'none',
+            }} />
+            <input
+              type="text"
+              value={selectedModel ? selectedModel.model_name : modelQuery}
+              onChange={(e) => { setSelectedModel(null); setModelQuery(e.target.value); }}
+              placeholder="ค้นหารุ่นเครื่อง..."
+              style={{
+                width: '100%',
+                height: 38,
+                padding: '0 12px 0 36px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                color: 'var(--text)',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                outline: 'none',
+              }}
+            />
+            {!selectedModel && modelQuery.trim() && modelSuggestions.length > 0 && (
+              <div style={{
+                position: 'absolute', top: 42, left: 0, right: 0, background: 'var(--surface)',
+                border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-lg)',
+                zIndex: 10, maxHeight: 220, overflowY: 'auto',
+              }}>
+                {modelSuggestions.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { setSelectedModel(m); setModelQuery(''); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12.5, color: 'var(--text)', fontFamily: 'inherit' }}
+                  >{m.model_name}</button>
+                ))}
+              </div>
+            )}
+            {!selectedModel && modelQuery.trim() && modelSuggestions.length === 0 && (
+              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-dim)' }}>ไม่พบรุ่นที่ตรงกับคำค้นหา</div>
+            )}
+          </div>
+        )}
 
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6, fontWeight: 600 }}>
@@ -276,14 +450,21 @@ export default function V3PartsPage() {
         <div className="v3-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>
           กำลังโหลด...
         </div>
+      ) : searchMode === 'model' && !selectedModel ? (
+        <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
+          <Smartphone size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>เลือกรุ่นเครื่องด้านบน</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>เพื่อดูอะไหล่ทั้งหมดที่ใช้ได้กับรุ่นนั้น</div>
+        </div>
       ) : filtered.length === 0 ? (
-        <EmptyState hasFilters={!!(search || activeCategory !== 'all' || activeGrade !== 'all')} onAdd={() => setShowAdd(true)} />
+        <EmptyState hasFilters={!!(search || selectedModel || activeCategory !== 'all' || activeGrade !== 'all')} onAdd={() => setShowAdd(true)} />
       ) : (
         <div className="v3-parts-grid">
           {filtered.map(item => (
             <PartCard
               key={item.id}
               item={item}
+              compatModels={modelsByPart[item.id]}
               isAdmin={isAdmin}
               menuOpen={menuOpenId === item.id}
               onToggleMenu={() => setMenuOpenId(menuOpenId === item.id ? null : item.id)}
@@ -294,6 +475,8 @@ export default function V3PartsPage() {
             />
           ))}
         </div>
+      )}
+      </>
       )}
 
       {showAdd && (
@@ -390,7 +573,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit }: any) {
+function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit }: any) {
   const qty = Number(item.stock_qty || 0);
   const lowAlert = Number(item.low_stock_alert || 2);
   const isOut = qty === 0;
@@ -534,15 +717,32 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, on
       </div>
 
       <div style={{
-        fontSize: 10,
-        color: 'var(--text-dim)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 3,
         marginBottom: 8,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
+        minHeight: 16,
       }}>
-        <Smartphone size={9} style={{ display: 'inline', marginRight: 3, verticalAlign: '-1px' }} />
-        {item.phone_model || 'ทั่วไป'}
+        {(compatModels && compatModels.length > 0 ? compatModels : [item.phone_model || 'ทั่วไป']).map((m: string, idx: number) => (
+          <span key={idx} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 3,
+            fontSize: 9,
+            color: 'var(--text-dim)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 100,
+            padding: '2px 7px',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            <Smartphone size={8} style={{ flexShrink: 0 }} />
+            {m}
+          </span>
+        ))}
       </div>
 
       <div style={{
@@ -585,6 +785,71 @@ function PartCard({ item, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, on
           {qty} ชิ้น
         </div>
       </div>
+    </div>
+  );
+}
+
+function DeadStockView({ items, days, onDaysChange, loading, modelsByPart }: any) {
+  const options = [30, 60, 90, 180];
+  return (
+    <div>
+      <div className="v3-card" style={{ marginBottom: 12, padding: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>📦 เดดสต็อค</div>
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
+          อะไหล่ที่ยังมีสต๊อกอยู่ แต่ไม่มีการขาย/ใช้งานในรอบที่เลือก
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {options.map(d => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onDaysChange(d)}
+              style={{
+                padding: '6px 12px', borderRadius: 100, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+                background: days === d ? '#f59e0b' : 'var(--surface-2)',
+                color: days === d ? '#fff' : 'var(--text)',
+              }}
+            >{d} วัน</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="v3-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>กำลังโหลด...</div>
+      ) : items.length === 0 ? (
+        <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
+          <Box size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>ไม่มีเดดสต็อค</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>อะไหล่ทุกชิ้นมีการเคลื่อนไหวภายใน {days} วัน</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map((item: any) => {
+            const models = modelsByPart[item.id] || (item.phone_model ? [item.phone_model] : []);
+            const daysSince = item.lastMoveAt ? Math.floor((Date.now() - new Date(item.lastMoveAt).getTime()) / 86400000) : null;
+            return (
+              <div key={item.id} className="v3-card" style={{ padding: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Wrench size={18} color="#94a3b8" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {models.length > 0 ? models.join(' / ') : 'ทั่วไป'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{item.stock_qty} ชิ้น</div>
+                  <div style={{ fontSize: 9, color: '#dc2626', fontWeight: 600 }}>
+                    {daysSince === null ? 'ไม่เคยขาย/ใช้เลย' : `ไม่เคลื่อนไหว ${daysSince} วัน`}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

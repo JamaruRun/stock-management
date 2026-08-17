@@ -58,7 +58,7 @@ export default function RedeemPage() {
     const totalInterest = (renewals || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0);
 
     const { error: insertError } = await supabase.from('pawn_history').insert({
-      imei: foundItem.imei,
+      imei: foundItem.imei || '',
       model: foundItem.model,
       color: foundItem.color,
       spec: foundItem.spec,

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { PART_CATEGORIES, PART_GRADES, COMMON_PHONE_MODELS } from '@/lib/parts-constants';
+import { PART_CATEGORIES, PART_GRADES, getCategoryPlainLabel } from '@/lib/parts-constants';
+import { saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility';
+import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
 import {
-  Wrench, X, Smartphone, DollarSign, Boxes, Bell, Tag, Truck,
+  Wrench, X, DollarSign, Boxes, Bell, Tag, Truck,
   Loader2, CheckCircle2, AlertCircle, Layers,
 } from 'lucide-react';
 
@@ -13,10 +15,12 @@ interface Props { onClose: () => void; onSuccess: () => void; }
 export default function PartAddModal({ onClose, onSuccess }: Props) {
   const supabase = createClient();
   const [form, setForm] = useState({
-    name: '', category: 'battery', phone_model: '', grade: 'oem',
+    name: '', category: 'battery', grade: 'oem',
     cost_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '2',
     supplier_id: '', sku: '', note: '',
   });
+  const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
+  const [autoName, setAutoName] = useState('');
   const [profile, setProfile] = useState<any>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +39,14 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
     load();
   }, []);
 
+  useEffect(() => {
+    const modelsPart = compatRows.length > 0 ? ' - ' + compatRows.map(r => r.model_name).join(' / ') : '';
+    const newAuto = `${getCategoryPlainLabel(form.category)}${modelsPart}`;
+    setForm(prev => (prev.name === '' || prev.name === autoName) ? { ...prev, name: newAuto } : prev);
+    setAutoName(newAuto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.category, compatRows]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.sell_price) return notify('กรอกชื่ออะไหล่ + ราคาขาย', false);
@@ -45,7 +57,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
 
     const { data: newPart, error } = await supabase.from('parts').insert({
       shop_id: profile.shop_id, branch_id: profile.branch_id,
-      name: form.name.trim(), category: form.category, phone_model: form.phone_model.trim(),
+      name: form.name.trim(), category: form.category, phone_model: compatRows[0]?.model_name || '',
       grade: form.grade || null, cost_price: costPrice, sell_price: parseFloat(form.sell_price) || 0,
       stock_qty: stockQty, low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
@@ -53,6 +65,18 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
     }).select().single();
 
     if (error || !newPart) { notify('บันทึกไม่สำเร็จ: ' + (error?.message || ''), false); setLoading(false); return; }
+
+    if (compatRows.length > 0) {
+      const resolved = await saveCompatibilityRows(supabase, newPart.id, compatRows);
+      const first = resolved[0];
+      if (first) {
+        await supabase.from('parts').update({
+          phone_model: first.model_name,
+          cost_price: parseFloat(first.cost_price) || 0,
+          sell_price: parseFloat(first.sell_price) || 0,
+        }).eq('id', newPart.id);
+      }
+    }
 
     if (stockQty > 0) {
       await supabase.from('part_transactions').insert({
@@ -80,7 +104,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
         <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <SectionTitle Icon={Wrench} color="#ec4899" label="ข้อมูลอะไหล่" />
-            <F label="ชื่ออะไหล่" req><Inp value={form.name} onChange={(v: string) => setForm({ ...form, name: v })} placeholder="เช่น แบต iPhone 13" /></F>
+            <F label="ชื่ออะไหล่" req><Inp value={form.name} onChange={(v: string) => setForm({ ...form, name: v })} placeholder="เติมอัตโนมัติจากประเภท+รุ่น (แก้ไขเพิ่มเติมได้)" /></F>
             <div style={g2}>
               <F label="ประเภท" req>
                 <Sel Icon={Layers} value={form.category} onChange={(v: string) => setForm({ ...form, category: v })}>
@@ -93,14 +117,10 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
                 </Sel>
               </F>
             </div>
-            <F label="รุ่นมือถือที่ใช้ได้">
-              <Inp Icon={Smartphone} value={form.phone_model} onChange={(v: string) => setForm({ ...form, phone_model: v })} placeholder="iPhone 13 Pro Max" list="phone-models" />
-              <datalist id="phone-models">{COMMON_PHONE_MODELS.map(m => <option key={m} value={m} />)}</datalist>
-            </F>
           </div>
 
           <div>
-            <SectionTitle Icon={DollarSign} color="#3b82f6" label="ราคา + สต๊อก" />
+            <SectionTitle Icon={DollarSign} color="#3b82f6" label="ราคาเริ่มต้น + สต๊อก" />
             <div style={g2}>
               <F label="ราคาทุน (฿)"><Inp Icon={DollarSign} type="number" value={form.cost_price} onChange={(v: string) => setForm({ ...form, cost_price: v })} placeholder="0" /></F>
               <F label="ราคาขาย (฿)" req><Inp Icon={DollarSign} type="number" value={form.sell_price} onChange={(v: string) => setForm({ ...form, sell_price: v })} placeholder="0" /></F>
@@ -109,6 +129,16 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
               <F label="จำนวน"><Inp Icon={Boxes} type="number" value={form.stock_qty} onChange={(v: string) => setForm({ ...form, stock_qty: v })} placeholder="1" /></F>
               <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="2" /></F>
             </div>
+          </div>
+
+          <div>
+            <SectionTitle Icon={Layers} color="#8b5cf6" label="รุ่นมือถือที่ใช้ได้ (เลือกได้หลายรุ่น)" />
+            <PartModelCompatibilityEditor
+              rows={compatRows}
+              onChange={setCompatRows}
+              defaultCostPrice={form.cost_price}
+              defaultSellPrice={form.sell_price}
+            />
           </div>
 
           <div>
