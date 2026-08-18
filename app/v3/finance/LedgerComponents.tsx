@@ -49,7 +49,7 @@ export function EntryRow({ entry, menuOpen, onToggleMenu, onClose, onEdit, onDel
         <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Prompt, Sarabun, sans-serif', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.description}</div>
         <div style={{ fontSize: 10, color: 'var(--text-dim)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span>{new Date(entry.business_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</span>
-          {entry.payment_method && <span>• {entry.payment_method === 'cash' ? 'เงินสด' : 'โอน'}</span>}
+          {entry.payment_method && <span>• {entry.payment_method === 'cash' ? 'เงินสด' : entry.payment_method === 'transfer' ? 'โอน' : entry.payment_method}</span>}
           {entry.is_auto_synced ? (
             <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: 100, fontWeight: 700, fontSize: 9 }}>AUTO</span>
           ) : (
@@ -87,6 +87,7 @@ export function LedgerEntryModal({ profile, entry, defaultDate, onClose, onSucce
   const supabase = createClient();
   const isEdit = !!entry;
   const [submitting, setSubmitting] = useState(false);
+  const knownMethods = ['', 'cash', 'transfer'];
   const [form, setForm] = useState({
     entry_type: entry?.entry_type || 'income',
     description: entry?.description || '',
@@ -94,6 +95,7 @@ export function LedgerEntryModal({ profile, entry, defaultDate, onClose, onSucce
     business_date: entry?.business_date || defaultDate || todayStr(),
     payment_method: entry?.payment_method || '',
   });
+  const [customPayment, setCustomPayment] = useState(!!entry?.payment_method && !knownMethods.includes(entry.payment_method));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -176,11 +178,21 @@ export function LedgerEntryModal({ profile, entry, defaultDate, onClose, onSucce
 
           <div>
             <label style={labelStyle}>ช่องทางชำระ (ไม่บังคับ)</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
               {[{ id: '', label: 'ไม่ระบุ' }, { id: 'cash', label: '💵 เงินสด' }, { id: 'transfer', label: '🔄 โอน' }].map((p) => (
-                <button key={p.id} type="button" onClick={() => setForm({ ...form, payment_method: p.id })} style={{ padding: '8px', background: form.payment_method === p.id ? 'var(--accent)' : 'var(--surface-2)', color: form.payment_method === p.id ? '#fff' : 'var(--text)', border: '1px solid', borderColor: form.payment_method === p.id ? 'var(--accent)' : 'var(--border)', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{p.label}</button>
+                <button key={p.id} type="button" onClick={() => { setCustomPayment(false); setForm({ ...form, payment_method: p.id }); }} style={{ padding: '8px', background: !customPayment && form.payment_method === p.id ? 'var(--accent)' : 'var(--surface-2)', color: !customPayment && form.payment_method === p.id ? '#fff' : 'var(--text)', border: '1px solid', borderColor: !customPayment && form.payment_method === p.id ? 'var(--accent)' : 'var(--border)', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{p.label}</button>
               ))}
+              <button type="button" onClick={() => { setCustomPayment(true); setForm({ ...form, payment_method: knownMethods.includes(form.payment_method) ? '' : form.payment_method }); }} style={{ padding: '8px', background: customPayment ? 'var(--accent)' : 'var(--surface-2)', color: customPayment ? '#fff' : 'var(--text)', border: '1px solid', borderColor: customPayment ? 'var(--accent)' : 'var(--border)', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✏️ อื่นๆ</button>
             </div>
+            {customPayment && (
+              <input
+                type="text"
+                value={form.payment_method}
+                onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                placeholder="พิมพ์ช่องทางชำระเอง เช่น เช็ค, พร้อมเพย์"
+                style={{ ...inputStyle, marginTop: 6 }}
+              />
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
