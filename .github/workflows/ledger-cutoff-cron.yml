@@ -1,0 +1,32 @@
+name: Ledger cutoff cron (15 min)
+
+# Vercel Hobby plan only allows cron jobs to run once per day, but the ledger
+# cutoff notification needs to check every shop's cutoff time every ~15 min
+# (each shop sets a different cutoff). This workflow calls the same endpoint
+# that used to be a Vercel cron entry, from GitHub Actions instead (free, no
+# once-per-day restriction).
+#
+# Setup required (one-time):
+# 1. Vercel project -> Settings -> Environment Variables -> make sure
+#    CRON_SECRET is set (any random string) and deployed.
+# 2. GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret
+#    - CRON_SECRET: same value as step 1
+#    - APP_URL (optional): your production URL, e.g. https://your-domain.com
+#      If not set, defaults to the URL below.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/cron/ledger-cutoff
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://project-i2gnq.vercel.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -f -X GET "$APP_URL/api/cron/ledger-cutoff" \
+            -H "Authorization: Bearer $CRON_SECRET"
