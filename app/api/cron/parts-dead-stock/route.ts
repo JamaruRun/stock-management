@@ -118,9 +118,10 @@ export async function GET(request: NextRequest) {
 
     const shopParts = (parts || []).filter((p: any) => p.shop_id === shopId);
     const deadParts = shopParts.filter((p: any) => {
-      const move = lastMove[p.id];
-      if (!move) return true;
-      return new Date(move).getTime() < cutoff;
+      // ไม่เคยขาย/ใช้เลย ให้เทียบจากวันที่รับเข้าล่าสุด (หรือวันที่สร้างอะไหล่ ถ้าไม่มีประวัติรับเข้า) แทนการถือว่าตายทันที
+      const baseline = lastMove[p.id] || lastReceived[p.id] || p.created_at;
+      if (!baseline) return true;
+      return new Date(baseline).getTime() < cutoff;
     });
 
     // ถึงรอบแล้ว เลื่อน last_sent_at เสมอ ไม่ว่าจะมีเดดสต็อคหรือไม่ (กันเช็คซ้ำทุกวัน)

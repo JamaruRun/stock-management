@@ -57,6 +57,7 @@ export default function V3PartsPage() {
   const [selectedModel, setSelectedModel] = useState<{ id: string; model_name: string } | null>(null);
   const [viewMode, setViewMode] = useState<'active' | 'dead'>('active');
   const [lastMoveByPart, setLastMoveByPart] = useState<Record<string, string>>({});
+  const [lastReceivedByPart, setLastReceivedByPart] = useState<Record<string, string>>({});
   const [deadStockDays, setDeadStockDays] = useState(90);
 
   async function load() {
@@ -98,6 +99,17 @@ export default function V3PartsPage() {
         if (!lastMove[t.part_id] || t.created_at > lastMove[t.part_id]) lastMove[t.part_id] = t.created_at;
       });
       setLastMoveByPart(lastMove);
+
+      const { data: inRows } = await supabase
+        .from('part_transactions')
+        .select('part_id, created_at')
+        .eq('type', 'in');
+      const lastReceived: Record<string, string> = {};
+      (inRows || []).forEach((t: any) => {
+        if (!t.part_id || !t.created_at) return;
+        if (!lastReceived[t.part_id] || t.created_at > lastReceived[t.part_id]) lastReceived[t.part_id] = t.created_at;
+      });
+      setLastReceivedByPart(lastReceived);
     } catch (e) {
       console.error(e);
     } finally {
@@ -172,13 +184,14 @@ export default function V3PartsPage() {
     return items
       .filter(i => Number(i.stock_qty || 0) > 0)
       .filter(i => {
-        const last = lastMoveByPart[i.id];
-        if (!last) return true;
-        return new Date(last).getTime() < cutoff;
+        // ไม่เคยขาย/ใช้เลย ให้เทียบจากวันที่รับเข้าล่าสุด (หรือวันที่สร้างอะไหล่ ถ้าไม่มีประวัติรับเข้า) แทนการถือว่าตายทันที
+        const baseline = lastMoveByPart[i.id] || lastReceivedByPart[i.id] || i.created_at;
+        if (!baseline) return true;
+        return new Date(baseline).getTime() < cutoff;
       })
-      .map(i => ({ ...i, lastMoveAt: lastMoveByPart[i.id] || null }))
+      .map(i => ({ ...i, lastMoveAt: lastMoveByPart[i.id] || lastReceivedByPart[i.id] || i.created_at || null }))
       .sort((a, b) => (a.lastMoveAt || '').localeCompare(b.lastMoveAt || ''));
-  }, [items, lastMoveByPart, deadStockDays]);
+  }, [items, lastMoveByPart, lastReceivedByPart, deadStockDays]);
 
   async function handleDelete(item: PartItem) {
     if (!confirm(`ลบอะไหล่ "${item.name}"?\n\nย้อนกลับไม่ได้`)) return;
