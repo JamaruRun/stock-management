@@ -11,7 +11,7 @@ import {
 import BarcodeScanner from '@/components/BarcodeScanner';
 
 interface CartItem {
-  part_id: string; name: string; phone_model?: string; category?: string; grade?: string;
+  part_id: string; name: string; sku?: string | null; phone_model?: string; category?: string; grade?: string;
   sell_price: number; cost_price: number; quantity: number; stock_qty: number;
 }
 interface Props { onClose: () => void; onSuccess: () => void; }
@@ -93,7 +93,7 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
         if (prev[idx].quantity >= item.stock_qty) { notify(`${item.name} เหลือ ${item.stock_qty}`, false); return prev; }
         const nc = [...prev]; nc[idx] = { ...nc[idx], quantity: nc[idx].quantity + 1 }; return nc;
       }
-      return [...prev, { part_id: item.id, name: item.name, phone_model: item.phone_model, category: item.category, grade: item.grade, sell_price: Number(item.sell_price), cost_price: Number(item.cost_price || 0), quantity: 1, stock_qty: item.stock_qty }];
+      return [...prev, { part_id: item.id, name: item.name, sku: item.sku, phone_model: item.phone_model, category: item.category, grade: item.grade, sell_price: Number(item.sell_price), cost_price: Number(item.cost_price || 0), quantity: 1, stock_qty: item.stock_qty }];
     });
     setQuery(''); setResults([]);
   }
@@ -131,8 +131,24 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
       await supabase.from('parts').update({ stock_qty: c.stock_qty - c.quantity }).eq('id', c.part_id);
     }
 
-    const itemLines = cart.map(c => `• ${c.name} x${c.quantity} = ฿${(c.sell_price * c.quantity).toLocaleString()}`).join('\n');
-    const lineMsg = `🔧 ขายอะไหล่\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━\n💵 รวม: ฿${total.toLocaleString()}`;
+    const { data: compatRows } = await supabase.from('part_compatibility')
+      .select('part_id, device_models(model_name)').in('part_id', cart.map(c => c.part_id));
+    const modelsMap: Record<string, string[]> = {};
+    (compatRows || []).forEach((r: any) => {
+      const name = r.device_models?.model_name;
+      if (!name) return;
+      (modelsMap[r.part_id] ||= []).push(name);
+    });
+
+    const itemLines = cart.map(c => {
+      const code = c.sku || c.part_id.slice(0, 8);
+      const modelsTxt = (modelsMap[c.part_id]?.join(' / ')) || c.phone_model || 'ทั่วไป';
+      const profit = (c.sell_price - c.cost_price) * c.quantity;
+      const remain = c.stock_qty - c.quantity;
+      return `🔧 ${c.name}\n🔖 ${code} • 📱 ${modelsTxt}\nจำนวน ${c.quantity} • ราคา ฿${c.sell_price.toLocaleString()}/ชิ้น\nกำไร ฿${profit.toLocaleString()} • คงเหลือ ${remain} ชิ้น`;
+    }).join('\n━━━━━━━━━━━━━\n');
+    const discountTxt = discountValue > 0 ? `\nส่วนลด: -฿${discountValue.toLocaleString()}` : '';
+    const lineMsg = `🛒 ขายอะไหล่\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━${discountTxt}\n💵 ยอดสุทธิ: ฿${total.toLocaleString()}`;
     sendLineNotify(lineMsg, 'sale').catch(() => {});
 
     setSubmitting(false);

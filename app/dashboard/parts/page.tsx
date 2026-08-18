@@ -192,6 +192,13 @@ export default function PartsPage() {
 
     showToast('อัพเดทสต๊อกแล้ว', `${adjusting.name}: ${adjusting.stock_qty} → ${newQty}`);
 
+    if (adjustType === 'in' && qty > 0) {
+      const codeTxt = adjusting.sku || adjusting.id.slice(0, 8);
+      const modelsTxt = (modelsByPart[adjusting.id]?.join(' / ')) || adjusting.phone_model || 'ทั่วไป';
+      const msg = `📦 รับอะไหล่เข้าสต็อค\n━━━━━━━━━━━━━\n🔧 ${adjusting.name}\n🔖 ${codeTxt}\n📱 ${modelsTxt}\n➕ รับเข้า: ${qty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${Number(adjusting.cost_price).toLocaleString()}\n📊 คงเหลือ: ${newQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
+      sendLinePush(msg, 'restock').catch(() => {});
+    }
+
     // 🔔 LINE: ถ้าสต๊อกตกถึง alert level → แจ้งเตือน
     // (เฉพาะเปลี่ยนผ่านขอบเขต - เพื่อไม่ส่งซ้ำ)
     const wasAboveAlert = adjusting.stock_qty > adjusting.low_stock_alert;

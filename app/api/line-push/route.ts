@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       installment: 'line_notify_installment',
       low_stock: 'line_notify_low_stock',
       parts_low: 'line_notify_parts_low',
+      restock: 'line_notify_restock',
+      repair_log: 'line_notify_repair_log',
     };
 
     if (type !== 'test' && typeMap[type] && !shop[typeMap[type]]) {

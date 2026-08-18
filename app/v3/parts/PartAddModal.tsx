@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { PART_CATEGORIES, PART_GRADES, getCategoryPlainLabel } from '@/lib/parts-constants';
 import { saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility';
+import { sendLinePush } from '@/lib/line-notify';
 import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
 import {
   Wrench, X, DollarSign, Boxes, Bell, Tag, Truck,
@@ -124,6 +125,10 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
         cost_at_transaction: costPrice, reference_type: 'purchase', note: 'รับเข้าครั้งแรก',
         done_by: profile.id, done_by_name: profile.full_name,
       });
+      const codeTxt = form.sku.trim() || newPart.id.slice(0, 8);
+      const modelsTxt = compatRows.length > 0 ? compatRows.map(r => r.model_name).join(' / ') : 'ทั่วไป';
+      const msg = `📦 รับอะไหล่เข้าสต็อค\n━━━━━━━━━━━━━\n🔧 ${form.name.trim()}\n🔖 ${codeTxt}\n📱 ${modelsTxt}\n➕ รับเข้า: ${stockQty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${costPrice.toLocaleString()}\n📊 คงเหลือ: ${stockQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
+      sendLinePush(msg, 'restock').catch(() => {});
     }
     setLoading(false);
     notify('เพิ่มอะไหล่สำเร็จ • ' + form.name);

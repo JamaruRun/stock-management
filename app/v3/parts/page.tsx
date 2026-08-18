@@ -13,6 +13,7 @@ import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getGradeInfo } from '@/
 import PartAddModal from './PartAddModal';
 import PartSellModal from './PartSellModal';
 import PartEditModal from './PartEditModal';
+import PartRepairModal from './PartRepairModal';
 
 interface PartItem {
   id: string;
@@ -46,6 +47,7 @@ export default function V3PartsPage() {
   const sp = useSearchParams();
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
+  const [showRepair, setShowRepair] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [viewItem, setViewItem] = useState<any>(null);
   const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
@@ -210,6 +212,9 @@ export default function V3PartsPage() {
           <button onClick={() => setShowSell(true)} className="v3-btn v3-btn-secondary" style={{ border: 'none', cursor: 'pointer' }}>
             <ShoppingCart size={16} /> ขาย
           </button>
+          <button onClick={() => setShowRepair(true)} className="v3-btn v3-btn-secondary" style={{ border: 'none', cursor: 'pointer' }}>
+            <Wrench size={16} /> ซ่อม
+          </button>
           <button onClick={() => setShowAdd(true)} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
             <Plus size={16} strokeWidth={2.5} /> เพิ่มอะไหล่
           </button>
@@ -257,6 +262,17 @@ export default function V3PartsPage() {
             cursor: 'pointer',
           }}>
             <ShoppingCart size={18} />
+          </button>
+          <button onClick={() => setShowRepair(true)} style={{
+            width: 40, height: 40,
+            borderRadius: 10,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}>
+            <Wrench size={18} />
           </button>
           <button onClick={() => setShowAdd(true)} style={{
             width: 40, height: 40,
@@ -490,6 +506,9 @@ export default function V3PartsPage() {
       )}
       {showSell && (
         <PartSellModal onClose={() => setShowSell(false)} onSuccess={() => { setShowSell(false); load(); }} />
+      )}
+      {showRepair && (
+        <PartRepairModal onClose={() => setShowRepair(false)} onSuccess={() => { setShowRepair(false); load(); }} />
       )}
       {editItem && (
         <PartEditModal item={editItem} onClose={() => setEditItem(null)} onSuccess={() => { setEditItem(null); load(); }} />
