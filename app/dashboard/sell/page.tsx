@@ -6,6 +6,7 @@ import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ReceiptPDF from '@/components/ReceiptPDF';
 import { sendLineNotify } from '@/lib/line-notify';
+import { computeBusinessDate, getShopCutoffTime } from '@/lib/business-date';
 
 export default function SellPage() {
   const supabase = createClient();
@@ -99,6 +100,9 @@ export default function SellPage() {
     const { data: profileWithShop } = await supabase
       .from('profiles').select('full_name, shop_id').eq('id', user.id).single();
 
+    const cutoffTime = await getShopCutoffTime(supabase, profileWithShop?.shop_id);
+    const businessDate = computeBusinessDate(new Date(), cutoffTime);
+
     const { error: insertError } = await supabase.from('sales_history').insert({
       imei: foundItem.imei,
       model: foundItem.model,
@@ -116,6 +120,7 @@ export default function SellPage() {
       sold_by: user.id,
       sold_by_name: profileWithShop?.full_name,
       sold_date: new Date().toISOString().split('T')[0],
+      business_date: businessDate,
       branch_id: foundItem.branch_id,
       device_condition: foundItem.device_condition,
       payment_type: paymentType,

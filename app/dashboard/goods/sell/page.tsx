@@ -6,6 +6,7 @@ import Toast from '@/components/Toast';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ReceiptPDF from '@/components/ReceiptPDF';
 import { sendLineNotify } from '@/lib/line-notify';
+import { computeBusinessDate, getShopCutoffTime } from '@/lib/business-date';
 
 interface CartItem {
   goods_id: string;
@@ -166,7 +167,9 @@ export default function SellGoodsPage() {
     // กระจายส่วนลดตามสัดส่วนของแต่ละชิ้น (เพื่อให้ subtotal รวมตรง)
     const receiptId = crypto.randomUUID();
     const totalQty = cart.reduce((s, c) => s + c.quantity, 0);
-    
+    const cutoffTime = await getShopCutoffTime(supabase, profile.shop_id);
+    const businessDate = computeBusinessDate(new Date(), cutoffTime);
+
     const sales = cart.map(c => {
       const itemSubtotal = c.unit_price * c.quantity;
       const itemDiscount = subtotal > 0 ? (discountValue * itemSubtotal / subtotal) : 0;
@@ -184,6 +187,7 @@ export default function SellGoodsPage() {
         sold_by: user.id,
         sold_by_name: profile?.full_name,
         sold_date: new Date().toISOString().split('T')[0],
+        business_date: businessDate,
         branch_id: profile.branch_id,
         shop_id: profile.shop_id,
       };

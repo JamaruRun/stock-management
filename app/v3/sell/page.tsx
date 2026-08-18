@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ReceiptPDF from '@/components/ReceiptPDF';
 import { sendLineNotify } from '@/lib/line-notify';
+import { computeBusinessDate, getShopCutoffTime } from '@/lib/business-date';
 import {
   Search, ShoppingCart, Smartphone, Barcode, X,
   Wallet, ArrowRightLeft, CreditCard, Calendar, Printer,
@@ -162,6 +163,8 @@ function V3SellContent() {
     try {
       const costPrice = Number(item.cost_price) || 0;
       const profit = finalPrice - costPrice;
+      const cutoffTime = await getShopCutoffTime(supabase, profile.shop_id);
+      const businessDate = computeBusinessDate(new Date(), cutoffTime);
 
       const { error: insertError } = await supabase.from('sales_history').insert({
         imei: item.imei,
@@ -180,6 +183,7 @@ function V3SellContent() {
         sold_by: profile.id,
         sold_by_name: profile.full_name,
         sold_date: new Date().toISOString().split('T')[0],
+        business_date: businessDate,
         branch_id: item.branch_id,
         device_condition: item.device_condition,
         payment_type: paymentType === 'installment' ? 'installment' : 'cash',

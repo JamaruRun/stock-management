@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { sendLineNotify } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import { getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
 import {
   ShoppingCart, X, Search, Plus, Minus, Trash2, Tag, Wrench,
@@ -150,6 +151,12 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
     const discountTxt = discountValue > 0 ? `\nส่วนลด: -฿${discountValue.toLocaleString()}` : '';
     const lineMsg = `🛒 ขายอะไหล่\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━${discountTxt}\n💵 ยอดสุทธิ: ฿${total.toLocaleString()}`;
     sendLineNotify(lineMsg, 'sale').catch(() => {});
+
+    syncLedgerEntry(supabase, {
+      shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_sold',
+      amount: total, description: `ขายอะไหล่ ${cart.map(c => c.name).join(', ')} - ${total.toLocaleString()} บาท`,
+      userId: user.id, userName: profile.full_name,
+    });
 
     setSubmitting(false);
     setDone({ items: [...cart], subtotal, discount: discountValue, total });

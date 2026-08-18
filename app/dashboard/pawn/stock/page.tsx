@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import ImportExcel from '@/components/ImportExcel';
 import { sendLineNotify } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import PatternLockPad from '@/components/PatternLockPad';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -388,6 +389,14 @@ export default function PawnStockPage() {
     // 🔔 LINE Notify
     const lineMsg = `🔄 ต่อดอกจำนำ\n━━━━━━━━━━━━━\n📦 ${renewing.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${renewing.customer_name}\n💰 ดอกเบี้ยที่จ่าย: ฿${interestPaid.toLocaleString()}\n📅 ครบกำหนดใหม่: ${newDueStr}\n🔢 ต่อมาแล้ว: ${(renewing.renew_count || 0) + 1} ครั้ง`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
+
+    if (interestPaid > 0) {
+      syncLedgerEntry(supabase, {
+        shopId: profile.shop_id, branchId: renewing.branch_id, sourceEvent: 'pawn_interest',
+        amount: interestPaid, description: `ต่อดอก ${renewing.model} - ${interestPaid.toLocaleString()} บาท`,
+        userId: user.id, userName: profile.full_name,
+      });
+    }
 
     setRenewing(null);
     setRenewForm({ interestPaid: '', note: '', newDueDate: '' });

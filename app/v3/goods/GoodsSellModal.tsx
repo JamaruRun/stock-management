@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ReceiptPDF from '@/components/ReceiptPDF';
 import { sendLineNotify } from '@/lib/line-notify';
+import { computeBusinessDate, getShopCutoffTime } from '@/lib/business-date';
 import {
   ShoppingCart, X, ScanLine, Search, Plus, Minus, Trash2, Tag,
   Loader2, CheckCircle2, AlertCircle, Receipt, Package, Printer,
@@ -101,6 +102,8 @@ export default function GoodsSellModal({ onClose, onSuccess }: Props) {
     if (!user) { setSubmitting(false); return; }
 
     const receiptId = crypto.randomUUID();
+    const cutoffTime = await getShopCutoffTime(supabase, profile.shop_id);
+    const businessDate = computeBusinessDate(new Date(), cutoffTime);
     const sales = cart.map(c => {
       const itemSubtotal = c.unit_price * c.quantity;
       const itemDiscount = subtotal > 0 ? (discountValue * itemSubtotal / subtotal) : 0;
@@ -108,6 +111,7 @@ export default function GoodsSellModal({ onClose, onSuccess }: Props) {
         receipt_id: receiptId, goods_id: c.goods_id, sku: c.sku, name: c.name, category: c.category || null,
         unit_price: c.unit_price, quantity: c.quantity, subtotal: Number((itemSubtotal - itemDiscount).toFixed(2)),
         sold_by: user.id, sold_by_name: profile?.full_name, sold_date: new Date().toISOString().split('T')[0],
+        business_date: businessDate,
         branch_id: profile.branch_id, shop_id: profile.shop_id,
       };
     });

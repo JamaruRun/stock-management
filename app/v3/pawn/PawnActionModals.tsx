@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { sendLineNotify } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import PatternLockPad from '@/components/PatternLockPad';
 import {
   RotateCcw, RefreshCw, X, Smartphone, User, Coins, Calendar,
@@ -200,6 +201,14 @@ export function PawnRenewModal({ item, onClose, onSuccess }: any) {
 
     const lineMsg = `🔄 ต่อดอกจำนำ\n━━━━━━━━━━━━━\n📦 ${item.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${item.customer_name}\n💰 ดอกเบี้ยที่จ่าย: ฿${paid.toLocaleString()}\n📅 ครบกำหนดใหม่: ${newDueStr}\n🔢 ต่อมาแล้ว: ${(item.renew_count || 0) + 1} ครั้ง`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
+
+    if (paid > 0) {
+      syncLedgerEntry(supabase, {
+        shopId: profile?.shop_id, branchId: item.branch_id, sourceEvent: 'pawn_interest',
+        amount: paid, description: `ต่อดอก ${item.model} - ${paid.toLocaleString()} บาท`,
+        userId: user.id, userName: profile?.full_name,
+      });
+    }
 
     setLoading(false);
     notify('ต่อดอกสำเร็จ');

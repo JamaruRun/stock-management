@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { sendLineNotify } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import PatternLockPad from '@/components/PatternLockPad';
 import {
   Coins, X, Smartphone, User, Phone, Calendar,
@@ -146,6 +147,12 @@ export default function PawnAddModal({ onClose, onSuccess }: Props) {
     }
 
     setLoading(false);
+
+    syncLedgerEntry(supabase, {
+      shopId: profileWithShop?.shop_id, branchId: form.branchId, sourceEvent: 'pawn_add',
+      amount: parseFloat(form.pawnPrice), description: `รับจำนำ ${form.model} - ${parseFloat(form.pawnPrice).toLocaleString()} บาท`,
+      userId: user.id, userName: profile.full_name,
+    });
 
     const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';
     const lineMsg = `💰 รับจำนำเครื่องใหม่\n━━━━━━━━━━━━━\n📦 ${form.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${form.customerName}${phoneTxt}\n💵 ราคารับจำนำ: ฿${parseFloat(form.pawnPrice).toLocaleString()}\n📅 ครบกำหนด: ${dueDateStr}\n👨‍💼 รับโดย: ${profile.full_name}`;

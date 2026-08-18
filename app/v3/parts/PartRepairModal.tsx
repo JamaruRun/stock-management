@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { sendLinePush } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import {
   Wrench, X, Search, Plus, Minus, Trash2, DollarSign, Tag, Smartphone,
   Loader2, CheckCircle2, AlertCircle, Save,
@@ -148,6 +149,12 @@ export default function PartRepairModal({ onClose, onSuccess }: Props) {
     const discountTxt = discountNum > 0 ? `\nส่วนลด: -฿${discountNum.toLocaleString()}` : '';
     const lineMsg = `🛠️ ซ่อมด่วน (ตัดสต็อคตรง)\n━━━━━━━━━━━━━\n📱 รุ่นเครื่อง: ${deviceModel}\n💲 ราคาที่คิด: ${priceLabel}\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━\nค่าอะไหล่: ฿${partsTotal.toLocaleString()}\nค่าแรง: ฿${laborCostNum.toLocaleString()}${discountTxt}\n💵 ยอดรวม: ฿${total.toLocaleString()}`;
     sendLinePush(lineMsg, 'repair_log').catch(() => {});
+
+    syncLedgerEntry(supabase, {
+      shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_repair_used',
+      amount: total, description: `ซ่อมด่วน ${deviceModel} - ${total.toLocaleString()} บาท`,
+      userId: user.id, userName: profile.full_name,
+    });
 
     setSubmitting(false);
     setDone({ items: [...items], deviceModel, priceType, partsTotal, laborCost: laborCostNum, discount: discountNum, total });

@@ -9,6 +9,7 @@ const TYPE_TOGGLE_MAP: Record<string, string> = {
   parts_low: 'line_notify_parts_low',
   restock: 'line_notify_restock',
   repair_log: 'line_notify_repair_log',
+  ledger_cutoff: 'line_notify_ledger_cutoff',
 };
 
 /**

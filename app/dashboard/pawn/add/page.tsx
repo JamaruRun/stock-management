@@ -7,6 +7,7 @@ import Toast from '@/components/Toast';
 import PatternLockPad from '@/components/PatternLockPad';
 import { Eye, EyeOff } from 'lucide-react';
 import { sendLineNotify } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 
 export default function AddPawnPage() {
   const supabase = createClient();
@@ -158,6 +159,12 @@ export default function AddPawnPage() {
 
     setLoading(false);
     showToast('รับจำนำสำเร็จ', `${form.model} • ฿${parseFloat(form.pawnPrice).toLocaleString()}`);
+
+    syncLedgerEntry(supabase, {
+      shopId: profileWithShop?.shop_id, branchId: form.branchId, sourceEvent: 'pawn_add',
+      amount: parseFloat(form.pawnPrice), description: `รับจำนำ ${form.model} - ${parseFloat(form.pawnPrice).toLocaleString()} บาท`,
+      userId: user.id, userName: profile.full_name,
+    });
 
     // 🔔 LINE Notify
     const phoneTxt = form.customerPhone ? `\n📞 ${form.customerPhone}` : '';

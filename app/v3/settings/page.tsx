@@ -9,18 +9,20 @@ import {
   KeyRound, Mail, Phone, MapPin, FileText, Hash,
   Image as ImageIcon, MessageSquare, Moon, Sun, Smartphone as Phone2,
   LogOut, AlertCircle, Loader2, UserPlus, QrCode, Copy,
-  Users, Link2, Unlink, Send, ChevronDown,
+  Users, Link2, Unlink, Send, ChevronDown, Wallet, Clock,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { sendLineNotify } from '@/lib/line-notify';
+import { DEFAULT_SYNC_RULES } from '@/lib/ledger-sync';
 
-type TabId = 'profile' | 'shop' | 'theme' | 'notify';
+type TabId = 'profile' | 'shop' | 'theme' | 'notify' | 'ledger';
 
 const TABS: { id: TabId; label: string; Icon: any; color: string }[] = [
   { id: 'profile', label: 'โปรไฟล์', Icon: User, color: '#3b82f6' },
   { id: 'shop', label: 'ข้อมูลร้าน', Icon: Building2, color: '#22c55e' },
   { id: 'theme', label: 'ธีม', Icon: Palette, color: '#8b5cf6' },
   { id: 'notify', label: 'แจ้งเตือน', Icon: Bell, color: '#f59e0b' },
+  { id: 'ledger', label: 'รายรับ-รายจ่าย', Icon: Wallet, color: '#16a34a' },
 ];
 
 const THEMES = [
@@ -69,6 +71,11 @@ export default function V3SettingsPage() {
     pawn_summary_interval: 'off',
   });
 
+  // Ledger (รายรับ-รายจ่าย)
+  const [cutoffTime, setCutoffTime] = useState('00:00');
+  const [syncRules, setSyncRules] = useState<any[]>([]);
+  const [savingLedger, setSavingLedger] = useState(false);
+
   async function loadData() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -115,6 +122,17 @@ export default function V3SettingsPage() {
             pawn_forfeit_after_cycles: s.pawn_forfeit_after_cycles ?? 3,
             pawn_summary_interval: s.pawn_summary_interval || 'off',
           });
+          setCutoffTime((s.daily_cutoff_time || '00:00').slice(0, 5));
+        }
+
+        const { data: rules } = await supabase.from('ledger_sync_rules').select('*').eq('shop_id', p.shop_id);
+        if (rules && rules.length > 0) {
+          setSyncRules(rules);
+        } else {
+          const { data: inserted } = await supabase.from('ledger_sync_rules')
+            .insert(DEFAULT_SYNC_RULES.map((r) => ({ shop_id: p.shop_id, ...r })))
+            .select();
+          setSyncRules(inserted || []);
         }
       }
 
@@ -162,6 +180,23 @@ export default function V3SettingsPage() {
     if (error) { alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
     alert('บันทึกการแจ้งเตือน LINE สำเร็จ ✓');
     loadData();
+  }
+
+  async function handleSaveCutoff() {
+    if (!shop?.id) return;
+    setSavingLedger(true);
+    const { error } = await supabase.from('shops').update({ daily_cutoff_time: cutoffTime }).eq('id', shop.id);
+    setSavingLedger(false);
+    if (error) { alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
+    alert('บันทึกเวลาตัดรอบวันบัญชีสำเร็จ ✓ (มีผลกับรายการใหม่เท่านั้น ไม่กระทบรายการเก่า)');
+    loadData();
+  }
+
+  async function handleUpdateSyncRule(rule: any, changes: Partial<{ enabled: boolean; entry_type: string }>) {
+    const updated = { ...rule, ...changes };
+    setSyncRules((prev) => prev.map((r) => (r.id === rule.id ? updated : r)));
+    const { error } = await supabase.from('ledger_sync_rules').update(changes).eq('id', rule.id);
+    if (error) { alert('บันทึกไม่สำเร็จ: ' + error.message); loadData(); }
   }
 
   function handleChangeTheme(themeId: string) {
@@ -267,6 +302,17 @@ export default function V3SettingsPage() {
               onSave={handleSaveLine}
               isAdmin={isAdmin}
               reload={loadData}
+            />
+          )}
+          {activeTab === 'ledger' && (
+            <LedgerSettingsTab
+              cutoffTime={cutoffTime}
+              setCutoffTime={setCutoffTime}
+              onSaveCutoff={handleSaveCutoff}
+              savingLedger={savingLedger}
+              syncRules={syncRules}
+              onUpdateRule={handleUpdateSyncRule}
+              isAdmin={isAdmin}
             />
           )}
         </div>
@@ -823,6 +869,75 @@ function ThemeTab({ current, onChange }: any) {
 /* =========================
    Notify Tab
 ========================= */
+
+function LedgerSettingsTab({ cutoffTime, setCutoffTime, onSaveCutoff, savingLedger, syncRules, onUpdateRule, isAdmin }: any) {
+  if (!isAdmin) {
+    return (
+      <div className="v3-card" style={{ padding: 40, textAlign: 'center' }}>
+        <AlertCircle size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>ต้องเป็นแอดมินเท่านั้น</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="v3-card" style={{ padding: 20 }}>
+      <SectionTitle Icon={Clock} label="เวลาตัดรอบวันบัญชี" color="#16a34a" />
+      <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
+        รายการที่เกิดหลังเวลานี้ของวัน จะนับเป็นวันบัญชีถัดไป (เช่น ตั้ง 21:00 แล้วมีรายการตอน 22:00 ของวันที่ 18 จะนับเป็นวันบัญชีที่ 19) — เปลี่ยนแล้วมีผลกับรายการใหม่เท่านั้น ไม่กระทบยอดเก่าที่บันทึกไปแล้ว
+      </p>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+        <input
+          type="time"
+          value={cutoffTime}
+          onChange={(e) => setCutoffTime(e.target.value)}
+          style={{ height: 42, padding: '0 12px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+        />
+        <button
+          onClick={onSaveCutoff}
+          disabled={savingLedger}
+          style={{
+            padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+            color: '#fff', background: savingLedger ? 'var(--surface-2)' : 'linear-gradient(135deg, #16a34a, #15803d)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >{savingLedger ? <Loader2 size={15} className="v3-spin" /> : <Save size={15} />} บันทึก</button>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <SectionTitle Icon={Wallet} label="เชื่อมข้อมูลอัตโนมัติเข้าสมุดรายรับ-รายจ่าย" color="#16a34a" />
+        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12 }}>
+          เปิดไว้เพื่อให้ธุรกรรมเหล่านี้บันทึกลงสมุดรายรับ-รายจ่ายอัตโนมัติ ปิดได้ถ้าไม่ต้องการนับรวม หรือเปลี่ยนได้ว่านับเป็นรายรับ/รายจ่าย
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {syncRules.map((rule: any) => (
+            <div key={rule.id} style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 10 }}>
+              <div
+                onClick={() => onUpdateRule(rule, { enabled: !rule.enabled })}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{rule.label}</div>
+                <Toggle checked={rule.enabled} />
+              </div>
+              {rule.enabled && (
+                <select
+                  value={rule.entry_type}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => onUpdateRule(rule, { entry_type: e.target.value })}
+                  style={{ marginTop: 10, width: '100%', height: 38, padding: '0 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', outline: 'none' }}
+                >
+                  <option value="income">นับเป็นรายรับ</option>
+                  <option value="expense">นับเป็นรายจ่าย</option>
+                  <option value="none">ไม่บันทึก</option>
+                </select>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function NotifyTab({ shop, profile, form, setForm, saving, onSave, isAdmin, reload }: any) {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);

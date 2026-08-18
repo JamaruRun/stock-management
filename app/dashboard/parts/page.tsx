@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
 import { sendLinePush } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import LabelPrint30x20 from '@/components/LabelPrint30x20';
 
 interface Part {
@@ -23,6 +24,7 @@ interface Part {
   sku?: string;
   note?: string;
   added_by_name?: string;
+  branch_id?: string;
   suppliers?: { name: string } | null;
 }
 
@@ -197,6 +199,11 @@ export default function PartsPage() {
       const modelsTxt = (modelsByPart[adjusting.id]?.join(' / ')) || adjusting.phone_model || 'ทั่วไป';
       const msg = `📦 รับอะไหล่เข้าสต็อค\n━━━━━━━━━━━━━\n🔧 ${adjusting.name}\n🔖 ${codeTxt}\n📱 ${modelsTxt}\n➕ รับเข้า: ${qty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${Number(adjusting.cost_price).toLocaleString()}\n📊 คงเหลือ: ${newQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
       sendLinePush(msg, 'restock').catch(() => {});
+      syncLedgerEntry(supabase, {
+        shopId: profile.shop_id, branchId: adjusting.branch_id, sourceEvent: 'parts_stock_in',
+        amount: Number(adjusting.cost_price) * qty, description: `รับอะไหล่ ${adjusting.name} เข้าสต็อค ${qty} ชิ้น`,
+        userId: profile.id, userName: profile.full_name,
+      });
     }
 
     // 🔔 LINE: ถ้าสต๊อกตกถึง alert level → แจ้งเตือน

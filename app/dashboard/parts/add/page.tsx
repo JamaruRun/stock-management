@@ -8,6 +8,7 @@ import Toast from '@/components/Toast';
 import { PART_CATEGORIES, PART_GRADES, getCategoryPlainLabel } from '@/lib/parts-constants';
 import { saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility';
 import { sendLinePush } from '@/lib/line-notify';
+import { syncLedgerEntry } from '@/lib/ledger-sync';
 import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
 
 export default function AddPartPage() {
@@ -174,6 +175,11 @@ export default function AddPartPage() {
       const modelsTxt = compatRows.length > 0 ? compatRows.map(r => r.model_name).join(' / ') : 'ทั่วไป';
       const msg = `📦 รับอะไหล่เข้าสต็อค\n━━━━━━━━━━━━━\n🔧 ${form.name.trim()}\n🔖 ${codeTxt}\n📱 ${modelsTxt}\n➕ รับเข้า: ${stockQty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${costPrice.toLocaleString()}\n📊 คงเหลือ: ${stockQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
       sendLinePush(msg, 'restock').catch(() => {});
+      syncLedgerEntry(supabase, {
+        shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_stock_in',
+        amount: costPrice * stockQty, description: `รับอะไหล่ ${form.name.trim()} เข้าสต็อค ${stockQty} ชิ้น`,
+        userId: profile.id, userName: profile.full_name,
+      });
     }
 
     showToast('เพิ่มอะไหล่สำเร็จ', form.name);
