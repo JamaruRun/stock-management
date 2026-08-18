@@ -54,15 +54,30 @@
 - tab **"Messaging API"** → scroll ลงสุด
 - **Channel access token (long-lived)** → กด **"Issue"** → copy
   - → `LINE_MESSAGING_CHANNEL_TOKEN`
+- tab **"Basic settings"** ของ Messaging API channel (คนละอันกับ LINE Login channel) → copy:
+  - **Channel secret** → `LINE_MESSAGING_CHANNEL_SECRET` (ใช้ตรวจลายเซ็นของ webhook กันคนยิง event ปลอมเข้ามา)
+
+## 📋 ขั้นที่ 5.5: เปิด Webhook (จำเป็นสำหรับฟีเจอร์ Group ID + ถามข้อมูลผ่าน LINE)
+
+1. เข้า Messaging API channel → tab **"Messaging API"**
+2. ที่ **Webhook settings** → **Webhook URL** ใส่:
+   ```
+   https://your-domain.com/api/line/webhook
+   ```
+3. กด **Verify** (ต้องได้ Success — ถ้า fail เช็คว่า deploy โดเมนนี้แล้วหรือยัง)
+4. เปิด **"Use webhook"** เป็น ON
+5. ปิด **"Auto-reply messages"** และ **"Greeting messages"** เป็น OFF (กันชนกับข้อความที่บอทตอบเอง)
 
 ## 📋 ขั้นที่ 6: ใส่ใน Vercel
 
 1. ไป Vercel → Project → **Settings** → **Environment Variables**
-2. เพิ่ม 3 ตัวแปร:
+2. เพิ่ม 5 ตัวแปร:
    ```
    LINE_LOGIN_CHANNEL_ID = 1234567890
    LINE_LOGIN_CHANNEL_SECRET = abcdef...
    LINE_MESSAGING_CHANNEL_TOKEN = YOUR_TOKEN_HERE
+   LINE_MESSAGING_CHANNEL_SECRET = YOUR_MESSAGING_CHANNEL_SECRET_HERE
+   GEMINI_API_KEY = YOUR_GEMINI_KEY_HERE
    ```
 3. กด **Save**
 4. ไป tab **Deployments** → redeploy ล่าสุด
@@ -77,6 +92,15 @@
 6. กด **"ทดสอบ"** → ดูใน LINE ของคุณ ✅
 
 ---
+
+## 🤖 ถามข้อมูลรายรับ-รายจ่ายผ่าน LINE
+
+หลังตั้งค่า Webhook + `GEMINI_API_KEY` แล้ว แอดมินที่กด "เชื่อม LINE" ไว้แล้วสามารถทัก **1:1 หา LINE OA** ถามข้อมูลได้เลย เช่น:
+- "รายรับรายจ่ายวันที่ 17"
+- "สรุปเดือนนี้"
+- "เมื่อวานได้เท่าไหร่"
+
+บอทจะดึงตัวเลขจริงจากฐานข้อมูล (ไม่ใช่ AI เดา/สรุปตัวเลขเอง) แล้วตอบกลับทันทีแบบไม่เสียค่า push message เลย (ใช้ LINE reply message ซึ่งฟรีไม่จำกัด) — สมัคร Gemini API key ฟรีได้ที่ https://aistudio.google.com/apikey
 
 ## 🛡️ Security Notes
 
