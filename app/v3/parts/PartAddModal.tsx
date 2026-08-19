@@ -20,7 +20,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
     name: '', category: 'battery', grade: 'oem',
     cost_price: '', wholesale_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '2',
-    supplier_id: '', sku: '', note: '',
+    supplier_id: '', sku: '', note: '', battery_model: '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
   const [customPrices, setCustomPrices] = useState<CustomPriceRow[]>([]);
@@ -105,6 +105,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
       sell_price: parseFloat(form.sell_price) || 0,
       stock_qty: stockQty, low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
+      battery_model: form.category === 'battery' ? (form.battery_model.trim() || null) : null,
       added_by: profile.id, added_by_name: profile.full_name,
     }).select().single();
 
@@ -117,8 +118,10 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
       );
     }
 
+    let compatErrors: string[] = [];
     if (compatRows.length > 0) {
-      const resolved = await saveCompatibilityRows(supabase, newPart.id, compatRows);
+      const { resolved, errors } = await saveCompatibilityRows(supabase, newPart.id, compatRows);
+      compatErrors = errors;
       const first = resolved[0];
       if (first) {
         await supabase.from('parts').update({
@@ -149,7 +152,8 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
       });
     }
     setLoading(false);
-    notify('เพิ่มอะไหล่สำเร็จ • ' + form.name);
+    if (compatErrors.length > 0) notify('เพิ่มอะไหล่สำเร็จ แต่ ' + compatErrors.join('; '), false);
+    else notify('เพิ่มอะไหล่สำเร็จ • ' + form.name);
     setTimeout(() => onSuccess(), 900);
   }
 
@@ -180,6 +184,9 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
                 </Sel>
               </F>
             </div>
+            {form.category === 'battery' && (
+              <F label="รุ่น/รหัสแบตเตอรี่"><Inp Icon={Tag} value={form.battery_model} onChange={(v: string) => setForm({ ...form, battery_model: v })} placeholder="เช่น APN 616-00259 (ไม่บังคับ ช่วยให้ AI ค้นหาเจอ)" /></F>
+            )}
           </div>
 
           <div>

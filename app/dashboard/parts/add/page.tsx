@@ -146,8 +146,10 @@ export default function AddPartPage() {
       return;
     }
 
+    let compatErrors: string[] = [];
     if (compatRows.length > 0) {
-      const resolved = await saveCompatibilityRows(supabase, newPart.id, compatRows);
+      const { resolved, errors } = await saveCompatibilityRows(supabase, newPart.id, compatRows);
+      compatErrors = errors;
       const first = resolved[0];
       if (first) {
         await supabase.from('parts').update({
@@ -182,7 +184,8 @@ export default function AddPartPage() {
       });
     }
 
-    showToast('เพิ่มอะไหล่สำเร็จ', form.name);
+    if (compatErrors.length > 0) showToast('เพิ่มอะไหล่สำเร็จ', 'แต่ ' + compatErrors.join('; '), 'danger');
+    else showToast('เพิ่มอะไหล่สำเร็จ', form.name);
     setTimeout(() => router.push('/dashboard/parts'), 800);
   }
 

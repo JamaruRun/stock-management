@@ -21,6 +21,7 @@ interface PartItem {
   name: string;
   category: string;
   phone_model: string;
+  battery_model?: string | null;
   grade?: string | null;
   cost_price?: number | null;
   wholesale_price?: number | null;
@@ -172,6 +173,7 @@ export default function V3PartsPage() {
         const matchesCompat = compatModels.some(m => m.toLowerCase().includes(s));
         if (!i.name.toLowerCase().includes(s) &&
             !i.phone_model.toLowerCase().includes(s) &&
+            !(i.battery_model || '').toLowerCase().includes(s) &&
             !matchesCompat &&
             !(i.sku || '').toLowerCase().includes(s)) return false;
       }
@@ -902,6 +904,7 @@ function PartDetailModal({ item, isAdmin, onClose, onEdit }: any) {
 
           <DetailRow label="คงเหลือ" value={`${item.stock_qty} ชิ้น`} />
           <DetailRow label="เตือนเมื่อเหลือ" value={`${item.low_stock_alert ?? 2} ชิ้น`} />
+          {item.battery_model && <DetailRow label="รุ่น/รหัสแบตเตอรี่" value={<span style={{ fontFamily: 'monospace' }}>{item.battery_model}</span>} />}
           {item.sku && <DetailRow label="SKU" value={<span style={{ fontFamily: 'monospace' }}>{item.sku}</span>} />}
           {supplierName && <DetailRow label="ซัพพลายเออร์" value={supplierName} />}
           {item.note && <DetailRow label="หมายเหตุ" value={item.note} />}

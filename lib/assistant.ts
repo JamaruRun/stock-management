@@ -135,10 +135,10 @@ function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => st
 
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
   const { data: allParts } = await supabase.from('parts')
-    .select('id, name, sku, phone_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
+    .select('id, name, sku, phone_model, battery_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
     .eq('shop_id', shopId);
-  // เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่องปนกัน (เช่น "หน้าจอ oppo a18")
-  const data = matchByWords(allParts || [], keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.sku || ''}`).slice(0, 10);
+  // เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + รุ่นแบต + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบตปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259")
+  const data = matchByWords(allParts || [], keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.battery_model || ''} ${p.sku || ''}`).slice(0, 10);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
   }
@@ -158,7 +158,7 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     ].filter(Boolean).join(' · ');
     const qty = Number(p.stock_qty || 0);
     const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `คงเหลือ ${qty} ชิ้น`;
-    return `🔧 ${p.name}${p.phone_model ? ` - ${p.phone_model}` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
+    return `🔧 ${p.name}${p.phone_model ? ` - ${p.phone_model}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
   return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }

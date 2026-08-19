@@ -48,7 +48,7 @@ export default function PartSellModal({ onClose, onSuccess }: Props) {
     setSearching(true);
     const t = setTimeout(async () => {
       const { data: direct } = await supabase.from('parts').select('*')
-        .or(`name.ilike.%${q}%,phone_model.ilike.%${q}%,sku.ilike.%${q}%`).gt('stock_qty', 0).limit(8);
+        .or(`name.ilike.%${q}%,phone_model.ilike.%${q}%,battery_model.ilike.%${q}%,sku.ilike.%${q}%`).gt('stock_qty', 0).limit(8);
 
       const { data: models } = await supabase.from('device_models').select('id').ilike('model_name', `%${q}%`).limit(20);
       const modelIds = (models || []).map((m: any) => m.id);

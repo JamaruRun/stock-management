@@ -113,7 +113,7 @@ function EditPartContent() {
 
     setSaving(true);
 
-    const resolved = compatRows.length > 0 ? await saveCompatibilityRows(supabase, partId, compatRows) : [];
+    const { resolved, errors: compatErrors } = await saveCompatibilityRows(supabase, partId, compatRows);
     const first = resolved[0];
 
     const { error } = await supabase
@@ -139,7 +139,8 @@ function EditPartContent() {
       return;
     }
 
-    showToast('บันทึกสำเร็จ', '');
+    if (compatErrors.length > 0) showToast('บันทึกสำเร็จ', 'แต่ ' + compatErrors.join('; '), 'danger');
+    else showToast('บันทึกสำเร็จ', '');
     setTimeout(() => router.push('/dashboard/parts'), 600);
   }
 

@@ -22,6 +22,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
     sell_price: String(item.sell_price ?? ''),
     low_stock_alert: String(item.low_stock_alert ?? '2'),
     supplier_id: item.supplier_id || '', sku: item.sku || '', note: item.note || '',
+    battery_model: item.battery_model || '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
   const [customPrices, setCustomPrices] = useState<CustomPriceRow[]>([]);
@@ -42,7 +43,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
     if (!form.name.trim()) return notify('กรอกชื่ออะไหล่', false);
     setLoading(true);
 
-    const resolved = compatRows.length > 0 ? await saveCompatibilityRows(supabase, item.id, compatRows) : [];
+    const { resolved, errors: compatErrors } = await saveCompatibilityRows(supabase, item.id, compatRows);
     const first = resolved[0];
 
     const { error } = await supabase.from('parts').update({
@@ -54,6 +55,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
       sell_price: first ? (parseFloat(first.sell_price) || 0) : (parseFloat(form.sell_price) || 0),
       low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
+      battery_model: form.category === 'battery' ? (form.battery_model.trim() || null) : null,
     }).eq('id', item.id);
 
     // sync ราคาเพิ่มเติมแบบกำหนดเอง - ลบของเดิมแล้วใส่ชุดปัจจุบันใหม่ทั้งหมด (จำนวนแถวน้อย ไม่ต้อง diff ให้ซับซ้อน)
@@ -67,7 +69,8 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
 
     setLoading(false);
     if (error) return notify('บันทึกไม่สำเร็จ: ' + error.message, false);
-    notify('บันทึกแล้ว');
+    if (compatErrors.length > 0) notify('บันทึกแล้ว แต่ ' + compatErrors.join('; '), false);
+    else notify('บันทึกแล้ว');
     setTimeout(() => onSuccess(), 800);
   }
 
@@ -96,6 +99,9 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
               </Sel>
             </F>
           </div>
+          {form.category === 'battery' && (
+            <F label="รุ่น/รหัสแบตเตอรี่"><Inp Icon={Tag} value={form.battery_model} onChange={(v: string) => setForm({ ...form, battery_model: v })} placeholder="เช่น APN 616-00259 (ไม่บังคับ ช่วยให้ AI ค้นหาเจอ)" /></F>
+          )}
           <div style={g3}>
             <F label="ราคาทุน (฿)"><Inp Icon={DollarSign} type="number" value={form.cost_price} onChange={(v: string) => setForm({ ...form, cost_price: v })} placeholder="0" /></F>
             <F label="ราคาส่ง (฿)"><Inp Icon={DollarSign} type="number" value={form.wholesale_price} onChange={(v: string) => setForm({ ...form, wholesale_price: v })} placeholder="0" /></F>
