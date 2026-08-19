@@ -948,6 +948,9 @@ function NotifyTab({ shop, profile, form, setForm, saving, onSave, isAdmin, relo
   const [disconnecting, setDisconnecting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [messengerCode, setMessengerCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [disconnectingMessenger, setDisconnectingMessenger] = useState(false);
 
   // แสดงผลกลับจาก LINE OAuth (?line=connected/cancelled/error) แล้วล้าง URL
   useEffect(() => {
@@ -988,6 +991,29 @@ function NotifyTab({ shop, profile, form, setForm, saving, onSave, isAdmin, relo
       else notify('ยกเลิกไม่สำเร็จ: ' + (data.error || ''), false);
     } catch (e: any) { notify('เกิดข้อผิดพลาด: ' + e.message, false); }
     finally { setDisconnecting(false); }
+  }
+
+  async function handleGenerateMessengerCode() {
+    setGeneratingCode(true);
+    try {
+      const res = await fetch('/api/messenger/link-code', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) setMessengerCode(data.code);
+      else notify('สร้างโค้ดไม่สำเร็จ: ' + (data.error || ''), false);
+    } catch (e: any) { notify('เกิดข้อผิดพลาด: ' + e.message, false); }
+    finally { setGeneratingCode(false); }
+  }
+
+  async function handleDisconnectMessenger() {
+    if (!confirm('ยกเลิกการเชื่อม Messenger?')) return;
+    setDisconnectingMessenger(true);
+    try {
+      const res = await fetch('/api/messenger/link-code', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { notify('ยกเลิกการเชื่อมแล้ว'); setMessengerCode(null); reload?.(); }
+      else notify('ยกเลิกไม่สำเร็จ: ' + (data.error || ''), false);
+    } catch (e: any) { notify('เกิดข้อผิดพลาด: ' + e.message, false); }
+    finally { setDisconnectingMessenger(false); }
   }
 
   function handleConnectLine() { window.location.href = '/api/line/login'; }
@@ -1178,6 +1204,58 @@ function NotifyTab({ shop, profile, form, setForm, saving, onSave, isAdmin, relo
           <Send size={14} /> {testing ? 'กำลังส่ง...' : 'ส่งข้อความทดสอบ'}
         </button>
       )}
+
+      {/* ───── เชื่อม Messenger (ถามข้อมูลร้านได้เหมือน LINE) ───── */}
+      <div style={{
+        padding: 14, borderRadius: 12, marginBottom: 14,
+        background: profile?.messenger_psid ? 'rgba(6,199,85,0.08)' : 'var(--surface-2)',
+        border: `1px solid ${profile?.messenger_psid ? 'rgba(6,199,85,0.35)' : 'var(--border)'}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <MessageSquare size={16} style={{ color: '#0084ff' }} />
+          <span style={{ fontSize: 13, fontWeight: 700 }}>เชื่อม Messenger</span>
+          {profile?.messenger_psid && <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#06c755' }}>✓ เชื่อมแล้ว</span>}
+        </div>
+        {profile?.messenger_psid ? (
+          <>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
+              ทักถามข้อมูลร้านผ่าน Messenger ได้เลย เหมือนทัก LINE
+            </div>
+            <button onClick={handleDisconnectMessenger} disabled={disconnectingMessenger} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9,
+              background: 'var(--surface)', color: '#ef4444', border: '1px solid var(--border)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              <Unlink size={13} /> {disconnectingMessenger ? 'กำลังยกเลิก...' : 'ยกเลิกการเชื่อม'}
+            </button>
+          </>
+        ) : messengerCode ? (
+          <>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
+              ไปแชทกับเพจ Facebook ของร้าน แล้วพิมพ์ข้อความนี้ส่งไป (โค้ดหมดอายุใน 15 นาที):
+            </div>
+            <div style={{ padding: 10, background: 'var(--surface)', borderRadius: 8, fontFamily: 'monospace', fontSize: 14, fontWeight: 700, textAlign: 'center', marginBottom: 10 }}>
+              เชื่อม {messengerCode}
+            </div>
+            <button onClick={handleGenerateMessengerCode} disabled={generatingCode} style={{
+              background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0,
+            }}>สร้างโค้ดใหม่</button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 10 }}>
+              ถามข้อมูลร้าน (รายรับ-รายจ่าย, สต๊อก, จำนำ) ผ่าน Facebook Messenger ได้เหมือน LINE
+            </div>
+            <button onClick={handleGenerateMessengerCode} disabled={generatingCode} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9,
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              <Link2 size={13} /> {generatingCode ? 'กำลังสร้าง...' : 'สร้างโค้ดเชื่อม Messenger'}
+            </button>
+          </>
+        )}
+      </div>
 
       {/* เพิ่มเพื่อน LINE OA */}
       <LineAddFriend />

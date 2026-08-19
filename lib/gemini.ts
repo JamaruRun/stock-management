@@ -1,28 +1,53 @@
-// ใช้ Gemini แค่ "แปลคำถามภาษาธรรมชาติ -> ช่วงวันที่" เท่านั้น ห้ามให้ Gemini สรุปตัวเลขการเงินเอง
-// (ตัวเลขจริงต้อง query จากฐานข้อมูลตรงๆ เสมอ กันข้อมูลการเงินหลอน/เพี้ยน)
-export type DateRangeResult = { date_from: string; date_to: string } | { error: string };
+// ใช้ Gemini แค่ "แปลคำถามภาษาธรรมชาติ -> intent + พารามิเตอร์" เท่านั้น ห้ามให้ Gemini สรุปตัวเลขเอง
+// (ตัวเลขจริงต้อง query จากฐานข้อมูลตรงๆ เสมอ กันข้อมูลหลอน/เพี้ยน)
+export type AssistantIntent =
+  | { intent: 'ledger'; date_from: string; date_to: string; keyword?: string }
+  | { intent: 'stock_lookup'; keyword: string }
+  | { intent: 'low_stock' }
+  | { intent: 'dead_stock'; days: number }
+  | { intent: 'pawn_lookup'; keyword: string }
+  | { intent: 'pawn_due_soon'; days: number }
+  | { intent: 'pawn_overdue' }
+  | { intent: 'unknown'; reason: string };
 
-export async function extractDateRange(question: string, todayStr: string): Promise<DateRangeResult> {
+export async function classifyQuestion(question: string, todayStr: string): Promise<AssistantIntent> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { error: 'GEMINI_API_KEY not configured' };
+  if (!apiKey) return { intent: 'unknown', reason: 'GEMINI_API_KEY not configured' };
 
   const prompt = `วันนี้คือวันที่ ${todayStr} (รูปแบบ YYYY-MM-DD)
-ผู้ใช้ถามคำถามเกี่ยวกับสมุดรายรับ-รายจ่ายของร้านซ่อมมือถือเป็นภาษาไทย: "${question}"
+ผู้ใช้เป็นแอดมินร้านซ่อมมือถือ ถามคำถามเป็นภาษาไทยกับบอทของระบบจัดการร้าน: "${question}"
 
-ถ้าคำถามนี้กำลังถามหาข้อมูลรายรับ-รายจ่ายของช่วงวันที่ใดวันหนึ่ง (เช่น วันที่เจาะจง, เมื่อวาน, เดือนนี้, สัปดาห์นี้, ช่วงวันที่ระบุ) ให้ตอบกลับเป็น JSON เท่านั้นในรูปแบบ:
-{"date_from": "YYYY-MM-DD", "date_to": "YYYY-MM-DD"}
+ให้แยกประเภทคำถาม (intent) แล้วตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่นนอกเหนือ JSON โดยเลือก 1 แบบจาก schema ต่อไปนี้ตามที่ตรงที่สุด:
 
-กฎการตีความ:
-- "วันที่ N" (ไม่ระบุเดือน) หมายถึงวันที่ N ของเดือนปัจจุบัน (จากวันนี้ที่ให้มา)
-- "เมื่อวาน" = วันนี้ลบ 1 วัน, "วันนี้" = วันนี้
-- "เดือนนี้" = ตั้งแต่วันที่ 1 ถึงวันสุดท้ายของเดือนปัจจุบัน
-- "สัปดาห์นี้"/"7 วันที่ผ่านมา" = ย้อนหลัง 7 วันจากวันนี้ถึงวันนี้
-- ถ้าถามวันเดียว ให้ date_from และ date_to เป็นวันเดียวกัน
+1. คำถามเกี่ยวกับรายรับ-รายจ่าย/ยอดขาย/กำไร ตามช่วงวันที่:
+   {"intent":"ledger","date_from":"YYYY-MM-DD","date_to":"YYYY-MM-DD","keyword":"คำค้นเพิ่มเติมถ้ามี เช่น อะไหล่, ซ่อม (ไม่มีก็ไม่ต้องใส่ field นี้)"}
+   - "วันที่ N" (ไม่ระบุเดือน) = วันที่ N ของเดือนปัจจุบัน
+   - "เมื่อวาน"=วันนี้ลบ1วัน, "วันนี้"=วันนี้, "เดือนนี้"=วันที่1ถึงวันสุดท้ายของเดือนนี้, "สัปดาห์นี้"/"7วันที่ผ่านมา"=ย้อนหลัง7วันถึงวันนี้
+   - ถามวันเดียวให้ date_from=date_to
 
-ถ้าคำถามนี้ไม่เกี่ยวกับรายรับ-รายจ่าย หรือตีความช่วงวันที่ไม่ได้เลย ให้ตอบกลับเป็น JSON:
-{"error": "เหตุผลสั้นๆ"}
+2. ถามหาอะไหล่/ของ เจาะจงชื่อ/รุ่น ไม่ว่าจะถามเหลือกี่ชิ้น หรือถามราคา (ราคาทุน/ราคาส่ง/ราคาขาย/ราคาเท่าไหร่):
+   {"intent":"stock_lookup","keyword":"ชื่อ/รุ่นอะไหล่ที่ถาม"}
+   (ใช้ intent เดียวกันทั้งถามจำนวนและถามราคา เพราะตอบทั้งจำนวนและราคาให้พร้อมกันอยู่แล้ว)
 
-ตอบเป็น JSON เท่านั้น ห้ามมีข้อความอื่นนอกเหนือจาก JSON`;
+3. ถามอะไหล่ใกล้หมด/ต้องสั่งเพิ่ม (ไม่เจาะจงชื่อ):
+   {"intent":"low_stock"}
+
+4. ถามเดดสต็อค/อะไหล่ที่ไม่เคลื่อนไหว/ค้างสต็อคนาน:
+   {"intent":"dead_stock","days":90}
+   (days = จำนวนวันที่ถาม ถ้าไม่ระบุใช้ 90)
+
+5. ถามหาเครื่องจำนำเจาะจงชื่อลูกค้า/รุ่นเครื่อง:
+   {"intent":"pawn_lookup","keyword":"ชื่อลูกค้าหรือรุ่นเครื่องที่ถาม"}
+
+6. ถามเครื่องจำนำที่ใกล้ครบกำหนด (ไม่เจาะจงเครื่อง):
+   {"intent":"pawn_due_soon","days":7}
+   (days = จำนวนวันข้างหน้าที่ถาม ถ้าไม่ระบุใช้ 7)
+
+7. ถามเครื่องจำนำที่เลยกำหนดแล้ว:
+   {"intent":"pawn_overdue"}
+
+ถ้าคำถามไม่ตรงกับข้อไหนเลย หรือดูไม่ใช่คำถามเกี่ยวกับร้าน (เช่นทักทาย, ถามเรื่องอื่น) ให้ตอบ:
+{"intent":"unknown","reason":"เหตุผลสั้นๆ"}`;
 
   try {
     const res = await fetch(
@@ -36,18 +61,41 @@ export async function extractDateRange(question: string, todayStr: string): Prom
         }),
       }
     );
-    if (!res.ok) return { error: `Gemini API error: ${res.status}` };
+    if (!res.ok) return { intent: 'unknown', reason: `Gemini API error: ${res.status}` };
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return { error: 'ไม่ได้รับคำตอบจาก AI' };
+    if (!text) return { intent: 'unknown', reason: 'ไม่ได้รับคำตอบจาก AI' };
 
     const parsed = JSON.parse(text);
-    if (parsed.error) return { error: String(parsed.error) };
-    if (!parsed.date_from || !parsed.date_to || !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date_from) || !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date_to)) {
-      return { error: 'รูปแบบวันที่ไม่ถูกต้อง' };
-    }
-    return { date_from: parsed.date_from, date_to: parsed.date_to };
+    return validateIntent(parsed);
   } catch (e: any) {
-    return { error: 'แปลคำถามไม่สำเร็จ: ' + e.message };
+    return { intent: 'unknown', reason: 'แปลคำถามไม่สำเร็จ: ' + e.message };
+  }
+}
+
+function validateIntent(parsed: any): AssistantIntent {
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  switch (parsed?.intent) {
+    case 'ledger':
+      if (!dateRe.test(parsed.date_from) || !dateRe.test(parsed.date_to)) {
+        return { intent: 'unknown', reason: 'รูปแบบวันที่ไม่ถูกต้อง' };
+      }
+      return { intent: 'ledger', date_from: parsed.date_from, date_to: parsed.date_to, keyword: parsed.keyword || undefined };
+    case 'stock_lookup':
+      if (!parsed.keyword) return { intent: 'unknown', reason: 'ไม่มีคำค้นหาอะไหล่' };
+      return { intent: 'stock_lookup', keyword: String(parsed.keyword) };
+    case 'low_stock':
+      return { intent: 'low_stock' };
+    case 'dead_stock':
+      return { intent: 'dead_stock', days: Number(parsed.days) > 0 ? Number(parsed.days) : 90 };
+    case 'pawn_lookup':
+      if (!parsed.keyword) return { intent: 'unknown', reason: 'ไม่มีคำค้นหาเครื่องจำนำ' };
+      return { intent: 'pawn_lookup', keyword: String(parsed.keyword) };
+    case 'pawn_due_soon':
+      return { intent: 'pawn_due_soon', days: Number(parsed.days) > 0 ? Number(parsed.days) : 7 };
+    case 'pawn_overdue':
+      return { intent: 'pawn_overdue' };
+    default:
+      return { intent: 'unknown', reason: String(parsed?.reason || 'ไม่เข้าใจคำถาม') };
   }
 }
