@@ -43,6 +43,21 @@ async function handleUserQuestion(supabase: any, userId: string, question: strin
   await replyLine(replyToken, message);
 }
 
+const GROUP_QUESTION_PREFIX = /^ถาม[:\s]*/;
+
+async function handleGroupQuestion(supabase: any, groupId: string, rawText: string, replyToken: string) {
+  const question = rawText.replace(GROUP_QUESTION_PREFIX, '').trim();
+  if (!question) return;
+
+  const { data: shop } = await supabase
+    .from('shops').select('id').eq('line_group_id', groupId).single();
+  if (!shop?.id) return; // กลุ่มนี้ยังไม่ได้เชื่อมกับร้านไหนเลย เงียบไว้ ไม่ต้องตอบ
+
+  // ใช้ groupId เป็น sender_key เพื่อจำกัด rate limit ร่วมกันทั้งกลุ่ม (ไม่ใช่แยกตามคนที่พิมพ์)
+  const message = await answerQuestion(supabase, shop.id, null, 'line', `group:${groupId}`, question);
+  await replyLine(replyToken, message);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
@@ -74,7 +89,7 @@ export async function POST(req: NextRequest) {
               replyToken: event.replyToken,
               messages: [{
                 type: 'text',
-                text: `🎉 บอทเข้ากลุ่มสำเร็จ!\n\n📋 Group ID:\n${groupId}\n\n📌 วิธีใช้:\n1. Copy Group ID ด้านบน\n2. กลับไปที่หน้า ⚙️ ตั้งค่า ในเว็บ\n3. ใส่ Group ID → กดบันทึก\n\n✅ ทุกคนในกลุ่มจะได้รับแจ้งเตือนพร้อมกัน`,
+                text: `🎉 บอทเข้ากลุ่มสำเร็จ!\n\n📋 Group ID:\n${groupId}\n\n📌 วิธีใช้:\n1. Copy Group ID ด้านบน\n2. กลับไปที่หน้า ⚙️ ตั้งค่า ในเว็บ\n3. ใส่ Group ID → กดบันทึก\n\n✅ ทุกคนในกลุ่มจะได้รับแจ้งเตือนพร้อมกัน\n\n💬 ถามข้อมูลร้านในกลุ่มนี้ได้เลย ให้ขึ้นต้นด้วยคำว่า "ถาม" เช่น "ถาม รายรับวันนี้เท่าไหร่"`,
               }],
             }),
           });
@@ -108,6 +123,9 @@ export async function POST(req: NextRequest) {
         } else if (event.source?.type === 'user' && event.replyToken) {
           // ทัก 1:1 หา OA มา - ถือเป็นคำถามข้อมูลร้าน
           await handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken);
+        } else if (event.source?.type === 'group' && event.replyToken && text.startsWith('ถาม')) {
+          // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
+          await handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken);
         }
       }
     }
