@@ -135,18 +135,26 @@ function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => st
 
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
   const { data: allParts } = await supabase.from('parts')
-    .select('name, sku, phone_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
+    .select('id, name, sku, phone_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
     .eq('shop_id', shopId);
   // เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่องปนกัน (เช่น "หน้าจอ oppo a18")
   const data = matchByWords(allParts || [], keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.sku || ''}`).slice(0, 10);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
   }
+
+  const partIds = data.map((p: any) => p.id);
+  const { data: customRows } = await supabase.from('part_custom_prices')
+    .select('part_id, label, price').in('part_id', partIds).order('sort_order');
+  const customByPart: Record<string, { label: string; price: number }[]> = {};
+  for (const r of customRows || []) (customByPart[r.part_id] ||= []).push({ label: r.label, price: Number(r.price || 0) });
+
   const lines = data.map((p: any) => {
     const priceParts = [
       p.cost_price ? `ทุน ฿${Number(p.cost_price).toLocaleString()}` : null,
       p.wholesale_price ? `ส่ง ฿${Number(p.wholesale_price).toLocaleString()}` : null,
       p.sell_price ? `ขาย ฿${Number(p.sell_price).toLocaleString()}` : null,
+      ...(customByPart[p.id] || []).map((c) => `${c.label} ฿${c.price.toLocaleString()}`),
     ].filter(Boolean).join(' · ');
     const qty = Number(p.stock_qty || 0);
     const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `คงเหลือ ${qty} ชิ้น`;

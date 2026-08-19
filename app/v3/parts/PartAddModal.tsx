@@ -137,7 +137,10 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
       });
       const codeTxt = form.sku.trim() || newPart.id.slice(0, 8);
       const modelsTxt = compatRows.length > 0 ? compatRows.map(r => r.model_name).join(' / ') : 'ทั่วไป';
-      const msg = `📦 รับอะไหล่เข้าสต็อค\n━━━━━━━━━━━━━\n🔧 ${form.name.trim()}\n🔖 ${codeTxt}\n📱 ${modelsTxt}\n➕ รับเข้า: ${stockQty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${costPrice.toLocaleString()}\n📊 คงเหลือ: ${stockQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
+      const customPricesTxt = validCustomPrices.length > 0
+        ? `\n💵 ราคาอื่น: ${validCustomPrices.map((r) => `${r.label.trim()} ฿${(parseFloat(r.price) || 0).toLocaleString()}`).join(' · ')}`
+        : '';
+      const msg = `📦 รับอะไหล่เข้าสต็อค\n━━━━━━━━━━━━━\n🔧 ${form.name.trim()}\n🔖 ${codeTxt}\n📱 ${modelsTxt}\n➕ รับเข้า: ${stockQty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${costPrice.toLocaleString()}${customPricesTxt}\n📊 คงเหลือ: ${stockQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
       sendLinePush(msg, 'restock').catch(() => {});
       syncLedgerEntry(supabase, {
         shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_stock_in',
