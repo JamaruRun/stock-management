@@ -110,7 +110,11 @@ async function answerLedger(supabase: any, shopId: string, branchId: string | nu
 }
 
 /** ค้นหาแบบแยกคำ: ลองแบบเข้มก่อน (ต้องเจอทุกคำ) ถ้าไม่เจอเลยค่อย fallback เป็นแบบหลวม (เจอคำไหนก็ได้)
- * กันเคส Gemini สกัด keyword มาไม่สะอาด 100% (มีคำฟุ่มเฟือยหลงเหลือ) ไม่ให้ตอบ "ไม่พบ" ทั้งที่มีของจริง */
+ * กันเคส Gemini สกัด keyword มาไม่สะอาด 100% (มีคำฟุ่มเฟือยหลงเหลือ) ไม่ให้ตอบ "ไม่พบ" ทั้งที่มีของจริง
+ *
+ * ข้อยกเว้นสำคัญ: ถ้าคำค้นมีคำที่มีตัวเลขปน (เช่น "ip12", "a18") ซึ่งมักเป็นรุ่นเครื่อง/รหัสเฉพาะที่ผู้ใช้ตั้งใจถามจริงๆ
+ * แล้วไม่มีรายการไหนมีคำนั้นเลย ให้ถือว่า "ไม่มีของจริง" ไม่ fallback แบบหลวม — กันเคสถามรุ่นที่ไม่มีในสต็อค
+ * แล้วดันไปเจอรายการอื่นที่บังเอิญมีคำทั่วไปตรงกัน (เช่น "จอ"/"งาน"/"tft") ทำให้ตอบรุ่นผิดเป็นรุ่นอื่นแทน */
 function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => string): T[] {
   const words = keyword.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
@@ -119,6 +123,10 @@ function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => st
     return words.every((w) => haystack.includes(w));
   });
   if (strict.length > 0) return strict;
+
+  const hasModelLikeWord = words.some((w) => /\d/.test(w));
+  if (hasModelLikeWord) return [];
+
   return rows.filter((r) => {
     const haystack = getHaystack(r).toLowerCase();
     return words.some((w) => haystack.includes(w));
