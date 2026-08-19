@@ -20,6 +20,7 @@ export const PART_GRADES = [
   { id: 'oled', label: 'OLED', color: '#ec4899' },
   { id: 'incell', label: 'Incell', color: '#f59e0b' },
   { id: 'aaa', label: 'AAA', color: '#6b7280' },
+  { id: 'tisi', label: 'มอก.', color: '#22c55e' },
 ] as const;
 
 export function getCategoryLabel(id: string): string {
