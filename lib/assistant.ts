@@ -137,8 +137,25 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
   const { data: allParts } = await supabase.from('parts')
     .select('id, name, sku, phone_model, battery_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
     .eq('shop_id', shopId);
-  // เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + รุ่นแบต + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบตปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259")
-  const data = matchByWords(allParts || [], keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.battery_model || ''} ${p.sku || ''}`).slice(0, 10);
+  const allPartIds = (allParts || []).map((p: any) => p.id);
+
+  // ดึง "รุ่นมือถือที่ใช้ได้" ทั้งหมดของทุกอะไหล่ (ไม่ใช่แค่ phone_model ซึ่งเป็นแค่รุ่นแรกที่ sync ไว้)
+  // เพราะอะไหล่ 1 ชิ้นผูกได้หลายรุ่นผ่านตาราง part_compatibility เหมือนหน้า "ขาย"/"ใช้ในงานซ่อม" ที่ค้นหาแบบนี้อยู่แล้ว
+  const modelsByPart: Record<string, string[]> = {};
+  if (allPartIds.length > 0) {
+    const { data: compatRows } = await supabase.from('part_compatibility')
+      .select('part_id, device_models(model_name)').in('part_id', allPartIds);
+    for (const r of compatRows || []) {
+      const name = (r as any).device_models?.model_name;
+      if (!name) continue;
+      (modelsByPart[(r as any).part_id] ||= []).push(name);
+    }
+  }
+
+  // เทียบกับชื่ออะไหล่ + รุ่นเครื่องทั้งหมดที่ผูกไว้ + รุ่นแบต + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบตปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259")
+  const data = matchByWords(allParts || [], keyword, (p: any) =>
+    `${p.name} ${p.phone_model || ''} ${(modelsByPart[p.id] || []).join(' ')} ${p.battery_model || ''} ${p.sku || ''}`
+  ).slice(0, 10);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
   }
@@ -158,7 +175,8 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     ].filter(Boolean).join(' · ');
     const qty = Number(p.stock_qty || 0);
     const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `คงเหลือ ${qty} ชิ้น`;
-    return `🔧 ${p.name}${p.phone_model ? ` - ${p.phone_model}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
+    const modelsTxt = (modelsByPart[p.id] || []).join(' / ') || p.phone_model || '';
+    return `🔧 ${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
   return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }
