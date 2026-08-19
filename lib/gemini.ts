@@ -61,14 +61,22 @@ export async function classifyQuestion(question: string, todayStr: string): Prom
         }),
       }
     );
-    if (!res.ok) return { intent: 'unknown', reason: `Gemini API error: ${res.status}` };
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('Gemini API error:', res.status, errBody);
+      return { intent: 'unknown', reason: `Gemini API error: ${res.status}` };
+    }
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return { intent: 'unknown', reason: 'ไม่ได้รับคำตอบจาก AI' };
+    if (!text) {
+      console.error('Gemini API: no text in response', JSON.stringify(data));
+      return { intent: 'unknown', reason: 'ไม่ได้รับคำตอบจาก AI' };
+    }
 
     const parsed = JSON.parse(text);
     return validateIntent(parsed);
   } catch (e: any) {
+    console.error('Gemini classify exception:', e);
     return { intent: 'unknown', reason: 'แปลคำถามไม่สำเร็จ: ' + e.message };
   }
 }
