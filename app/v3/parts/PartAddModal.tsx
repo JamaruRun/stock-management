@@ -7,6 +7,7 @@ import { saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility'
 import { sendLinePush } from '@/lib/line-notify';
 import { syncLedgerEntry } from '@/lib/ledger-sync';
 import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
+import PartCustomPriceEditor, { type CustomPriceRow } from '@/components/PartCustomPriceEditor';
 import {
   Wrench, X, DollarSign, Boxes, Bell, Tag, Truck,
   Loader2, CheckCircle2, AlertCircle, Layers,
@@ -22,6 +23,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
     supplier_id: '', sku: '', note: '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
+  const [customPrices, setCustomPrices] = useState<CustomPriceRow[]>([]);
   const [autoName, setAutoName] = useState('');
   const [profile, setProfile] = useState<any>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -108,6 +110,13 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
 
     if (error || !newPart) { notify('บันทึกไม่สำเร็จ: ' + (error?.message || ''), false); setLoading(false); return; }
 
+    const validCustomPrices = customPrices.filter((r) => r.label.trim() !== '');
+    if (validCustomPrices.length > 0) {
+      await supabase.from('part_custom_prices').insert(
+        validCustomPrices.map((r, i) => ({ part_id: newPart.id, label: r.label.trim(), price: parseFloat(r.price) || 0, sort_order: i }))
+      );
+    }
+
     if (compatRows.length > 0) {
       const resolved = await saveCompatibilityRows(supabase, newPart.id, compatRows);
       const first = resolved[0];
@@ -182,6 +191,12 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
               <F label="จำนวน"><Inp Icon={Boxes} type="number" value={form.stock_qty} onChange={(v: string) => setForm({ ...form, stock_qty: v })} placeholder="1" /></F>
               <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="2" /></F>
             </div>
+          </div>
+
+          <div>
+            <SectionTitle Icon={Tag} color="#f59e0b" label="ราคาเพิ่มเติม (กำหนดหัวข้อเอง)" />
+            <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 8 }}>เผื่อร้าน/สาขาอื่นตั้งราคาไม่เหมือนกัน เช่น "ราคาร้านสอง", "ราคาส่งเซ็นทรัล" ไม่บังคับ</div>
+            <PartCustomPriceEditor rows={customPrices} onChange={setCustomPrices} />
           </div>
 
           <div>

@@ -843,18 +843,21 @@ function PartDetailModal({ item, isAdmin, onClose, onEdit }: any) {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [compatRows, setCompatRows] = useState<any[]>([]);
+  const [customPrices, setCustomPrices] = useState<any[]>([]);
   const [supplierName, setSupplierName] = useState<string | null>(null);
   const gradeInfo = item.grade ? getGradeInfo(item.grade) : null;
   const profit = item.cost_price ? Number(item.sell_price) - Number(item.cost_price) : 0;
 
   useEffect(() => {
     async function load() {
-      const [{ data: compat }, supplierRes] = await Promise.all([
+      const [{ data: compat }, supplierRes, { data: custom }] = await Promise.all([
         supabase.from('part_compatibility').select('cost_price, labor_cost, sell_price, device_models(model_name)').eq('part_id', item.id),
         item.supplier_id ? supabase.from('suppliers').select('name').eq('id', item.supplier_id).single() : Promise.resolve({ data: null } as any),
+        supabase.from('part_custom_prices').select('label, price').eq('part_id', item.id).order('sort_order'),
       ]);
       setCompatRows((compat || []).map((r: any) => ({ ...r, model_name: r.device_models?.model_name || '-' })));
       setSupplierName(supplierRes?.data?.name || null);
+      setCustomPrices(custom || []);
       setLoading(false);
     }
     load();
@@ -883,6 +886,17 @@ function PartDetailModal({ item, isAdmin, onClose, onEdit }: any) {
           {isAdmin && item.cost_price > 0 && (
             <div style={{ fontSize: 12, color: profit > 0 ? '#16a34a' : 'var(--text-dim)', fontWeight: 600 }}>
               กำไร (ทุน→หน้าร้าน) ฿{profit.toLocaleString()}
+            </div>
+          )}
+
+          {customPrices.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {customPrices.map((cp: any, idx: number) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, background: 'var(--surface-2)', borderRadius: 8, padding: '7px 10px' }}>
+                  <span style={{ color: 'var(--text-dim)' }}>{cp.label}</span>
+                  <span style={{ fontWeight: 700 }}>฿{Number(cp.price || 0).toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           )}
 

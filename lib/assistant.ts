@@ -148,7 +148,9 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
       p.wholesale_price ? `ส่ง ฿${Number(p.wholesale_price).toLocaleString()}` : null,
       p.sell_price ? `ขาย ฿${Number(p.sell_price).toLocaleString()}` : null,
     ].filter(Boolean).join(' · ');
-    return `🔧 ${p.name}${p.phone_model ? ` - ${p.phone_model}` : ''}${p.sku ? ` (${p.sku})` : ''}\n   คงเหลือ ${p.stock_qty} ชิ้น${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
+    const qty = Number(p.stock_qty || 0);
+    const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `คงเหลือ ${qty} ชิ้น`;
+    return `🔧 ${p.name}${p.phone_model ? ` - ${p.phone_model}` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
   return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }
@@ -157,7 +159,11 @@ async function answerLowStock(supabase: any, shopId: string) {
   const { data } = await supabase.from('parts').select('name, sku, stock_qty, low_stock_alert').eq('shop_id', shopId);
   const low = (data || []).filter((p: any) => Number(p.stock_qty) <= Number(p.low_stock_alert ?? 2)).slice(0, MAX_ITEMS_IN_MESSAGE);
   if (low.length === 0) return '✅ ตอนนี้ไม่มีอะไหล่ใกล้หมดเลยครับ';
-  const lines = low.map((p: any) => `⚠️ ${p.name}${p.sku ? ` (${p.sku})` : ''} — เหลือ ${p.stock_qty} ชิ้น (ขั้นต่ำ ${p.low_stock_alert ?? 2})`);
+  const lines = low.map((p: any) => {
+    const qty = Number(p.stock_qty || 0);
+    const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `เหลือ ${qty} ชิ้น`;
+    return `⚠️ ${p.name}${p.sku ? ` (${p.sku})` : ''} — ${qtyTxt} (ขั้นต่ำ ${p.low_stock_alert ?? 2})`;
+  });
   return `⚠️ อะไหล่ใกล้หมด (${low.length} รายการ)\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }
 

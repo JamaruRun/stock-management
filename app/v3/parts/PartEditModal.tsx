@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import { PART_CATEGORIES, PART_GRADES } from '@/lib/parts-constants';
 import { loadCompatibilityRows, saveCompatibilityRows, type CompatRow } from '@/lib/part-compatibility';
 import PartModelCompatibilityEditor from '@/components/PartModelCompatibilityEditor';
+import PartCustomPriceEditor, { type CustomPriceRow } from '@/components/PartCustomPriceEditor';
 import {
   Wrench, X, DollarSign, Bell, Tag, Truck, Layers,
   Loader2, CheckCircle2, AlertCircle, Save,
@@ -23,6 +24,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
     supplier_id: item.supplier_id || '', sku: item.sku || '', note: item.note || '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
+  const [customPrices, setCustomPrices] = useState<CustomPriceRow[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -31,6 +33,8 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
   useEffect(() => {
     supabase.from('suppliers').select('id, name').order('name').then(({ data }) => setSuppliers(data || []));
     loadCompatibilityRows(supabase, item.id).then(setCompatRows);
+    supabase.from('part_custom_prices').select('id, label, price').eq('part_id', item.id).order('sort_order')
+      .then(({ data }) => setCustomPrices((data || []).map((r: any) => ({ id: r.id, label: r.label, price: String(r.price ?? '') }))));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -51,6 +55,16 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
       low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
     }).eq('id', item.id);
+
+    // sync ราคาเพิ่มเติมแบบกำหนดเอง - ลบของเดิมแล้วใส่ชุดปัจจุบันใหม่ทั้งหมด (จำนวนแถวน้อย ไม่ต้อง diff ให้ซับซ้อน)
+    await supabase.from('part_custom_prices').delete().eq('part_id', item.id);
+    const validCustomPrices = customPrices.filter((r) => r.label.trim() !== '');
+    if (validCustomPrices.length > 0) {
+      await supabase.from('part_custom_prices').insert(
+        validCustomPrices.map((r, i) => ({ part_id: item.id, label: r.label.trim(), price: parseFloat(r.price) || 0, sort_order: i }))
+      );
+    }
+
     setLoading(false);
     if (error) return notify('บันทึกไม่สำเร็จ: ' + error.message, false);
     notify('บันทึกแล้ว');
@@ -87,6 +101,9 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
             <F label="ราคาส่ง (฿)"><Inp Icon={DollarSign} type="number" value={form.wholesale_price} onChange={(v: string) => setForm({ ...form, wholesale_price: v })} placeholder="0" /></F>
             <F label="ราคาหน้าร้าน (฿)"><Inp Icon={DollarSign} type="number" value={form.sell_price} onChange={(v: string) => setForm({ ...form, sell_price: v })} placeholder="0" /></F>
           </div>
+          <F label="ราคาเพิ่มเติม (กำหนดหัวข้อเอง)">
+            <PartCustomPriceEditor rows={customPrices} onChange={setCustomPrices} />
+          </F>
           <F label="รุ่นมือถือที่ใช้ได้ (เลือกได้หลายรุ่น)">
             <PartModelCompatibilityEditor
               rows={compatRows}
