@@ -109,16 +109,28 @@ async function answerLedger(supabase: any, shopId: string, branchId: string | nu
   return [`📊 สรุปรายรับ-รายจ่าย ${periodTxt}${kwTxt}`, '━━━━━━━━━━━━━', ...summaryLines].join('\n') + detailTxt;
 }
 
+/** ค้นหาแบบแยกคำ: ลองแบบเข้มก่อน (ต้องเจอทุกคำ) ถ้าไม่เจอเลยค่อย fallback เป็นแบบหลวม (เจอคำไหนก็ได้)
+ * กันเคส Gemini สกัด keyword มาไม่สะอาด 100% (มีคำฟุ่มเฟือยหลงเหลือ) ไม่ให้ตอบ "ไม่พบ" ทั้งที่มีของจริง */
+function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => string): T[] {
+  const words = keyword.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+  const strict = rows.filter((r) => {
+    const haystack = getHaystack(r).toLowerCase();
+    return words.every((w) => haystack.includes(w));
+  });
+  if (strict.length > 0) return strict;
+  return rows.filter((r) => {
+    const haystack = getHaystack(r).toLowerCase();
+    return words.some((w) => haystack.includes(w));
+  });
+}
+
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
   const { data: allParts } = await supabase.from('parts')
     .select('name, sku, phone_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
     .eq('shop_id', shopId);
-  // ค้นหาแบบแยกคำ เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่องปนกัน (เช่น "หน้าจอ oppo a18")
-  const words = keyword.toLowerCase().split(/\s+/).filter(Boolean);
-  const data = (allParts || []).filter((p: any) => {
-    const haystack = `${p.name} ${p.phone_model || ''} ${p.sku || ''}`.toLowerCase();
-    return words.every((w) => haystack.includes(w));
-  }).slice(0, 10);
+  // เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่องปนกัน (เช่น "หน้าจอ oppo a18")
+  const data = matchByWords(allParts || [], keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.sku || ''}`).slice(0, 10);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
   }
@@ -170,8 +182,11 @@ async function answerDeadStock(supabase: any, shopId: string, days: number) {
 }
 
 async function answerPawnLookup(supabase: any, shopId: string, keyword: string) {
-  const { data } = await supabase.from('pawn_stock').select('model, customer_name, due_date, pawn_price')
-    .eq('shop_id', shopId).or(`model.ilike.%${keyword}%,customer_name.ilike.%${keyword}%`).limit(10);
+  const { data: allPawn } = await supabase.from('pawn_stock')
+    .select('model, customer_name, due_date, pawn_price').eq('shop_id', shopId);
+  // เทียบกับรุ่นเครื่อง + ชื่อลูกค้ารวมกัน เผื่อคำค้นมีทั้งสองอย่างปนกัน (เช่น "oppo a18 ของสมชาย")
+  // ค้นหาแบบ client-side (ไม่ใช้ .or() ของ Supabase) เพื่อเลี่ยงปัญหา keyword มีอักขระพิเศษ (เช่น comma) ทำให้ query string พัง
+  const data = matchByWords(allPawn || [], keyword, (p: any) => `${p.model || ''} ${p.customer_name || ''}`).slice(0, 10);
   if (!data || data.length === 0) return `🔍 ไม่พบเครื่องจำนำที่ตรงกับ "${keyword}"`;
   const lines = data.map((p: any) => `📱 ${p.model} — ${p.customer_name}\n   เงินต้น ฿${Number(p.pawn_price).toLocaleString()} • ครบกำหนด ${p.due_date || '-'}`);
   return `🔍 ผลค้นหาเครื่องจำนำ "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
