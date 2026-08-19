@@ -110,9 +110,15 @@ async function answerLedger(supabase: any, shopId: string, branchId: string | nu
 }
 
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
-  const { data } = await supabase.from('parts')
-    .select('name, sku, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
-    .eq('shop_id', shopId).ilike('name', `%${keyword}%`).limit(10);
+  const { data: allParts } = await supabase.from('parts')
+    .select('name, sku, phone_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
+    .eq('shop_id', shopId);
+  // ค้นหาแบบแยกคำ เทียบกับชื่ออะไหล่ + รุ่นเครื่อง + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่องปนกัน (เช่น "หน้าจอ oppo a18")
+  const words = keyword.toLowerCase().split(/\s+/).filter(Boolean);
+  const data = (allParts || []).filter((p: any) => {
+    const haystack = `${p.name} ${p.phone_model || ''} ${p.sku || ''}`.toLowerCase();
+    return words.every((w) => haystack.includes(w));
+  }).slice(0, 10);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
   }
@@ -122,7 +128,7 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
       p.wholesale_price ? `ส่ง ฿${Number(p.wholesale_price).toLocaleString()}` : null,
       p.sell_price ? `ขาย ฿${Number(p.sell_price).toLocaleString()}` : null,
     ].filter(Boolean).join(' · ');
-    return `🔧 ${p.name}${p.sku ? ` (${p.sku})` : ''}\n   คงเหลือ ${p.stock_qty} ชิ้น${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
+    return `🔧 ${p.name}${p.phone_model ? ` - ${p.phone_model}` : ''}${p.sku ? ` (${p.sku})` : ''}\n   คงเหลือ ${p.stock_qty} ชิ้น${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
   return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }
