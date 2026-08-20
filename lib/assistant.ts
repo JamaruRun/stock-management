@@ -122,6 +122,12 @@ function expandAbbrev(word: string): string {
   return word;
 }
 
+// คนพิมพ์มักติดคำไทย (ชื่อหมวด เช่น "แบต", "จอ") ชิดกับรุ่น/ตัวย่อภาษาอังกฤษโดยไม่เว้นวรรค (เช่น "แบตip12", "จอoppoa18")
+// แยกคำตรงรอยต่อไทย↔อังกฤษ/ตัวเลข ก่อนค้นหา ไม่งั้นจะกลายเป็นคำเดียวยาวๆ ที่ไม่ตรงกับอะไรในระบบเลยสักคำ
+function splitThaiLatinBoundary(word: string): string[] {
+  return word.split(/(?<=[฀-๿])(?=[a-zA-Z0-9])|(?<=[a-zA-Z0-9])(?=[฀-๿])/).filter(Boolean);
+}
+
 /** ค้นหาแบบแยกคำ: ลองแบบเข้มก่อน (ต้องเจอทุกคำ) ถ้าไม่เจอเลยค่อย fallback เป็นแบบหลวม (เจอคำไหนก็ได้)
  * กันเคส Gemini สกัด keyword มาไม่สะอาด 100% (มีคำฟุ่มเฟือยหลงเหลือ) ไม่ให้ตอบ "ไม่พบ" ทั้งที่มีของจริง
  *
@@ -129,7 +135,7 @@ function expandAbbrev(word: string): string {
  * แล้วไม่มีรายการไหนมีคำนั้นเลย ให้ถือว่า "ไม่มีของจริง" ไม่ fallback แบบหลวม — กันเคสถามรุ่นที่ไม่มีในสต็อค
  * แล้วดันไปเจอรายการอื่นที่บังเอิญมีคำทั่วไปตรงกัน (เช่น "จอ"/"งาน"/"tft") ทำให้ตอบรุ่นผิดเป็นรุ่นอื่นแทน */
 function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => string): T[] {
-  const rawWords = keyword.toLowerCase().split(/\s+/).filter(Boolean);
+  const rawWords = keyword.toLowerCase().split(/\s+/).filter(Boolean).flatMap(splitThaiLatinBoundary);
   if (rawWords.length === 0) return [];
   // เทียบทั้งคำเดิม (มีช่องว่างคงเดิม) และคำที่ขยายตัวย่อแล้วแบบไม่มีช่องว่าง (กัน "iphone12" ไม่ตรงกับ "iphone 12" ที่มีเว้นวรรค)
   const words = rawWords.map((w) => ({ raw: w, expanded: expandAbbrev(w).replace(/\s+/g, '') }));
