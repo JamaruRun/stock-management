@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Call /api/cron/ledger-cutoff
         env:
-          APP_URL: ${{ vars.APP_URL || 'https://project-i2gnq.vercel.app' }}
+          APP_URL: ${{ vars.APP_URL || 'https://stock-management-mu-two.vercel.app' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           curl -sS -f -X GET "$APP_URL/api/cron/ledger-cutoff" \
