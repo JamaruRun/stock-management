@@ -279,9 +279,11 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
   }
 
   // เทียบกับชื่ออะไหล่ + รุ่นเครื่องทั้งหมดที่ผูกไว้ + รุ่นแบต + ยี่ห้อ + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบต/ยี่ห้อปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259", "แบต leeplus")
-  const matched = matchByWords(allParts || [], keyword, (p: any) =>
+  const matchedRaw = matchByWords(allParts || [], keyword, (p: any) =>
     `${p.name} ${p.phone_model || ''} ${(modelsByPart[p.id] || []).join(' ')} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`
   );
+  // เอาตัวที่มีของในสต๊อกขึ้นก่อนเสมอ ตัวหมดสต๊อกไปอยู่ท้ายๆ (คนถามอยากรู้ตัวที่ซื้อได้จริงก่อน)
+  const matched = [...matchedRaw].sort((a: any, b: any) => (Number(b.stock_qty) > 0 ? 1 : 0) - (Number(a.stock_qty) > 0 ? 1 : 0));
   const data = matched.slice(0, MAX_ITEMS_HARD_CAP);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
