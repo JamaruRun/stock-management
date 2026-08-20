@@ -37,6 +37,51 @@ function chunkMessage(text: string, maxChars: number): string[] {
   });
 }
 
+// ข้อความสั้นๆ ที่ไม่ใช่การถามหาอะไหล่แน่ๆ (ทักทาย/พูดเล่น) กันไม่ให้ fallback เดาเป็น stock_lookup ผิดๆ
+const CHITCHAT_WORDS = ['สวัสดี', 'หวัดดี', 'ขอบคุณ', 'ขอบใจ', 'thanks', 'thank you', 'hello', 'hi', 'ทดสอบ', 'test', '555', 'ฮ่า'];
+function looksLikeTerseProductQuery(q: string): boolean {
+  const t = q.trim();
+  if (t.length === 0 || t.length > 24) return false;
+  const lower = t.toLowerCase();
+  if (CHITCHAT_WORDS.some((w) => lower.includes(w))) return false;
+  if (/รายรับ|รายจ่าย|กำไร|ยอดขาย|จำนำ|ครบกำหนด/.test(t)) return false; // ให้ Gemini ตัดสินเองตามเดิมสำหรับหมวดอื่น
+  return true;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// แอดมินสอนคำย่อ/ชื่อเล่นให้บอทจำเองได้ผ่านแชท เช่น "สอน ip13 = iphone 13" หรือ "สอน ss คือ samsung"
+// กันเคสตัวย่อ/รุ่นใหม่ๆ ที่ไม่ได้ฝังไว้ในโค้ด (เพิ่มไม่ทันตลอด) โดยไม่ต้องรอแก้โค้ด/deploy ใหม่ทุกครั้ง
+const TEACH_PATTERN = /^สอน\s+(.+?)\s*(?:=|คือ)\s*(.+)$/i;
+
+async function handleTeachCommand(supabase: any, shopId: string, rawText: string): Promise<string | null> {
+  const m = rawText.trim().match(TEACH_PATTERN);
+  if (!m) return null;
+  const alias = m[1].trim();
+  const expansion = m[2].trim();
+  if (!alias || !expansion) {
+    return '❌ รูปแบบไม่ถูกต้องครับ ลองพิมพ์แบบนี้: "สอน ip13 = iphone 13"';
+  }
+  const { error } = await supabase
+    .from('assistant_aliases')
+    .upsert({ shop_id: shopId, alias, expansion }, { onConflict: 'shop_id,alias' });
+  if (error) return '❌ บันทึกไม่สำเร็จ: ' + error.message;
+  return `✅ จำแล้วครับ: "${alias}" หมายถึง "${expansion}"\nต่อไปพิมพ์ "${alias}" ระบบจะเข้าใจอัตโนมัติ`;
+}
+
+// เอาคำย่อที่แอดมินสอนไว้ (เฉพาะร้านตัวเอง) มาแทนที่ในข้อความก่อนส่งให้ Gemini + ก่อนค้นฐานข้อมูล
+// ทำเป็น substring replace ตรงๆ (ไม่สนขอบเขตคำ) เพราะคำย่อมักติดกับคำไทยไม่มีเว้นวรรคอยู่แล้ว (เช่น "แบตip13")
+async function expandShopAliases(supabase: any, shopId: string, text: string): Promise<string> {
+  const { data } = await supabase.from('assistant_aliases').select('alias, expansion').eq('shop_id', shopId);
+  let result = text;
+  for (const a of data || []) {
+    result = result.replace(new RegExp(escapeRegExp(a.alias), 'gi'), a.expansion);
+  }
+  return result;
+}
+
 function todayThaiStr(): string {
   const thai = new Date(Date.now() + 7 * 60 * 60 * 1000);
   return `${thai.getUTCFullYear()}-${String(thai.getUTCMonth() + 1).padStart(2, '0')}-${String(thai.getUTCDate()).padStart(2, '0')}`;
@@ -71,12 +116,22 @@ export async function answerQuestion(
     return ['📵 วันนี้ถามครบจำนวนที่กำหนดแล้วครับ พรุ่งนี้ถามใหม่ได้เลย'];
   }
 
+  // ===== "สอน" คำย่อ: ไม่ต้องผ่าน Gemini เลย จัดการแล้ว return ทันที =====
+  const teachReply = await handleTeachCommand(supabase, shopId, question);
+  if (teachReply) return [teachReply];
+
   const { data: logRow } = await supabase
     .from('assistant_query_log')
     .insert({ shop_id: shopId, platform, sender_key: senderKey, question })
     .select('id').single();
 
-  const parsed = await classifyQuestion(question, today);
+  const expandedQuestion = await expandShopAliases(supabase, shopId, question);
+  const classified = await classifyQuestion(expandedQuestion, today);
+  // เผื่อ Gemini เข้าใจข้อความสั้นๆ/แปลกๆ ผิดเป็น unknown (ไม่ deterministic 100% ทุกครั้ง) — ถ้าข้อความหน้าตาเหมือนกำลังถามหาอะไหล่
+  // สั้นๆ อยู่แล้วให้ fallback เป็น stock_lookup เอง แทนที่จะปล่อยให้ตอบ "ไม่เข้าใจ" ทั้งที่จริงๆ น่าจะเดาเจตนาได้
+  const parsed = classified.intent === 'unknown' && looksLikeTerseProductQuery(expandedQuestion)
+    ? ({ intent: 'stock_lookup', keyword: expandedQuestion.trim() } as const)
+    : classified;
   if (logRow?.id) {
     await supabase.from('assistant_query_log').update({ intent: parsed.intent }).eq('id', logRow.id);
   }
@@ -105,7 +160,7 @@ export async function answerQuestion(
       message = await answerPawnOverdue(supabase, shopId);
       break;
     default:
-      message = '🤔 ไม่เข้าใจคำถามนี้\n\nลองถามแบบนี้ดูครับ:\n• "รายรับรายจ่ายวันที่ 17"\n• "สรุปเดือนนี้"\n• "อะไหล่จอ iPhone 11 เหลือกี่ชิ้น"\n• "จอ iPhone 11 ราคาเท่าไหร่"\n• "อะไหล่ใกล้หมดมีอะไรบ้าง"\n• "เดดสต็อคมีอะไรบ้าง"\n• "จำนำของคุณสมชายครบกำหนดเมื่อไหร่"\n• "เครื่องจำนำใกล้ครบกำหนดมีอะไรบ้าง"\n• "เครื่องจำนำเลยกำหนดมีอะไรบ้าง"';
+      message = '🤔 ไม่เข้าใจคำถามนี้\n\nลองถามแบบนี้ดูครับ:\n• "รายรับรายจ่ายวันที่ 17"\n• "สรุปเดือนนี้"\n• "อะไหล่จอ iPhone 11 เหลือกี่ชิ้น"\n• "จอ iPhone 11 ราคาเท่าไหร่"\n• "อะไหล่ใกล้หมดมีอะไรบ้าง"\n• "เดดสต็อคมีอะไรบ้าง"\n• "จำนำของคุณสมชายครบกำหนดเมื่อไหร่"\n• "เครื่องจำนำใกล้ครบกำหนดมีอะไรบ้าง"\n• "เครื่องจำนำเลยกำหนดมีอะไรบ้าง"\n\n💡 ถ้าใช้คำย่อ/ชื่อเล่นที่ระบบยังไม่รู้จัก สอนได้เลย พิมพ์ "สอน <คำย่อ> = <ความหมาย>" เช่น "สอน ip13 = iphone 13"';
   }
 
   const chunks = chunkMessage(message, MAX_CHARS_BY_PLATFORM[platform]).slice(0, MAX_CHUNKS);

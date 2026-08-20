@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
               replyToken: event.replyToken,
               messages: [{
                 type: 'text',
-                text: `🎉 บอทเข้ากลุ่มสำเร็จ!\n\n📋 Group ID:\n${groupId}\n\n📌 วิธีใช้:\n1. Copy Group ID ด้านบน\n2. กลับไปที่หน้า ⚙️ ตั้งค่า ในเว็บ\n3. ใส่ Group ID → กดบันทึก\n\n✅ ทุกคนในกลุ่มจะได้รับแจ้งเตือนพร้อมกัน\n\n💬 ถามข้อมูลร้านในกลุ่มนี้ได้เลย ให้ขึ้นต้นด้วยคำว่า "ถาม" เช่น "ถาม รายรับวันนี้เท่าไหร่"`,
+                text: `🎉 บอทเข้ากลุ่มสำเร็จ!\n\n📋 Group ID:\n${groupId}\n\n📌 วิธีใช้:\n1. Copy Group ID ด้านบน\n2. กลับไปที่หน้า ⚙️ ตั้งค่า ในเว็บ\n3. ใส่ Group ID → กดบันทึก\n\n✅ ทุกคนในกลุ่มจะได้รับแจ้งเตือนพร้อมกัน\n\n💬 ถามข้อมูลร้านในกลุ่มนี้ได้เลย ให้ขึ้นต้นด้วยคำว่า "ถาม" เช่น "ถาม รายรับวันนี้เท่าไหร่"\n\n🎓 สอนคำย่อให้บอทได้เลย ให้ขึ้นต้นด้วยคำว่า "สอน" เช่น "สอน ip13 = iphone 13"`,
               }],
             }),
           });
@@ -125,8 +125,8 @@ export async function POST(req: NextRequest) {
         } else if (event.source?.type === 'user' && event.replyToken) {
           // ทัก 1:1 หา OA มา - ถือเป็นคำถามข้อมูลร้าน
           await handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken);
-        } else if (event.source?.type === 'group' && event.replyToken && text.startsWith('ถาม')) {
-          // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
+        } else if (event.source?.type === 'group' && event.replyToken && (text.startsWith('ถาม') || text.startsWith('สอน'))) {
+          // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" หรือ "สอน" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
           await handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken);
         }
       }
