@@ -22,7 +22,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
     sell_price: String(item.sell_price ?? ''),
     low_stock_alert: String(item.low_stock_alert ?? '2'),
     supplier_id: item.supplier_id || '', sku: item.sku || '', note: item.note || '',
-    battery_model: item.battery_model || '',
+    battery_model: item.battery_model || '', brand: item.brand || '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
   const [customPrices, setCustomPrices] = useState<CustomPriceRow[]>([]);
@@ -56,6 +56,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
       low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
       battery_model: form.category === 'battery' ? (form.battery_model.trim() || null) : null,
+      brand: form.brand.trim() || null,
     }).eq('id', item.id);
 
     // sync ราคาเพิ่มเติมแบบกำหนดเอง - ลบของเดิมแล้วใส่ชุดปัจจุบันใหม่ทั้งหมด (จำนวนแถวน้อย ไม่ต้อง diff ให้ซับซ้อน)
@@ -122,6 +123,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
             <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="2" /></F>
             <F label="SKU"><Inp Icon={Tag} value={form.sku} onChange={(v: string) => setForm({ ...form, sku: v })} placeholder="(ไม่บังคับ)" /></F>
           </div>
+          <F label="ยี่ห้อ"><Inp Icon={Tag} value={form.brand} onChange={(v: string) => setForm({ ...form, brand: v })} placeholder="เช่น Leeplus, Meago (ไม่บังคับ)" /></F>
           {suppliers.length > 0 && (
             <F label="ซัพพลายเออร์">
               <Sel Icon={Truck} value={form.supplier_id} onChange={(v: string) => setForm({ ...form, supplier_id: v })}>

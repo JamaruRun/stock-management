@@ -135,7 +135,7 @@ function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => st
 
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
   const { data: allParts } = await supabase.from('parts')
-    .select('id, name, sku, phone_model, battery_model, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
+    .select('id, name, sku, phone_model, battery_model, brand, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
     .eq('shop_id', shopId);
   const allPartIds = (allParts || []).map((p: any) => p.id);
 
@@ -152,9 +152,9 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     }
   }
 
-  // เทียบกับชื่ออะไหล่ + รุ่นเครื่องทั้งหมดที่ผูกไว้ + รุ่นแบต + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบตปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259")
+  // เทียบกับชื่ออะไหล่ + รุ่นเครื่องทั้งหมดที่ผูกไว้ + รุ่นแบต + ยี่ห้อ + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบต/ยี่ห้อปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259", "แบต leeplus")
   const data = matchByWords(allParts || [], keyword, (p: any) =>
-    `${p.name} ${p.phone_model || ''} ${(modelsByPart[p.id] || []).join(' ')} ${p.battery_model || ''} ${p.sku || ''}`
+    `${p.name} ${p.phone_model || ''} ${(modelsByPart[p.id] || []).join(' ')} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`
   ).slice(0, 10);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
@@ -176,7 +176,7 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     const qty = Number(p.stock_qty || 0);
     const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `คงเหลือ ${qty} ชิ้น`;
     const modelsTxt = (modelsByPart[p.id] || []).join(' / ') || p.phone_model || '';
-    return `🔧 ${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
+    return `🔧 ${p.brand ? `${p.brand} ` : ''}${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
   return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }

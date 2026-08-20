@@ -20,7 +20,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
     name: '', category: 'battery', grade: 'oem',
     cost_price: '', wholesale_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '2',
-    supplier_id: '', sku: '', note: '', battery_model: '',
+    supplier_id: '', sku: '', note: '', battery_model: '', brand: '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
   const [customPrices, setCustomPrices] = useState<CustomPriceRow[]>([]);
@@ -106,6 +106,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
       stock_qty: stockQty, low_stock_alert: parseInt(form.low_stock_alert) || 2,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
       battery_model: form.category === 'battery' ? (form.battery_model.trim() || null) : null,
+      brand: form.brand.trim() || null,
       added_by: profile.id, added_by_name: profile.full_name,
     }).select().single();
 
@@ -230,6 +231,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
               </F>
             )}
             <div style={g2}>
+              <F label="ยี่ห้อ"><Inp Icon={Tag} value={form.brand} onChange={(v: string) => setForm({ ...form, brand: v })} placeholder="เช่น Leeplus, Meago (ไม่บังคับ)" /></F>
               <F label="SKU / บาร์โค้ด"><Inp Icon={Tag} value={form.sku} onChange={(v: string) => setForm({ ...form, sku: v })} placeholder="(ไม่บังคับ)" /></F>
             </div>
             <F label="หมายเหตุ"><textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="(ไม่บังคับ)" rows={2} style={{ ...inputSt, height: 'auto', minHeight: 52, padding: '10px 12px', resize: 'vertical' }} onFocus={fOn} onBlur={fOff} /></F>
