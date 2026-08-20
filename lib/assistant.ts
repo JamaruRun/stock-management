@@ -3,6 +3,39 @@ import { classifyQuestion } from '@/lib/gemini';
 const RATE_LIMIT_PER_MINUTE = 5;
 const RATE_LIMIT_PER_DAY = 50;
 const MAX_ITEMS_IN_MESSAGE = 15;
+// รายการที่ยาวเกินคำตอบเดียว (เช่นถามรุ่นที่มีหลายยี่ห้อ/เกรด) จะยอมโชว์ได้เยอะแค่ไหนก่อนจะเริ่มตัดแล้วบอกให้ถามเจาะจงขึ้น
+const MAX_ITEMS_HARD_CAP = 100;
+
+// แบ่งเป็นหลายข้อความแทนการตัดทิ้ง กันข้อความยาวเกิน limit ของแต่ละแพลตฟอร์ม (LINE ~5000 ตัวอักษร, Messenger ~2000)
+// เผื่อ margin ไว้พอสมควรเพราะ LINE/Messenger นับความยาวรวม emoji/อักขระพิเศษไม่เท่ากับ .length เป๊ะๆ เสมอไป
+const MAX_CHARS_BY_PLATFORM: Record<'line' | 'messenger', number> = { line: 4500, messenger: 1800 };
+// LINE ส่งได้สูงสุด 5 ข้อความต่อการ reply 1 ครั้ง (ไม่งั้นต้องใช้ push message ซึ่งมีโควต้าจำกัด ผิดหลักการที่ตั้งใจให้ฟรี)
+const MAX_CHUNKS = 5;
+
+function chunkMessage(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+  // แบ่งตามรอยต่อรายการ (คั่นด้วยบรรทัดว่าง) ก่อน ไม่ตัดกลางรายการให้ข้อความขาดกลางคัน
+  const blocks = text.split('\n\n');
+  const chunks: string[] = [];
+  let current = '';
+  for (const block of blocks) {
+    const candidate = current ? `${current}\n\n${block}` : block;
+    if (candidate.length > maxChars && current) {
+      chunks.push(current);
+      current = block;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) chunks.push(current);
+  // เผื่อกรณีมี block เดียวยาวเกิน maxChars เอง (ไม่ควรเกิดขึ้นบ่อย) ตัดตรงๆ กันพัง
+  return chunks.flatMap((c) => {
+    if (c.length <= maxChars) return [c];
+    const hard: string[] = [];
+    for (let i = 0; i < c.length; i += maxChars) hard.push(c.slice(i, i + maxChars));
+    return hard;
+  });
+}
 
 function todayThaiStr(): string {
   const thai = new Date(Date.now() + 7 * 60 * 60 * 1000);
@@ -10,7 +43,7 @@ function todayThaiStr(): string {
 }
 
 /** เรียกหลังยืนยันตัวตนผู้ถามแล้ว (reverse-lookup shop_id ของแต่ละแพลตฟอร์มทำก่อนเรียกฟังก์ชันนี้)
- * คืน message string ให้ webhook ของแต่ละแพลตฟอร์มเอาไปส่งเอง — ฟังก์ชันนี้ไม่ยุ่งกับการส่งข้อความ */
+ * คืน array ของ message string (1 อันขึ้นไป) ให้ webhook ของแต่ละแพลตฟอร์มส่งต่อเป็นหลายข้อความ — ฟังก์ชันนี้ไม่ยุ่งกับการส่งข้อความจริง */
 export async function answerQuestion(
   supabase: any,
   shopId: string,
@@ -18,7 +51,7 @@ export async function answerQuestion(
   platform: 'line' | 'messenger',
   senderKey: string,
   question: string
-): Promise<string> {
+): Promise<string[]> {
   const today = todayThaiStr();
 
   // ===== Rate limit (กัน quota Gemini/DB โดนใช้เกินจากสแปม) =====
@@ -27,7 +60,7 @@ export async function answerQuestion(
     .from('assistant_query_log').select('id', { count: 'exact', head: true })
     .eq('sender_key', senderKey).gte('created_at', oneMinAgo);
   if ((minuteCount || 0) >= RATE_LIMIT_PER_MINUTE) {
-    return '⏳ ถามถี่ไปหน่อยนะครับ รอสักครู่แล้วค่อยถามใหม่';
+    return ['⏳ ถามถี่ไปหน่อยนะครับ รอสักครู่แล้วค่อยถามใหม่'];
   }
 
   const dayStart = `${today}T00:00:00.000Z`;
@@ -35,7 +68,7 @@ export async function answerQuestion(
     .from('assistant_query_log').select('id', { count: 'exact', head: true })
     .eq('sender_key', senderKey).gte('created_at', dayStart);
   if ((dayCount || 0) >= RATE_LIMIT_PER_DAY) {
-    return '📵 วันนี้ถามครบจำนวนที่กำหนดแล้วครับ พรุ่งนี้ถามใหม่ได้เลย';
+    return ['📵 วันนี้ถามครบจำนวนที่กำหนดแล้วครับ พรุ่งนี้ถามใหม่ได้เลย'];
   }
 
   const { data: logRow } = await supabase
@@ -48,24 +81,36 @@ export async function answerQuestion(
     await supabase.from('assistant_query_log').update({ intent: parsed.intent }).eq('id', logRow.id);
   }
 
+  let message: string;
   switch (parsed.intent) {
     case 'ledger':
-      return answerLedger(supabase, shopId, branchId, parsed.date_from, parsed.date_to, parsed.keyword);
+      message = await answerLedger(supabase, shopId, branchId, parsed.date_from, parsed.date_to, parsed.keyword);
+      break;
     case 'stock_lookup':
-      return answerStockLookup(supabase, shopId, parsed.keyword);
+      message = await answerStockLookup(supabase, shopId, parsed.keyword);
+      break;
     case 'low_stock':
-      return answerLowStock(supabase, shopId);
+      message = await answerLowStock(supabase, shopId);
+      break;
     case 'dead_stock':
-      return answerDeadStock(supabase, shopId, parsed.days);
+      message = await answerDeadStock(supabase, shopId, parsed.days);
+      break;
     case 'pawn_lookup':
-      return answerPawnLookup(supabase, shopId, parsed.keyword);
+      message = await answerPawnLookup(supabase, shopId, parsed.keyword);
+      break;
     case 'pawn_due_soon':
-      return answerPawnDueSoon(supabase, shopId, parsed.days);
+      message = await answerPawnDueSoon(supabase, shopId, parsed.days);
+      break;
     case 'pawn_overdue':
-      return answerPawnOverdue(supabase, shopId);
+      message = await answerPawnOverdue(supabase, shopId);
+      break;
     default:
-      return '🤔 ไม่เข้าใจคำถามนี้\n\nลองถามแบบนี้ดูครับ:\n• "รายรับรายจ่ายวันที่ 17"\n• "สรุปเดือนนี้"\n• "อะไหล่จอ iPhone 11 เหลือกี่ชิ้น"\n• "จอ iPhone 11 ราคาเท่าไหร่"\n• "อะไหล่ใกล้หมดมีอะไรบ้าง"\n• "เดดสต็อคมีอะไรบ้าง"\n• "จำนำของคุณสมชายครบกำหนดเมื่อไหร่"\n• "เครื่องจำนำใกล้ครบกำหนดมีอะไรบ้าง"\n• "เครื่องจำนำเลยกำหนดมีอะไรบ้าง"';
+      message = '🤔 ไม่เข้าใจคำถามนี้\n\nลองถามแบบนี้ดูครับ:\n• "รายรับรายจ่ายวันที่ 17"\n• "สรุปเดือนนี้"\n• "อะไหล่จอ iPhone 11 เหลือกี่ชิ้น"\n• "จอ iPhone 11 ราคาเท่าไหร่"\n• "อะไหล่ใกล้หมดมีอะไรบ้าง"\n• "เดดสต็อคมีอะไรบ้าง"\n• "จำนำของคุณสมชายครบกำหนดเมื่อไหร่"\n• "เครื่องจำนำใกล้ครบกำหนดมีอะไรบ้าง"\n• "เครื่องจำนำเลยกำหนดมีอะไรบ้าง"';
   }
+
+  const chunks = chunkMessage(message, MAX_CHARS_BY_PLATFORM[platform]).slice(0, MAX_CHUNKS);
+  if (chunks.length <= 1) return chunks;
+  return chunks.map((c, i) => `(ข้อความที่ ${i + 1}/${chunks.length})\n${c}`);
 }
 
 async function answerLedger(supabase: any, shopId: string, branchId: string | null, dateFrom: string, dateTo: string, keyword?: string) {
@@ -179,9 +224,10 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
   }
 
   // เทียบกับชื่ออะไหล่ + รุ่นเครื่องทั้งหมดที่ผูกไว้ + รุ่นแบต + ยี่ห้อ + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบต/ยี่ห้อปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259", "แบต leeplus")
-  const data = matchByWords(allParts || [], keyword, (p: any) =>
+  const matched = matchByWords(allParts || [], keyword, (p: any) =>
     `${p.name} ${p.phone_model || ''} ${(modelsByPart[p.id] || []).join(' ')} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`
-  ).slice(0, 10);
+  );
+  const data = matched.slice(0, MAX_ITEMS_HARD_CAP);
   if (!data || data.length === 0) {
     return `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}"`;
   }
@@ -204,7 +250,9 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     const modelsTxt = (modelsByPart[p.id] || []).join(' / ') || p.phone_model || '';
     return `🔧 ${p.brand ? `${p.brand} ` : ''}${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
-  return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n\n')}`;
+  const remaining = matched.length - data.length;
+  const moreTxt = remaining > 0 ? `\n\n...และอีก ${remaining} รายการ (ถามให้เจาะจงยี่ห้อ/เกรดเพิ่มเติมเพื่อดูครบ)` : '';
+  return `🔍 ผลค้นหา "${keyword}" (${matched.length} รายการ)\n━━━━━━━━━━━━━\n${lines.join('\n\n')}${moreTxt}`;
 }
 
 async function answerLowStock(supabase: any, shopId: string) {
@@ -252,10 +300,13 @@ async function answerPawnLookup(supabase: any, shopId: string, keyword: string) 
     .select('model, customer_name, due_date, pawn_price').eq('shop_id', shopId);
   // เทียบกับรุ่นเครื่อง + ชื่อลูกค้ารวมกัน เผื่อคำค้นมีทั้งสองอย่างปนกัน (เช่น "oppo a18 ของสมชาย")
   // ค้นหาแบบ client-side (ไม่ใช้ .or() ของ Supabase) เพื่อเลี่ยงปัญหา keyword มีอักขระพิเศษ (เช่น comma) ทำให้ query string พัง
-  const data = matchByWords(allPawn || [], keyword, (p: any) => `${p.model || ''} ${p.customer_name || ''}`).slice(0, 10);
+  const matched = matchByWords(allPawn || [], keyword, (p: any) => `${p.model || ''} ${p.customer_name || ''}`);
+  const data = matched.slice(0, MAX_ITEMS_HARD_CAP);
   if (!data || data.length === 0) return `🔍 ไม่พบเครื่องจำนำที่ตรงกับ "${keyword}"`;
   const lines = data.map((p: any) => `📱 ${p.model} — ${p.customer_name}\n   เงินต้น ฿${Number(p.pawn_price).toLocaleString()} • ครบกำหนด ${p.due_date || '-'}`);
-  return `🔍 ผลค้นหาเครื่องจำนำ "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n\n')}`;
+  const remaining = matched.length - data.length;
+  const moreTxt = remaining > 0 ? `\n\n...และอีก ${remaining} รายการ` : '';
+  return `🔍 ผลค้นหาเครื่องจำนำ "${keyword}" (${matched.length} รายการ)\n━━━━━━━━━━━━━\n${lines.join('\n\n')}${moreTxt}`;
 }
 
 async function answerPawnDueSoon(supabase: any, shopId: string, days: number) {

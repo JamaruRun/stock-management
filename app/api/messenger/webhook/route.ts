@@ -19,14 +19,17 @@ function verifySignature(rawBody: string, signatureHeader: string | null): boole
   return signatureHeader.slice(7) === expected;
 }
 
-async function sendMessengerReply(psid: string, text: string) {
+// Messenger Send API ไม่มี array ของหลายข้อความในคำขอเดียวแบบ LINE ต้องยิงทีละข้อความเรียงกันแทน
+async function sendMessengerReply(psid: string, texts: string | string[]) {
   const token = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
   if (!token) return;
-  await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${token}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipient: { id: psid }, message: { text } }),
-  });
+  for (const text of Array.isArray(texts) ? texts : [texts]) {
+    await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient: { id: psid }, message: { text } }),
+    });
+  }
 }
 
 // Facebook webhook verification handshake
@@ -86,8 +89,8 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const message = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text);
-        await sendMessengerReply(senderId, message);
+        const messages = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text);
+        await sendMessengerReply(senderId, messages);
       }
     }
 

@@ -20,13 +20,15 @@ function verifySignature(rawBody: string, signature: string | null): boolean {
   return hash === signature;
 }
 
-async function replyLine(replyToken: string, text: string) {
+// LINE รับ messages เป็น array ได้สูงสุด 5 ข้อความต่อการ reply 1 ครั้ง (ใช้ตอบหลายข้อความแทนตัดข้อมูลทิ้งเวลาคำตอบยาว)
+async function replyLine(replyToken: string, texts: string | string[]) {
   const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
   if (!channelToken || !replyToken) return;
+  const messages = (Array.isArray(texts) ? texts : [texts]).slice(0, 5).map((text) => ({ type: 'text', text }));
   await fetch('https://api.line.me/v2/bot/message/reply', {
     method: 'POST',
     headers: { Authorization: `Bearer ${channelToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ replyToken, messages: [{ type: 'text', text }] }),
+    body: JSON.stringify({ replyToken, messages }),
   });
 }
 
@@ -39,8 +41,8 @@ async function handleUserQuestion(supabase: any, userId: string, question: strin
     return;
   }
 
-  const message = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'line', userId, question);
-  await replyLine(replyToken, message);
+  const messages = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'line', userId, question);
+  await replyLine(replyToken, messages);
 }
 
 const GROUP_QUESTION_PREFIX = /^ถาม[:\s]*/;
@@ -54,8 +56,8 @@ async function handleGroupQuestion(supabase: any, groupId: string, rawText: stri
   if (!shop?.id) return; // กลุ่มนี้ยังไม่ได้เชื่อมกับร้านไหนเลย เงียบไว้ ไม่ต้องตอบ
 
   // ใช้ groupId เป็น sender_key เพื่อจำกัด rate limit ร่วมกันทั้งกลุ่ม (ไม่ใช่แยกตามคนที่พิมพ์)
-  const message = await answerQuestion(supabase, shop.id, null, 'line', `group:${groupId}`, question);
-  await replyLine(replyToken, message);
+  const messages = await answerQuestion(supabase, shop.id, null, 'line', `group:${groupId}`, question);
+  await replyLine(replyToken, messages);
 }
 
 export async function POST(req: NextRequest) {
