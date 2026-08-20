@@ -109,6 +109,19 @@ async function answerLedger(supabase: any, shopId: string, branchId: string | nu
   return [`📊 สรุปรายรับ-รายจ่าย ${periodTxt}${kwTxt}`, '━━━━━━━━━━━━━', ...summaryLines].join('\n') + detailTxt;
 }
 
+// ตัวย่อยี่ห้อที่ช่างซ่อมมือถือไทยนิยมพิมพ์กันสั้นๆ (เช่น "ip12" แทน "iphone 12", "ss a50" แทน "samsung a50")
+// ขยายก่อนค้นหา เทียบกับชื่อรุ่นเต็มๆ ที่เก็บในระบบ (ไม่ได้เก็บเป็นตัวย่อ)
+const BRAND_ABBREV: [RegExp, string][] = [
+  [/^ip(\d.*)?$/i, 'iphone$1'],
+  [/^ss(\d.*)?$/i, 'samsung$1'],
+];
+function expandAbbrev(word: string): string {
+  for (const [re, replacement] of BRAND_ABBREV) {
+    if (re.test(word)) return word.replace(re, replacement);
+  }
+  return word;
+}
+
 /** ค้นหาแบบแยกคำ: ลองแบบเข้มก่อน (ต้องเจอทุกคำ) ถ้าไม่เจอเลยค่อย fallback เป็นแบบหลวม (เจอคำไหนก็ได้)
  * กันเคส Gemini สกัด keyword มาไม่สะอาด 100% (มีคำฟุ่มเฟือยหลงเหลือ) ไม่ให้ตอบ "ไม่พบ" ทั้งที่มีของจริง
  *
@@ -116,20 +129,27 @@ async function answerLedger(supabase: any, shopId: string, branchId: string | nu
  * แล้วไม่มีรายการไหนมีคำนั้นเลย ให้ถือว่า "ไม่มีของจริง" ไม่ fallback แบบหลวม — กันเคสถามรุ่นที่ไม่มีในสต็อค
  * แล้วดันไปเจอรายการอื่นที่บังเอิญมีคำทั่วไปตรงกัน (เช่น "จอ"/"งาน"/"tft") ทำให้ตอบรุ่นผิดเป็นรุ่นอื่นแทน */
 function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => string): T[] {
-  const words = keyword.toLowerCase().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
+  const rawWords = keyword.toLowerCase().split(/\s+/).filter(Boolean);
+  if (rawWords.length === 0) return [];
+  // เทียบทั้งคำเดิม (มีช่องว่างคงเดิม) และคำที่ขยายตัวย่อแล้วแบบไม่มีช่องว่าง (กัน "iphone12" ไม่ตรงกับ "iphone 12" ที่มีเว้นวรรค)
+  const words = rawWords.map((w) => ({ raw: w, expanded: expandAbbrev(w).replace(/\s+/g, '') }));
+  const matchWord = (haystack: string, haystackCompact: string, w: { raw: string; expanded: string }) =>
+    haystack.includes(w.raw) || haystackCompact.includes(w.expanded);
+
   const strict = rows.filter((r) => {
     const haystack = getHaystack(r).toLowerCase();
-    return words.every((w) => haystack.includes(w));
+    const haystackCompact = haystack.replace(/\s+/g, '');
+    return words.every((w) => matchWord(haystack, haystackCompact, w));
   });
   if (strict.length > 0) return strict;
 
-  const hasModelLikeWord = words.some((w) => /\d/.test(w));
+  const hasModelLikeWord = rawWords.some((w) => /\d/.test(w));
   if (hasModelLikeWord) return [];
 
   return rows.filter((r) => {
     const haystack = getHaystack(r).toLowerCase();
-    return words.some((w) => haystack.includes(w));
+    const haystackCompact = haystack.replace(/\s+/g, '');
+    return words.some((w) => matchWord(haystack, haystackCompact, w));
   });
 }
 
@@ -178,7 +198,7 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     const modelsTxt = (modelsByPart[p.id] || []).join(' / ') || p.phone_model || '';
     return `🔧 ${p.brand ? `${p.brand} ` : ''}${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
-  return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
+  return `🔍 ผลค้นหา "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n\n')}`;
 }
 
 async function answerLowStock(supabase: any, shopId: string) {
@@ -229,7 +249,7 @@ async function answerPawnLookup(supabase: any, shopId: string, keyword: string) 
   const data = matchByWords(allPawn || [], keyword, (p: any) => `${p.model || ''} ${p.customer_name || ''}`).slice(0, 10);
   if (!data || data.length === 0) return `🔍 ไม่พบเครื่องจำนำที่ตรงกับ "${keyword}"`;
   const lines = data.map((p: any) => `📱 ${p.model} — ${p.customer_name}\n   เงินต้น ฿${Number(p.pawn_price).toLocaleString()} • ครบกำหนด ${p.due_date || '-'}`);
-  return `🔍 ผลค้นหาเครื่องจำนำ "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
+  return `🔍 ผลค้นหาเครื่องจำนำ "${keyword}"\n━━━━━━━━━━━━━\n${lines.join('\n\n')}`;
 }
 
 async function answerPawnDueSoon(supabase: any, shopId: string, days: number) {
