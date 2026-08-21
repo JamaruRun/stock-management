@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import {
   Plus, Search, Wrench, MoreVertical, Smartphone,
   AlertTriangle, Eye, Trash2, ShoppingCart,
-  TrendingUp, Edit2, Box, X, Loader2,
+  TrendingUp, Edit2, Box, X, Loader2, PackagePlus,
 } from 'lucide-react';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getGradeInfo } from '@/lib/parts-constants';
 import { fetchAllRows } from '@/lib/db-utils';
@@ -15,6 +15,7 @@ import PartAddModal from './PartAddModal';
 import PartSellModal from './PartSellModal';
 import PartEditModal from './PartEditModal';
 import PartRepairModal from './PartRepairModal';
+import PartRestockModal from './PartRestockModal';
 
 interface PartItem {
   id: string;
@@ -52,6 +53,7 @@ export default function V3PartsPage() {
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
   const [showRepair, setShowRepair] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
+  const [restockItem, setRestockItem] = useState<any>(null);
   const [viewItem, setViewItem] = useState<any>(null);
   const [modelsByPart, setModelsByPart] = useState<Record<string, string[]>>({});
   const [searchMode, setSearchMode] = useState<'part' | 'model'>('part');
@@ -510,6 +512,7 @@ export default function V3PartsPage() {
               onDelete={() => handleDelete(item)}
               onSell={() => { setMenuOpenId(null); setShowSell(true); }}
               onEdit={() => { setMenuOpenId(null); setEditItem(item); }}
+              onRestock={() => { setMenuOpenId(null); setRestockItem(item); }}
               onView={() => { setMenuOpenId(null); setViewItem(item); }}
             />
           ))}
@@ -530,12 +533,16 @@ export default function V3PartsPage() {
       {editItem && (
         <PartEditModal item={editItem} onClose={() => setEditItem(null)} onSuccess={() => { setEditItem(null); load(); }} />
       )}
+      {restockItem && (
+        <PartRestockModal item={restockItem} onClose={() => setRestockItem(null)} onSuccess={() => { setRestockItem(null); load(); }} />
+      )}
       {viewItem && (
         <PartDetailModal
           item={viewItem}
           isAdmin={isAdmin}
           onClose={() => setViewItem(null)}
           onEdit={() => { setViewItem(null); setEditItem(viewItem); }}
+          onRestock={() => { setViewItem(null); setRestockItem(viewItem); }}
         />
       )}
 
@@ -623,7 +630,7 @@ function Tab({ active, onClick, label, count, color }: any) {
   );
 }
 
-function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit, onView }: any) {
+function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit, onRestock, onView }: any) {
   const qty = Number(item.stock_qty || 0);
   const lowAlert = Number(item.low_stock_alert || 2);
   const isOut = qty === 0;
@@ -698,6 +705,9 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
               </button>
               <button onClick={onSell} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#16a34a' }}>
                 <ShoppingCart size={13} /> ขาย
+              </button>
+              <button onClick={onRestock} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#0284c7' }}>
+                <PackagePlus size={13} /> เติมสต๊อก
               </button>
               <button onClick={onEdit} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                 <Edit2 size={13} /> แก้ไข
@@ -843,7 +853,7 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
   );
 }
 
-function PartDetailModal({ item, isAdmin, onClose, onEdit }: any) {
+function PartDetailModal({ item, isAdmin, onClose, onEdit, onRestock }: any) {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [compatRows, setCompatRows] = useState<any[]>([]);
@@ -936,6 +946,9 @@ function PartDetailModal({ item, isAdmin, onClose, onEdit }: any) {
 
         <div style={{ padding: 18, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexShrink: 0 }}>
           <button onClick={onClose} style={{ flex: 1, padding: 12, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ปิด</button>
+          <button onClick={onRestock} style={{ flex: 2, padding: 12, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'linear-gradient(135deg, #0ea5e9, #0284c7)' }}>
+            <PackagePlus size={15} /> เติมสต๊อก
+          </button>
           <button onClick={onEdit} style={{ flex: 2, padding: 12, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'linear-gradient(135deg, #ec4899, #db2777)' }}>
             <Edit2 size={15} /> แก้ไข
           </button>
