@@ -322,12 +322,12 @@ async function answerLowStock(supabase: any, shopId: string) {
   const data = await fetchAllRows<any>(() =>
     supabase.from('parts').select('name, sku, stock_qty, low_stock_alert').eq('shop_id', shopId).order('id', { ascending: true })
   );
-  const low = data.filter((p: any) => Number(p.stock_qty) <= Number(p.low_stock_alert ?? 2)).slice(0, MAX_ITEMS_IN_MESSAGE);
+  const low = data.filter((p: any) => Number(p.stock_qty) <= Number(p.low_stock_alert ?? 0)).slice(0, MAX_ITEMS_IN_MESSAGE);
   if (low.length === 0) return '✅ ตอนนี้ไม่มีอะไหล่ใกล้หมดเลยครับ';
   const lines = low.map((p: any) => {
     const qty = Number(p.stock_qty || 0);
     const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `✅ เหลือ ${qty} ชิ้น`;
-    return `⚠️ ${p.name}${p.sku ? ` (${p.sku})` : ''} — ${qtyTxt} (ขั้นต่ำ ${p.low_stock_alert ?? 2})`;
+    return `⚠️ ${p.name}${p.sku ? ` (${p.sku})` : ''} — ${qtyTxt} (ขั้นต่ำ ${p.low_stock_alert ?? 0})`;
   });
   return `⚠️ อะไหล่ใกล้หมด (${low.length} รายการ)\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }

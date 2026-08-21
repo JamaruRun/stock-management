@@ -20,7 +20,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
     grade: item.grade || 'oem',
     cost_price: String(item.cost_price ?? ''), wholesale_price: String(item.wholesale_price ?? ''),
     sell_price: String(item.sell_price ?? ''),
-    low_stock_alert: String(item.low_stock_alert ?? '2'),
+    low_stock_alert: String(item.low_stock_alert ?? '0'),
     supplier_id: item.supplier_id || '', sku: item.sku || '', note: item.note || '',
     battery_model: item.battery_model || '', brand: item.brand || '',
   });
@@ -53,7 +53,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
       cost_price: first ? (parseFloat(first.cost_price) || 0) : (parseFloat(form.cost_price) || 0),
       wholesale_price: parseFloat(form.wholesale_price) || 0,
       sell_price: first ? (parseFloat(first.sell_price) || 0) : (parseFloat(form.sell_price) || 0),
-      low_stock_alert: parseInt(form.low_stock_alert) || 2,
+      low_stock_alert: parseInt(form.low_stock_alert) || 0,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
       battery_model: form.category === 'battery' ? (form.battery_model.trim() || null) : null,
       brand: form.brand.trim() || null,
@@ -120,7 +120,7 @@ export default function PartEditModal({ item, onClose, onSuccess }: Props) {
             />
           </F>
           <div style={g2}>
-            <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="2" /></F>
+            <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="0" /></F>
             <F label="SKU"><Inp Icon={Tag} value={form.sku} onChange={(v: string) => setForm({ ...form, sku: v })} placeholder="(ไม่บังคับ)" /></F>
           </div>
           <F label="ยี่ห้อ"><Inp Icon={Tag} value={form.brand} onChange={(v: string) => setForm({ ...form, brand: v })} placeholder="เช่น Leeplus, Meago (ไม่บังคับ)" /></F>

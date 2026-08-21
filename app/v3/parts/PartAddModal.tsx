@@ -19,7 +19,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
   const supabase = createClient();
   const [form, setForm] = useState({
     name: '', category: 'battery', grade: 'oem',
-    cost_price: '', wholesale_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '2',
+    cost_price: '', wholesale_price: '', sell_price: '', stock_qty: '1', low_stock_alert: '0',
     supplier_id: '', sku: '', note: '', battery_model: '', brand: '',
   });
   const [compatRows, setCompatRows] = useState<CompatRow[]>([]);
@@ -103,7 +103,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
       name: form.name.trim(), category: form.category, phone_model: compatRows[0]?.model_name || '',
       grade: form.grade || null, cost_price: costPrice, wholesale_price: parseFloat(form.wholesale_price) || 0,
       sell_price: parseFloat(form.sell_price) || 0,
-      stock_qty: stockQty, low_stock_alert: parseInt(form.low_stock_alert) || 2,
+      stock_qty: stockQty, low_stock_alert: parseInt(form.low_stock_alert) || 0,
       supplier_id: form.supplier_id || null, sku: form.sku.trim() || null, note: form.note.trim() || null,
       battery_model: form.category === 'battery' ? (form.battery_model.trim() || null) : null,
       brand: form.brand.trim() || null,
@@ -200,7 +200,7 @@ export default function PartAddModal({ onClose, onSuccess }: Props) {
             </div>
             <div style={g2}>
               <F label="จำนวน"><Inp Icon={Boxes} type="number" value={form.stock_qty} onChange={(v: string) => setForm({ ...form, stock_qty: v })} placeholder="1" /></F>
-              <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="2" /></F>
+              <F label="เตือนเมื่อเหลือ"><Inp Icon={Bell} type="number" value={form.low_stock_alert} onChange={(v: string) => setForm({ ...form, low_stock_alert: v })} placeholder="0" /></F>
             </div>
           </div>
 

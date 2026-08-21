@@ -148,7 +148,7 @@ export default function V3PartsPage() {
       totalQty += qty;
       totalValue += qty * Number(i.sell_price || 0);
       if (qty === 0) outOfStock++;
-      else if (qty <= (i.low_stock_alert || 2)) lowStock++;
+      else if (qty <= (i.low_stock_alert || 0)) lowStock++;
     });
     return { totalQty, totalValue, lowStock, outOfStock, totalSkus: items.length };
   }, [items]);
@@ -632,7 +632,7 @@ function Tab({ active, onClick, label, count, color }: any) {
 
 function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose, onDelete, onSell, onEdit, onRestock, onView }: any) {
   const qty = Number(item.stock_qty || 0);
-  const lowAlert = Number(item.low_stock_alert || 2);
+  const lowAlert = Number(item.low_stock_alert || 0);
   const isOut = qty === 0;
   const isLow = qty > 0 && qty <= lowAlert;
   const gradeInfo = item.grade ? getGradeInfo(item.grade) : null;
@@ -915,7 +915,7 @@ function PartDetailModal({ item, isAdmin, onClose, onEdit, onRestock }: any) {
           )}
 
           <DetailRow label="คงเหลือ" value={`${item.stock_qty} ชิ้น`} />
-          <DetailRow label="เตือนเมื่อเหลือ" value={`${item.low_stock_alert ?? 2} ชิ้น`} />
+          <DetailRow label="เตือนเมื่อเหลือ" value={`${item.low_stock_alert ?? 0} ชิ้น`} />
           {item.brand && <DetailRow label="ยี่ห้อ" value={item.brand} />}
           {item.battery_model && <DetailRow label="รุ่น/รหัสแบตเตอรี่" value={<span style={{ fontFamily: 'monospace' }}>{item.battery_model}</span>} />}
           {item.sku && <DetailRow label="SKU" value={<span style={{ fontFamily: 'monospace' }}>{item.sku}</span>} />}
