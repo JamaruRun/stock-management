@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import Toast from '@/components/Toast';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getCategoryShort, getGradeInfo } from '@/lib/parts-constants';
+import { fetchAllRows } from '@/lib/db-utils';
 import { sendLinePush } from '@/lib/line-notify';
 import { syncLedgerEntry } from '@/lib/ledger-sync';
 import LabelPrint30x20 from '@/components/LabelPrint30x20';
@@ -70,12 +71,11 @@ export default function PartsPage() {
       .from('profiles').select('*, shops(name)').eq('id', user.id).single();
     setProfile(p);
 
-    const { data } = await supabase
-      .from('parts')
-      .select('*, suppliers(name)')
-      .order('updated_at', { ascending: false });
-    
-    setParts(data || []);
+    const data = await fetchAllRows<Part>(() =>
+      supabase.from('parts').select('*, suppliers(name)').order('updated_at', { ascending: false }).order('id', { ascending: true })
+    );
+
+    setParts(data);
 
     const { data: compatRows } = await supabase
       .from('part_compatibility')

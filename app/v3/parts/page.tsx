@@ -10,6 +10,7 @@ import {
   TrendingUp, Edit2, Box, X, Loader2,
 } from 'lucide-react';
 import { PART_CATEGORIES, PART_GRADES, getCategoryLabel, getGradeInfo } from '@/lib/parts-constants';
+import { fetchAllRows } from '@/lib/db-utils';
 import PartAddModal from './PartAddModal';
 import PartSellModal from './PartSellModal';
 import PartEditModal from './PartEditModal';
@@ -73,17 +74,18 @@ export default function V3PartsPage() {
         .single();
       setProfile(p);
 
-      const { data } = await supabase
-        .from('parts')
-        .select('*')
-        .order('phone_model', { ascending: true });
-      setItems((data || []) as PartItem[]);
+      // .select() ของ Supabase คืนได้สูงสุด 1000 แถวต่อครั้งเสมอ (แม้ไม่ได้ใส่ .limit() เอง) — ต้อง page ผ่าน fetchAllRows
+      // ไม่งั้นพอร้านมีอะไหล่/ประวัติเกิน 1000 แถว รายการที่เพิ่มใหม่บางส่วนจะหายไปจากหน้าจอเงียบๆ ทั้งที่บันทึกลง DB สำเร็จแล้วจริงๆ
+      const data = await fetchAllRows<PartItem>(() =>
+        supabase.from('parts').select('*').order('phone_model', { ascending: true }).order('id', { ascending: true })
+      );
+      setItems(data);
 
-      const { data: compatRows } = await supabase
-        .from('part_compatibility')
-        .select('part_id, device_models(model_name)');
+      const compatRows = await fetchAllRows<any>(() =>
+        supabase.from('part_compatibility').select('part_id, device_models(model_name)').order('part_id', { ascending: true })
+      );
       const map: Record<string, string[]> = {};
-      (compatRows || []).forEach((r: any) => {
+      compatRows.forEach((r: any) => {
         const name = r.device_models?.model_name;
         if (!name) return;
         if (!map[r.part_id]) map[r.part_id] = [];
@@ -91,23 +93,21 @@ export default function V3PartsPage() {
       });
       setModelsByPart(map);
 
-      const { data: txRows } = await supabase
-        .from('part_transactions')
-        .select('part_id, type, created_at')
-        .in('type', ['out', 'used_in_repair']);
+      const txRows = await fetchAllRows<any>(() =>
+        supabase.from('part_transactions').select('part_id, type, created_at').in('type', ['out', 'used_in_repair']).order('id', { ascending: true })
+      );
       const lastMove: Record<string, string> = {};
-      (txRows || []).forEach((t: any) => {
+      txRows.forEach((t: any) => {
         if (!t.part_id || !t.created_at) return;
         if (!lastMove[t.part_id] || t.created_at > lastMove[t.part_id]) lastMove[t.part_id] = t.created_at;
       });
       setLastMoveByPart(lastMove);
 
-      const { data: inRows } = await supabase
-        .from('part_transactions')
-        .select('part_id, created_at')
-        .eq('type', 'in');
+      const inRows = await fetchAllRows<any>(() =>
+        supabase.from('part_transactions').select('part_id, created_at').eq('type', 'in').order('id', { ascending: true })
+      );
       const lastReceived: Record<string, string> = {};
-      (inRows || []).forEach((t: any) => {
+      inRows.forEach((t: any) => {
         if (!t.part_id || !t.created_at) return;
         if (!lastReceived[t.part_id] || t.created_at > lastReceived[t.part_id]) lastReceived[t.part_id] = t.created_at;
       });

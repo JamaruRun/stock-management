@@ -1,4 +1,5 @@
 import { classifyQuestion } from '@/lib/gemini';
+import { fetchAllRows } from '@/lib/db-utils';
 
 const RATE_LIMIT_PER_MINUTE = 5;
 const RATE_LIMIT_PER_DAY = 50;
@@ -260,18 +261,23 @@ function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => st
 }
 
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
-  const { data: allParts } = await supabase.from('parts')
-    .select('id, name, sku, phone_model, battery_model, brand, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
-    .eq('shop_id', shopId);
-  const allPartIds = (allParts || []).map((p: any) => p.id);
+  // .select() ของ Supabase คืนสูงสุด 1000 แถวเสมอแม้ไม่ใส่ .limit() เอง ต้อง page ผ่าน fetchAllRows
+  // ไม่งั้นร้านที่มีอะไหล่เกิน 1000 ชิ้น บอทจะหาของบางรุ่นไม่เจอทั้งที่มีจริงในสต๊อก
+  const allParts = await fetchAllRows<any>(() =>
+    supabase.from('parts')
+      .select('id, name, sku, phone_model, battery_model, brand, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
+      .eq('shop_id', shopId).order('id', { ascending: true })
+  );
+  const allPartIds = allParts.map((p: any) => p.id);
 
   // ดึง "รุ่นมือถือที่ใช้ได้" ทั้งหมดของทุกอะไหล่ (ไม่ใช่แค่ phone_model ซึ่งเป็นแค่รุ่นแรกที่ sync ไว้)
   // เพราะอะไหล่ 1 ชิ้นผูกได้หลายรุ่นผ่านตาราง part_compatibility เหมือนหน้า "ขาย"/"ใช้ในงานซ่อม" ที่ค้นหาแบบนี้อยู่แล้ว
   const modelsByPart: Record<string, string[]> = {};
   if (allPartIds.length > 0) {
-    const { data: compatRows } = await supabase.from('part_compatibility')
-      .select('part_id, device_models(model_name)').in('part_id', allPartIds);
-    for (const r of compatRows || []) {
+    const compatRows = await fetchAllRows<any>(() =>
+      supabase.from('part_compatibility').select('part_id, device_models(model_name)').in('part_id', allPartIds).order('part_id', { ascending: true })
+    );
+    for (const r of compatRows) {
       const name = (r as any).device_models?.model_name;
       if (!name) continue;
       (modelsByPart[(r as any).part_id] ||= []).push(name);
@@ -303,7 +309,7 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
       ...(customByPart[p.id] || []).map((c) => `${c.label} ฿${c.price.toLocaleString()}`),
     ].filter(Boolean).join(' · ');
     const qty = Number(p.stock_qty || 0);
-    const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `คงเหลือ ${qty} ชิ้น`;
+    const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `✅ คงเหลือ ${qty} ชิ้น`;
     const modelsTxt = (modelsByPart[p.id] || []).join(' / ') || p.phone_model || '';
     return `🔧 ${p.brand ? `${p.brand} ` : ''}${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
@@ -313,25 +319,29 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
 }
 
 async function answerLowStock(supabase: any, shopId: string) {
-  const { data } = await supabase.from('parts').select('name, sku, stock_qty, low_stock_alert').eq('shop_id', shopId);
-  const low = (data || []).filter((p: any) => Number(p.stock_qty) <= Number(p.low_stock_alert ?? 2)).slice(0, MAX_ITEMS_IN_MESSAGE);
+  const data = await fetchAllRows<any>(() =>
+    supabase.from('parts').select('name, sku, stock_qty, low_stock_alert').eq('shop_id', shopId).order('id', { ascending: true })
+  );
+  const low = data.filter((p: any) => Number(p.stock_qty) <= Number(p.low_stock_alert ?? 2)).slice(0, MAX_ITEMS_IN_MESSAGE);
   if (low.length === 0) return '✅ ตอนนี้ไม่มีอะไหล่ใกล้หมดเลยครับ';
   const lines = low.map((p: any) => {
     const qty = Number(p.stock_qty || 0);
-    const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `เหลือ ${qty} ชิ้น`;
+    const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `✅ เหลือ ${qty} ชิ้น`;
     return `⚠️ ${p.name}${p.sku ? ` (${p.sku})` : ''} — ${qtyTxt} (ขั้นต่ำ ${p.low_stock_alert ?? 2})`;
   });
   return `⚠️ อะไหล่ใกล้หมด (${low.length} รายการ)\n━━━━━━━━━━━━━\n${lines.join('\n')}`;
 }
 
 async function answerDeadStock(supabase: any, shopId: string, days: number) {
-  const { data: parts } = await supabase.from('parts').select('id, name, sku, stock_qty, created_at').eq('shop_id', shopId).gt('stock_qty', 0);
-  const partIds = (parts || []).map((p: any) => p.id);
+  const parts = await fetchAllRows<any>(() =>
+    supabase.from('parts').select('id, name, sku, stock_qty, created_at').eq('shop_id', shopId).gt('stock_qty', 0).order('id', { ascending: true })
+  );
+  const partIds = parts.map((p: any) => p.id);
   if (partIds.length === 0) return '✅ ไม่มีอะไหล่ในสต็อกตอนนี้';
 
-  const [{ data: moveTx }, { data: inTx }] = await Promise.all([
-    supabase.from('part_transactions').select('part_id, created_at').in('part_id', partIds).in('type', ['out', 'used_in_repair']),
-    supabase.from('part_transactions').select('part_id, created_at').in('part_id', partIds).eq('type', 'in'),
+  const [moveTx, inTx] = await Promise.all([
+    fetchAllRows<any>(() => supabase.from('part_transactions').select('part_id, created_at').in('part_id', partIds).in('type', ['out', 'used_in_repair']).order('id', { ascending: true })),
+    fetchAllRows<any>(() => supabase.from('part_transactions').select('part_id, created_at').in('part_id', partIds).eq('type', 'in').order('id', { ascending: true })),
   ]);
   const lastMove: Record<string, string> = {};
   for (const t of moveTx || []) if (t.part_id && t.created_at && (!lastMove[t.part_id] || t.created_at > lastMove[t.part_id])) lastMove[t.part_id] = t.created_at;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendShopLinePush } from '@/lib/line-push-server';
 import { getGradeInfo } from '@/lib/parts-constants';
+import { fetchAllRows } from '@/lib/db-utils';
 
 function adminClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -71,25 +72,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, dueShops: 0, shopsNotified: 0 });
   }
 
-  const { data: parts } = await admin
-    .from('parts')
-    .select('id, shop_id, name, sku, cost_price, grade, stock_qty, created_at')
-    .in('shop_id', dueShopIds)
-    .gt('stock_qty', 0);
+  // .select() ของ Supabase คืนสูงสุด 1000 แถวเสมอแม้ไม่ใส่ .limit() เอง ต้อง page ผ่าน fetchAllRows
+  // (cron นี้ query ข้ามได้หลายร้านพร้อมกัน รวมแถวง่ายเกิน 1000 ถ้าระบบมีอะไหล่เยอะ)
+  const parts = await fetchAllRows<any>(() =>
+    admin.from('parts').select('id, shop_id, name, sku, cost_price, grade, stock_qty, created_at').in('shop_id', dueShopIds).gt('stock_qty', 0).order('id', { ascending: true })
+  );
 
-  const partIds = (parts || []).map((p: any) => p.id);
+  const partIds = parts.map((p: any) => p.id);
 
-  const [{ data: moveTx }, { data: inTx }, { data: compatRows }] = await Promise.all([
-    partIds.length > 0
-      ? admin.from('part_transactions').select('part_id, created_at').in('part_id', partIds).in('type', ['out', 'used_in_repair'])
-      : Promise.resolve({ data: [] } as any),
-    partIds.length > 0
-      ? admin.from('part_transactions').select('part_id, created_at').in('part_id', partIds).eq('type', 'in')
-      : Promise.resolve({ data: [] } as any),
-    partIds.length > 0
-      ? admin.from('part_compatibility').select('part_id, device_models(model_name)').in('part_id', partIds)
-      : Promise.resolve({ data: [] } as any),
-  ]);
+  const [moveTx, inTx, compatRows] = partIds.length > 0
+    ? await Promise.all([
+        fetchAllRows<any>(() => admin.from('part_transactions').select('part_id, created_at').in('part_id', partIds).in('type', ['out', 'used_in_repair']).order('id', { ascending: true })),
+        fetchAllRows<any>(() => admin.from('part_transactions').select('part_id, created_at').in('part_id', partIds).eq('type', 'in').order('id', { ascending: true })),
+        fetchAllRows<any>(() => admin.from('part_compatibility').select('part_id, device_models(model_name)').in('part_id', partIds).order('part_id', { ascending: true })),
+      ])
+    : [[], [], []];
 
   const lastMove: Record<string, string> = {};
   for (const t of moveTx || []) {
