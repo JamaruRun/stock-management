@@ -1,5 +1,6 @@
 import { classifyQuestion } from '@/lib/gemini';
 import { fetchAllRows } from '@/lib/db-utils';
+import { getCategoryLabel } from '@/lib/parts-constants';
 
 const RATE_LIMIT_PER_MINUTE = 5;
 const RATE_LIMIT_PER_DAY = 50;
@@ -151,6 +152,9 @@ export async function answerQuestion(
     case 'dead_stock':
       message = await answerDeadStock(supabase, shopId, parsed.days);
       break;
+    case 'stock_value':
+      message = await answerStockValue(supabase, shopId, parsed.keyword);
+      break;
     case 'pawn_lookup':
       message = await answerPawnLookup(supabase, shopId, parsed.keyword);
       break;
@@ -161,7 +165,7 @@ export async function answerQuestion(
       message = await answerPawnOverdue(supabase, shopId);
       break;
     default:
-      message = '🤔 ไม่เข้าใจคำถามนี้\n\nลองถามแบบนี้ดูครับ:\n• "รายรับรายจ่ายวันที่ 17"\n• "สรุปเดือนนี้"\n• "อะไหล่จอ iPhone 11 เหลือกี่ชิ้น"\n• "จอ iPhone 11 ราคาเท่าไหร่"\n• "อะไหล่ใกล้หมดมีอะไรบ้าง"\n• "เดดสต็อคมีอะไรบ้าง"\n• "จำนำของคุณสมชายครบกำหนดเมื่อไหร่"\n• "เครื่องจำนำใกล้ครบกำหนดมีอะไรบ้าง"\n• "เครื่องจำนำเลยกำหนดมีอะไรบ้าง"\n\n💡 ถ้าใช้คำย่อ/ชื่อเล่นที่ระบบยังไม่รู้จัก สอนได้เลย พิมพ์ "สอน <คำย่อ> = <ความหมาย>" เช่น "สอน ip13 = iphone 13"';
+      message = '🤔 ไม่เข้าใจคำถามนี้\n\nลองถามแบบนี้ดูครับ:\n• "รายรับรายจ่ายวันที่ 17"\n• "สรุปเดือนนี้"\n• "อะไหล่จอ iPhone 11 เหลือกี่ชิ้น"\n• "จอ iPhone 11 ราคาเท่าไหร่"\n• "อะไหล่ใกล้หมดมีอะไรบ้าง"\n• "เดดสต็อคมีอะไรบ้าง"\n• "ต้นทุนรวมสต๊อกทั้งหมดเท่าไหร่"\n• "จำนำของคุณสมชายครบกำหนดเมื่อไหร่"\n• "เครื่องจำนำใกล้ครบกำหนดมีอะไรบ้าง"\n• "เครื่องจำนำเลยกำหนดมีอะไรบ้าง"\n\n💡 ถ้าใช้คำย่อ/ชื่อเล่นที่ระบบยังไม่รู้จัก สอนได้เลย พิมพ์ "สอน <คำย่อ> = <ความหมาย>" เช่น "สอน ip13 = iphone 13"';
   }
 
   const chunks = chunkMessage(message, MAX_CHARS_BY_PLATFORM[platform]).slice(0, MAX_CHUNKS);
@@ -360,6 +364,45 @@ async function answerDeadStock(supabase: any, shopId: string, days: number) {
   const remaining = dead.length - lines.length;
   const moreTxt = remaining > 0 ? `\n...และอีก ${remaining} รายการ` : '';
   return `📦 เดดสต็อค (ไม่เคลื่อนไหวเกิน ${days} วัน) — ${dead.length} รายการ\n━━━━━━━━━━━━━\n${lines.join('\n')}${moreTxt}`;
+}
+
+async function answerStockValue(supabase: any, shopId: string, keyword?: string) {
+  const allParts = await fetchAllRows<any>(() =>
+    supabase.from('parts').select('name, category, phone_model, battery_model, brand, sku, stock_qty, cost_price').eq('shop_id', shopId).gt('stock_qty', 0)
+  );
+
+  // ถ้าระบุหมวด/ยี่ห้อ/รุ่นมา ให้กรองเฉพาะที่ตรง (ใช้ตัวจับคู่เดียวกับ stock_lookup เพื่อความสม่ำเสมอ)
+  const scoped = keyword
+    ? matchByWords(allParts, keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`)
+    : allParts;
+
+  if (scoped.length === 0) {
+    return keyword ? `🔍 ไม่พบอะไหล่ที่ตรงกับ "${keyword}" ในสต๊อกตอนนี้` : '✅ ไม่มีอะไหล่ในสต็อกตอนนี้';
+  }
+
+  const totalValue = scoped.reduce((s: number, p: any) => s + Number(p.cost_price || 0) * Number(p.stock_qty || 0), 0);
+  const totalQty = scoped.reduce((s: number, p: any) => s + Number(p.stock_qty || 0), 0);
+
+  const byCategory: Record<string, { qty: number; value: number }> = {};
+  for (const p of scoped) {
+    const key = p.category || 'other';
+    const bucket = (byCategory[key] ||= { qty: 0, value: 0 });
+    bucket.qty += Number(p.stock_qty || 0);
+    bucket.value += Number(p.cost_price || 0) * Number(p.stock_qty || 0);
+  }
+  const catLines = Object.entries(byCategory)
+    .sort((a, b) => b[1].value - a[1].value)
+    .map(([cat, v]) => `${getCategoryLabel(cat)} — ${v.qty} ชิ้น · ฿${v.value.toLocaleString()}`);
+
+  const scopeTxt = keyword ? ` (เฉพาะ "${keyword}")` : '';
+  return [
+    `💰 มูลค่าสต๊อกรวม${scopeTxt}`,
+    '━━━━━━━━━━━━━',
+    `📦 รวม ${scoped.length} รายการ (${totalQty} ชิ้น)`,
+    `💵 ต้นทุนรวม: ฿${totalValue.toLocaleString()}`,
+    '━━━━━━━━━━━━━',
+    ...catLines,
+  ].join('\n');
 }
 
 async function answerPawnLookup(supabase: any, shopId: string, keyword: string) {

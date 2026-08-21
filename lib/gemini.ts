@@ -5,6 +5,7 @@ export type AssistantIntent =
   | { intent: 'stock_lookup'; keyword: string }
   | { intent: 'low_stock' }
   | { intent: 'dead_stock'; days: number }
+  | { intent: 'stock_value'; keyword?: string }
   | { intent: 'pawn_lookup'; keyword: string }
   | { intent: 'pawn_due_soon'; days: number }
   | { intent: 'pawn_overdue' }
@@ -45,14 +46,18 @@ export async function classifyQuestion(question: string, todayStr: string): Prom
    {"intent":"dead_stock","days":90}
    (days = จำนวนวันที่ถาม ถ้าไม่ระบุใช้ 90)
 
-5. ถามหาเครื่องจำนำเจาะจงชื่อลูกค้า/รุ่นเครื่อง:
+5. ถามมูลค่า/ต้นทุนรวมของสต๊อกทั้งหมด (ไม่ใช่ถามอะไหล่ตัวใดตัวหนึ่ง แต่ถามภาพรวมทั้งร้าน/ทั้งหมวด):
+   {"intent":"stock_value","keyword":"หมวด/ยี่ห้อ/รุ่นที่ระบุถ้ามี เช่น แบต, จอ, iphone (ไม่มีก็ไม่ต้องใส่ field นี้ = รวมทุกอย่าง)"}
+   ตัวอย่าง: "ต้นทุนรวมทั้งหมดเท่าไหร่", "มูลค่าสต๊อกตอนนี้เท่าไหร่", "สต๊อกแบตทั้งหมดคิดเป็นเงินเท่าไหร่"
+
+6. ถามหาเครื่องจำนำเจาะจงชื่อลูกค้า/รุ่นเครื่อง:
    {"intent":"pawn_lookup","keyword":"ชื่อลูกค้าหรือรุ่นเครื่องที่ถาม"}
 
-6. ถามเครื่องจำนำที่ใกล้ครบกำหนด (ไม่เจาะจงเครื่อง):
+7. ถามเครื่องจำนำที่ใกล้ครบกำหนด (ไม่เจาะจงเครื่อง):
    {"intent":"pawn_due_soon","days":7}
    (days = จำนวนวันข้างหน้าที่ถาม ถ้าไม่ระบุใช้ 7)
 
-7. ถามเครื่องจำนำที่เลยกำหนดแล้ว:
+8. ถามเครื่องจำนำที่เลยกำหนดแล้ว:
    {"intent":"pawn_overdue"}
 
 กฎสำคัญสำหรับ field "keyword" (ข้อ 2 และ 5): ให้ใส่เฉพาะคำที่เป็นชื่อของจริง (ชื่ออะไหล่, ยี่ห้อ/รุ่นเครื่อง, ชื่อลูกค้า) เท่านั้น
@@ -115,6 +120,8 @@ function validateIntent(parsed: any): AssistantIntent {
       return { intent: 'low_stock' };
     case 'dead_stock':
       return { intent: 'dead_stock', days: Number(parsed.days) > 0 ? Number(parsed.days) : 90 };
+    case 'stock_value':
+      return { intent: 'stock_value', keyword: parsed.keyword || undefined };
     case 'pawn_lookup':
       if (!parsed.keyword) return { intent: 'unknown', reason: 'ไม่มีคำค้นหาเครื่องจำนำ' };
       return { intent: 'pawn_lookup', keyword: String(parsed.keyword) };
