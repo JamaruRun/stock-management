@@ -109,9 +109,11 @@ export default function PartRepairModal({ onClose, onSuccess }: Props) {
   const total = Math.max(0, subtotal - discountNum);
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
 
+  // ถ้าไม่ได้เลือกรุ่นเครื่อง (หรืออะไหล่ที่เลือกไม่ได้ผูกรุ่นไว้เลย) ใช้ชื่ออะไหล่แทนเป็นข้อมูลอ้างอิง แทนที่จะบังคับให้ต้องเลือกรุ่นก่อนซ่อมได้
+  const effectiveDeviceModel = deviceModel || items.map(i => i.name).join(' / ');
+
   async function confirmRepair() {
     if (items.length === 0) return notify('ยังไม่ได้เลือกอะไหล่', false);
-    if (!deviceModel) return notify('เลือกรุ่นเครื่องที่ซ่อม', false);
     if (discountNum > subtotal) return notify('ส่วนลดเกินยอดรวม', false);
     if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
     setSubmitting(true);
@@ -119,7 +121,7 @@ export default function PartRepairModal({ onClose, onSuccess }: Props) {
     if (!user) { setSubmitting(false); return; }
 
     const { data: log, error: logError } = await supabase.from('repair_log').insert({
-      shop_id: profile.shop_id, branch_id: profile.branch_id, device_model: deviceModel,
+      shop_id: profile.shop_id, branch_id: profile.branch_id, device_model: effectiveDeviceModel,
       price_type: priceType, labor_cost: laborCostNum, parts_total: partsTotal, discount: discountNum, total,
       done_by: user.id, done_by_name: profile.full_name,
     }).select().single();
@@ -135,7 +137,7 @@ export default function PartRepairModal({ onClose, onSuccess }: Props) {
       await supabase.from('parts').update({ stock_qty: i.stock_qty - i.quantity }).eq('id', i.part_id);
       await supabase.from('part_transactions').insert({
         shop_id: profile.shop_id, part_id: i.part_id, type: 'out', qty_change: -i.quantity,
-        cost_at_transaction: i.cost_price, reference_type: 'used_in_repair', note: `ซ่อม ${deviceModel}`,
+        cost_at_transaction: i.cost_price, reference_type: 'used_in_repair', note: `ซ่อม ${effectiveDeviceModel}`,
         done_by: user.id, done_by_name: profile.full_name,
       });
     }
@@ -147,17 +149,17 @@ export default function PartRepairModal({ onClose, onSuccess }: Props) {
       return `🔧 ${i.name} (${code}) x${i.quantity}\nคงเหลือหลังตัด: ${remain} ชิ้น`;
     }).join('\n');
     const discountTxt = discountNum > 0 ? `\nส่วนลด: -฿${discountNum.toLocaleString()}` : '';
-    const lineMsg = `🛠️ ซ่อมด่วน (ตัดสต็อคตรง)\n━━━━━━━━━━━━━\n📱 รุ่นเครื่อง: ${deviceModel}\n💲 ราคาที่คิด: ${priceLabel}\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━\nค่าอะไหล่: ฿${partsTotal.toLocaleString()}\nค่าแรง: ฿${laborCostNum.toLocaleString()}${discountTxt}\n💵 ยอดรวม: ฿${total.toLocaleString()}`;
+    const lineMsg = `🛠️ ซ่อมด่วน (ตัดสต็อคตรง)\n━━━━━━━━━━━━━\n📱 รุ่นเครื่อง: ${effectiveDeviceModel}\n💲 ราคาที่คิด: ${priceLabel}\n━━━━━━━━━━━━━\n${itemLines}\n━━━━━━━━━━━━━\nค่าอะไหล่: ฿${partsTotal.toLocaleString()}\nค่าแรง: ฿${laborCostNum.toLocaleString()}${discountTxt}\n💵 ยอดรวม: ฿${total.toLocaleString()}`;
     sendLinePush(lineMsg, 'repair_log').catch(() => {});
 
     syncLedgerEntry(supabase, {
       shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_repair_used',
-      amount: total, description: `ซ่อมด่วน ${deviceModel} - ${total.toLocaleString()} บาท`,
+      amount: total, description: `ซ่อมด่วน ${effectiveDeviceModel} - ${total.toLocaleString()} บาท`,
       userId: user.id, userName: profile.full_name,
     });
 
     setSubmitting(false);
-    setDone({ items: [...items], deviceModel, priceType, partsTotal, laborCost: laborCostNum, discount: discountNum, total });
+    setDone({ items: [...items], deviceModel: effectiveDeviceModel, priceType, partsTotal, laborCost: laborCostNum, discount: discountNum, total });
   }
 
   if (done) {
@@ -246,9 +248,9 @@ export default function PartRepairModal({ onClose, onSuccess }: Props) {
         {items.length > 0 && (
           <>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 6 }}>รุ่นเครื่องที่ซ่อม</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', marginBottom: 6 }}>รุ่นเครื่องที่ซ่อม (ไม่บังคับ)</div>
               {modelOptions.length === 0 ? (
-                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>อะไหล่ที่เลือกยังไม่ได้ผูกกับรุ่นไหนเลย</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>อะไหล่ที่เลือกยังไม่ได้ผูกกับรุ่นไหนเลย — จะบันทึกเป็นชื่ออะไหล่แทน ({effectiveDeviceModel})</div>
               ) : (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {modelOptions.map(m => (
