@@ -25,11 +25,16 @@ async function replyLine(replyToken: string, texts: string | string[]) {
   const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
   if (!channelToken || !replyToken) return;
   const messages = (Array.isArray(texts) ? texts : [texts]).slice(0, 5).map((text) => ({ type: 'text', text }));
-  await fetch('https://api.line.me/v2/bot/message/reply', {
+  const res = await fetch('https://api.line.me/v2/bot/message/reply', {
     method: 'POST',
     headers: { Authorization: `Bearer ${channelToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ replyToken, messages }),
   });
+  if (!res.ok) {
+    // เดิมไม่เช็ค response เลย ถ้า LINE ปฏิเสธ (เช่น replyToken หมดอายุเพราะประมวลผลช้าเกินไป) จะเงียบสนิท ไม่มีร่องรอยใน log ไหนเลย
+    const body = await res.text().catch(() => '');
+    console.error('LINE reply failed:', res.status, body);
+  }
 }
 
 async function handleUserQuestion(supabase: any, userId: string, question: string, replyToken: string) {

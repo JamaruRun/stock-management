@@ -101,19 +101,17 @@ export async function answerQuestion(
 ): Promise<string[]> {
   const today = todayThaiStr();
 
-  // ===== Rate limit (กัน quota Gemini/DB โดนใช้เกินจากสแปม) =====
+  // ===== Rate limit (กัน quota Gemini/DB โดนใช้เกินจากสแปม) — 2 query นี้ไม่ขึ้นกับกัน ยิงพร้อมกันประหยัดเวลา =====
+  // (LINE reply token มีอายุสั้นมาก ถ้า pipeline นี้ช้าเกินไปจะตอบไม่ทันแล้วเงียบไปเลย เลยต้องรีบทุก step ที่ทำได้)
   const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString();
-  const { count: minuteCount } = await supabase
-    .from('assistant_query_log').select('id', { count: 'exact', head: true })
-    .eq('sender_key', senderKey).gte('created_at', oneMinAgo);
+  const dayStart = `${today}T00:00:00.000Z`;
+  const [{ count: minuteCount }, { count: dayCount }] = await Promise.all([
+    supabase.from('assistant_query_log').select('id', { count: 'exact', head: true }).eq('sender_key', senderKey).gte('created_at', oneMinAgo),
+    supabase.from('assistant_query_log').select('id', { count: 'exact', head: true }).eq('sender_key', senderKey).gte('created_at', dayStart),
+  ]);
   if ((minuteCount || 0) >= RATE_LIMIT_PER_MINUTE) {
     return ['⏳ ถามถี่ไปหน่อยนะครับ รอสักครู่แล้วค่อยถามใหม่'];
   }
-
-  const dayStart = `${today}T00:00:00.000Z`;
-  const { count: dayCount } = await supabase
-    .from('assistant_query_log').select('id', { count: 'exact', head: true })
-    .eq('sender_key', senderKey).gte('created_at', dayStart);
   if ((dayCount || 0) >= RATE_LIMIT_PER_DAY) {
     return ['📵 วันนี้ถามครบจำนวนที่กำหนดแล้วครับ พรุ่งนี้ถามใหม่ได้เลย'];
   }
@@ -122,20 +120,20 @@ export async function answerQuestion(
   const teachReply = await handleTeachCommand(supabase, shopId, question);
   if (teachReply) return [teachReply];
 
-  const { data: logRow } = await supabase
-    .from('assistant_query_log')
-    .insert({ shop_id: shopId, platform, sender_key: senderKey, question })
-    .select('id').single();
+  const [{ data: logRow }, expandedQuestion] = await Promise.all([
+    supabase.from('assistant_query_log').insert({ shop_id: shopId, platform, sender_key: senderKey, question }).select('id').single(),
+    expandShopAliases(supabase, shopId, question),
+  ]);
 
-  const expandedQuestion = await expandShopAliases(supabase, shopId, question);
   const classified = await classifyQuestion(expandedQuestion, today);
   // เผื่อ Gemini เข้าใจข้อความสั้นๆ/แปลกๆ ผิดเป็น unknown (ไม่ deterministic 100% ทุกครั้ง) — ถ้าข้อความหน้าตาเหมือนกำลังถามหาอะไหล่
   // สั้นๆ อยู่แล้วให้ fallback เป็น stock_lookup เอง แทนที่จะปล่อยให้ตอบ "ไม่เข้าใจ" ทั้งที่จริงๆ น่าจะเดาเจตนาได้
   const parsed = classified.intent === 'unknown' && looksLikeTerseProductQuery(expandedQuestion)
     ? ({ intent: 'stock_lookup', keyword: expandedQuestion.trim() } as const)
     : classified;
+  // ไม่ await การอัปเดต intent เพราะเป็นแค่ log สำหรับ debug ไม่ควรทำให้ตอบผู้ใช้ช้าลงอีก 1 round-trip
   if (logRow?.id) {
-    await supabase.from('assistant_query_log').update({ intent: parsed.intent }).eq('id', logRow.id);
+    supabase.from('assistant_query_log').update({ intent: parsed.intent }).eq('id', logRow.id).then(() => {}, () => {});
   }
 
   let message: string;

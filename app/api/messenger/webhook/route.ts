@@ -24,11 +24,15 @@ async function sendMessengerReply(psid: string, texts: string | string[]) {
   const token = process.env.MESSENGER_PAGE_ACCESS_TOKEN;
   if (!token) return;
   for (const text of Array.isArray(texts) ? texts : [texts]) {
-    await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${token}`, {
+    const res = await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipient: { id: psid }, message: { text } }),
     });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error('Messenger reply failed:', res.status, body);
+    }
   }
 }
 
