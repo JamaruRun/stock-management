@@ -73,22 +73,36 @@ export async function classifyQuestion(question: string, todayStr: string): Prom
 ถ้าคำถามไม่ตรงกับข้อไหนเลย หรือดูไม่ใช่คำถามเกี่ยวกับร้าน (เช่นทักทาย, ถามเรื่องอื่น) ให้ตอบ:
 {"intent":"unknown","reason":"เหตุผลสั้นๆ"}`;
 
+  // Gemini บางทีตอบ 503 (โมเดลคนแน่น/high demand ชั่วคราว) หรือ 429 (rate limit) — ลองใหม่อีกครั้งสั้นๆ ก่อนยอมแพ้
+  // (ไม่ลองซ้ำเยอะ เพราะ LINE reply token มีเวลาจำกัด รอนานไปเสี่ยงตอบไม่ทันแทน)
+  const RETRYABLE_STATUS = new Set([429, 503]);
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0 },
-        }),
+    let res: Response | null = null;
+    let errBody = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json', temperature: 0 },
+          }),
+        }
+      );
+      if (res.ok) break;
+      errBody = await res.text().catch(() => '');
+      if (attempt === 0 && RETRYABLE_STATUS.has(res.status)) {
+        console.error(`Gemini API error (attempt ${attempt + 1}, retrying):`, res.status, errBody);
+        await new Promise((r) => setTimeout(r, 500));
+        continue;
       }
-    );
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      console.error('Gemini API error:', res.status, errBody);
-      return { intent: 'unknown', reason: `Gemini API error: ${res.status}` };
+      break;
+    }
+    if (!res || !res.ok) {
+      console.error('Gemini API error:', res?.status, errBody);
+      return { intent: 'unknown', reason: `Gemini API error: ${res?.status}` };
     }
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
