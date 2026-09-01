@@ -491,11 +491,7 @@ export default function V3PartsPage() {
           กำลังโหลด...
         </div>
       ) : searchMode === 'model' && !selectedModel ? (
-        <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
-          <Smartphone size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>เลือกรุ่นเครื่องด้านบน</div>
-          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>เพื่อดูอะไหล่ทั้งหมดที่ใช้ได้กับรุ่นนั้น</div>
-        </div>
+        <EmptyBox Icon={Smartphone} title="เลือกรุ่นเครื่องด้านบน" sub="เพื่อดูอะไหล่ทั้งหมดที่ใช้ได้กับรุ่นนั้น" />
       ) : filtered.length === 0 ? (
         <EmptyState hasFilters={!!(search || selectedModel || activeCategory !== 'all' || activeGrade !== 'all')} onAdd={() => setShowAdd(true)} />
       ) : (
@@ -1005,11 +1001,7 @@ function DeadStockView({ items, days, onDaysChange, loading, modelsByPart }: any
       {loading ? (
         <div className="v3-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>กำลังโหลด...</div>
       ) : items.length === 0 ? (
-        <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
-          <Box size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>ไม่มีเดดสต็อค</div>
-          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>อะไหล่ทุกชิ้นมีการเคลื่อนไหวภายใน {days} วัน</div>
-        </div>
+        <EmptyBox Icon={Box} title="ไม่มีเดดสต็อค" sub={`อะไหล่ทุกชิ้นมีการเคลื่อนไหวภายใน ${days} วัน`} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map((item: any) => {
@@ -1041,22 +1033,34 @@ function DeadStockView({ items, days, onDaysChange, loading, modelsByPart }: any
   );
 }
 
+/* กล่อง empty-state กลาง ใช้ร่วมกันทุกจุดที่ไม่มีรายการให้แสดง (ตัวกรองไม่เจอ/เดดสต็อคว่าง/ยังไม่เลือกรุ่น ฯลฯ)
+ * ขนาดตามเนื้อหาจริงเสมอ (ไม่มี min-height ตายตัว) และจำกัดไม่ให้สูงเกินไปแม้ container รอบนอกจะพยายามยืดให้เต็มพื้นที่ */
+function EmptyBox({ Icon, title, sub, action }: any) {
+  return (
+    <div className="v3-card" style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      textAlign: 'center', padding: '28px 20px', maxHeight: 200, boxSizing: 'border-box', overflow: 'hidden',
+    }}>
+      <Icon size={40} strokeWidth={1.2} style={{ marginBottom: 10, color: 'var(--text-muted)' }} />
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: sub ? 4 : 0 }}>{title}</div>
+      {sub && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: action ? 14 : 0 }}>{sub}</div>}
+      {action}
+    </div>
+  );
+}
+
 function EmptyState({ hasFilters, onAdd }: any) {
   return (
-    <div className="v3-card" style={{ textAlign: 'center', padding: 40 }}>
-      <Wrench size={48} strokeWidth={1.2} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-        {hasFilters ? 'ไม่พบอะไหล่ตามที่ค้นหา' : 'ยังไม่มีอะไหล่ในสต๊อก'}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
-        {hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการเพิ่มอะไหล่ใหม่'}
-      </div>
-      {!hasFilters && (
+    <EmptyBox
+      Icon={Wrench}
+      title={hasFilters ? 'ไม่พบอะไหล่ตามที่ค้นหา' : 'ยังไม่มีอะไหล่ในสต๊อก'}
+      sub={hasFilters ? 'ลองเปลี่ยนตัวกรอง' : 'เริ่มต้นโดยการเพิ่มอะไหล่ใหม่'}
+      action={!hasFilters && (
         <button onClick={onAdd} className="v3-btn v3-btn-primary" style={{ border: 'none', cursor: 'pointer' }}>
           <Plus size={14} /> เพิ่มอะไหล่
         </button>
       )}
-    </div>
+    />
   );
 }
 
