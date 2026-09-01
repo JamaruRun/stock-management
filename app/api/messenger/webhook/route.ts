@@ -93,8 +93,14 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const messages = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text);
-        await sendMessengerReply(senderId, messages);
+        // ครอบ try/catch เอง กัน exception ระหว่างทาง (เช่น Supabase/Gemini ล่มชั่วคราว) ทำให้เงียบไปเลยไม่ตอบอะไรทั้งนั้น
+        try {
+          const messages = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text);
+          await sendMessengerReply(senderId, messages);
+        } catch (err: any) {
+          console.error('answerQuestion error:', err);
+          await sendMessengerReply(senderId, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
+        }
       }
     }
 

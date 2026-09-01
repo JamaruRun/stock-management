@@ -129,10 +129,21 @@ export async function POST(req: NextRequest) {
           }
         } else if (event.source?.type === 'user' && event.replyToken) {
           // ทัก 1:1 หา OA มา - ถือเป็นคำถามข้อมูลร้าน
-          await handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken);
+          // ครอบ try/catch เอง กัน exception ระหว่างทาง (เช่น Supabase/Gemini ล่มชั่วคราว) ทำให้เงียบไปเลยไม่ตอบอะไรทั้งนั้น
+          try {
+            await handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken);
+          } catch (err: any) {
+            console.error('handleUserQuestion error:', err);
+            await replyLine(event.replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
+          }
         } else if (event.source?.type === 'group' && event.replyToken && (text.startsWith('ถาม') || text.startsWith('สอน'))) {
           // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" หรือ "สอน" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
-          await handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken);
+          try {
+            await handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken);
+          } catch (err: any) {
+            console.error('handleGroupQuestion error:', err);
+            await replyLine(event.replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
+          }
         }
       }
     }
