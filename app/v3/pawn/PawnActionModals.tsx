@@ -77,23 +77,38 @@ function Toast({ toast }: any) {
 export function PawnRedeemModal({ item, onClose, onSuccess }: any) {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
-  const [totalInterest, setTotalInterest] = useState(0);
+  const [pastInterest, setPastInterest] = useState(0); // ดอกเบี้ยที่จ่ายมาแล้วในอดีต (จากการต่อดอกครั้งก่อนๆ)
+  const [interestPaid, setInterestPaid] = useState(String(item.interest_amount || '')); // ดอกเบี้ยงวดปัจจุบันที่ต้องจ่ายพร้อมไถ่
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   function notify(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 2600); }
 
   useEffect(() => {
     async function loadInterest() {
       const { data } = await supabase.from('pawn_renewals').select('interest_paid').eq('pawn_id', item.id);
-      setTotalInterest((data || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0));
+      setPastInterest((data || []).reduce((s: number, r: any) => s + Number(r.interest_paid || 0), 0));
     }
     loadInterest();
   }, [item.id]);
+
+  const currentInterest = Math.max(0, parseFloat(interestPaid) || 0);
+  const totalToCollect = Number(item.pawn_price || 0) + currentInterest;
 
   async function confirm() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
     const { data: profile } = await supabase.from('profiles').select('full_name, shop_id').eq('id', user.id).single();
+
+    // ดอกเบี้ยงวดสุดท้าย (พร้อมไถ่ถอน) บันทึกเป็น renewal record เหมือนต่อดอกปกติ ให้ประวัติดอกเบี้ยครบ
+    if (currentInterest > 0) {
+      await supabase.from('pawn_renewals').insert({
+        pawn_id: item.id, renewal_date: new Date().toISOString().split('T')[0],
+        interest_paid: currentInterest, old_due_date: item.due_date || null, new_due_date: new Date().toISOString().split('T')[0],
+        note: 'ดอกเบี้ยงวดสุดท้าย (พร้อมไถ่ถอน)', renewed_by: user.id, renewed_by_name: profile?.full_name,
+        branch_id: item.branch_id, shop_id: profile?.shop_id,
+      });
+    }
+    const grandTotalInterest = pastInterest + currentInterest;
 
     const { error: insertError } = await supabase.from('pawn_history').insert({
       imei: item.imei || '', model: item.model, color: item.color, spec: item.spec,
@@ -106,15 +121,24 @@ export function PawnRedeemModal({ item, onClose, onSuccess }: any) {
       redeem_date: new Date().toISOString().split('T')[0],
       branch_id: item.branch_id, shop_id: profile?.shop_id,
       interest_days: item.interest_days || 30, renew_count: item.renew_count || 0,
-      total_interest_paid: totalInterest, exit_status: 'redeemed',
+      total_interest_paid: grandTotalInterest, exit_status: 'redeemed',
     });
     if (insertError) { notify('เกิดข้อผิดพลาด: ' + insertError.message, false); setLoading(false); return; }
 
     await supabase.from('pawn_stock').delete().eq('id', item.id);
 
-    const interestTxt = totalInterest > 0 ? `\n💰 ดอกเบี้ยที่จ่ายมาทั้งหมด: ฿${totalInterest.toLocaleString()}` : '';
-    const lineMsg = `🔓 ไถ่คืนเครื่องจำนำ\n━━━━━━━━━━━━━\n📦 ${item.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${item.customer_name}\n💵 รับเงินคืน: ฿${Number(item.pawn_price).toLocaleString()}${interestTxt}\n👨‍💼 รับโดย: ${profile?.full_name || '-'}`;
+    const interestTxt = currentInterest > 0 ? `\n💰 ดอกเบี้ยงวดนี้: ฿${currentInterest.toLocaleString()}` : '';
+    const pastInterestTxt = pastInterest > 0 ? `\n📜 ดอกเบี้ยที่จ่ายมาก่อนหน้า: ฿${pastInterest.toLocaleString()}` : '';
+    const lineMsg = `🔓 ไถ่คืนเครื่องจำนำ\n━━━━━━━━━━━━━\n📦 ${item.model}\n━━━━━━━━━━━━━\n👤 ลูกค้า: ${item.customer_name}\n💵 เงินต้น: ฿${Number(item.pawn_price).toLocaleString()}${interestTxt}${pastInterestTxt}\n💵 รับเงินรวม: ฿${totalToCollect.toLocaleString()}\n👨‍💼 รับโดย: ${profile?.full_name || '-'}`;
     sendLineNotify(lineMsg, 'pawn').catch(() => {});
+
+    if (currentInterest > 0) {
+      syncLedgerEntry(supabase, {
+        shopId: profile?.shop_id, branchId: item.branch_id, sourceEvent: 'pawn_interest',
+        amount: currentInterest, description: `ดอกเบี้ยไถ่ถอน ${item.model} - ${currentInterest.toLocaleString()} บาท`,
+        userId: user.id, userName: profile?.full_name,
+      });
+    }
 
     setLoading(false);
     notify('ไถ่คืนสำเร็จ');
@@ -132,15 +156,34 @@ export function PawnRedeemModal({ item, onClose, onSuccess }: any) {
       </div>
       <div style={{ padding: 18, overflowY: 'auto' }}>
         <ItemSummary item={item} />
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>ดอกเบี้ยงวดนี้ที่ต้องจ่ายพร้อมไถ่ (฿)</label>
+          <div style={{ position: 'relative' }}>
+            <Percent size={16} style={iconSt} />
+            <input type="number" inputMode="decimal" value={interestPaid} onChange={(e) => setInterestPaid(e.target.value)} placeholder="0" style={inputSt} />
+          </div>
+        </div>
+
         <div style={{ padding: 14, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-            <span style={{ color: '#166534' }}>เงินต้นที่รับคืน</span>
-            <strong style={{ color: '#166534', fontFamily: 'Prompt, sans-serif' }}>฿{Number(item.pawn_price).toLocaleString()}</strong>
+            <span style={{ color: '#166534' }}>เงินต้น</span>
+            <span style={{ color: '#166534' }}>฿{Number(item.pawn_price).toLocaleString()}</span>
           </div>
-          {totalInterest > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#15803d' }}>
-              <span>ดอกเบี้ยที่จ่ายมาแล้ว</span>
-              <span>฿{totalInterest.toLocaleString()}</span>
+          {currentInterest > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+              <span style={{ color: '#166534' }}>ดอกเบี้ยงวดนี้</span>
+              <span style={{ color: '#166534' }}>฿{currentInterest.toLocaleString()}</span>
+            </div>
+          )}
+          <div style={{ borderTop: '1px dashed #bbf7d0', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+            <span style={{ color: '#166534', fontWeight: 700 }}>รวมที่ต้องรับ</span>
+            <strong style={{ color: '#166534', fontFamily: 'Prompt, sans-serif', fontSize: 16 }}>฿{totalToCollect.toLocaleString()}</strong>
+          </div>
+          {pastInterest > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#15803d', marginTop: 8 }}>
+              <span>ดอกเบี้ยที่จ่ายมาก่อนหน้า (ต่อดอกไปแล้ว)</span>
+              <span>฿{pastInterest.toLocaleString()}</span>
             </div>
           )}
         </div>
