@@ -3,6 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { answerQuestion } from '@/lib/assistant';
 
+// ลองซ้ำ 1 ครั้งก่อนยอมแพ้ (เผื่อ Supabase/บริการภายนอกแค่ "หลุดชั่วครู่" ไม่ใช่ล่มสนิท) — replyToken ยังไม่ถูกใช้ตอน error
+// เกิดก่อนถึงขั้นตอน reply เสมอ (reply เป็นคำสั่งสุดท้าย) เลย retry ซ้ำด้วย replyToken เดิมได้อย่างปลอดภัย
+async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 600));
+    return await fn();
+  }
+}
+
 // Service role client (เพราะ webhook ไม่มี user session)
 function getServiceClient() {
   return createClient(
@@ -130,8 +141,9 @@ export async function POST(req: NextRequest) {
         } else if (event.source?.type === 'user' && event.replyToken) {
           // ทัก 1:1 หา OA มา - ถือเป็นคำถามข้อมูลร้าน
           // ครอบ try/catch เอง กัน exception ระหว่างทาง (เช่น Supabase/Gemini ล่มชั่วคราว) ทำให้เงียบไปเลยไม่ตอบอะไรทั้งนั้น
+          // ลองใหม่ 1 รอบก่อนยอมแพ้ เผื่อ Supabase แค่ "degraded" (ไม่เสถียรบางครั้ง) ไม่ใช่ล่มสนิท ลองใหม่มักจะผ่าน
           try {
-            await handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken);
+            await retryOnce(() => handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken));
           } catch (err: any) {
             console.error('handleUserQuestion error:', err);
             await replyLine(event.replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
@@ -139,7 +151,7 @@ export async function POST(req: NextRequest) {
         } else if (event.source?.type === 'group' && event.replyToken && (text.startsWith('ถาม') || text.startsWith('สอน'))) {
           // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" หรือ "สอน" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
           try {
-            await handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken);
+            await retryOnce(() => handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken));
           } catch (err: any) {
             console.error('handleGroupQuestion error:', err);
             await replyLine(event.replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});

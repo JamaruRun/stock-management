@@ -11,6 +11,16 @@ function getServiceClient() {
   );
 }
 
+// ลองซ้ำ 1 ครั้งก่อนยอมแพ้ (เผื่อ Supabase/บริการภายนอกแค่ "หลุดชั่วครู่" ไม่ใช่ล่มสนิท)
+async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 600));
+    return await fn();
+  }
+}
+
 function verifySignature(rawBody: string, signatureHeader: string | null): boolean {
   const secret = process.env.MESSENGER_APP_SECRET;
   if (!secret) return true; // ยังไม่ได้ตั้งค่า secret - ข้ามการเช็ค
@@ -94,8 +104,9 @@ export async function POST(req: NextRequest) {
         }
 
         // ครอบ try/catch เอง กัน exception ระหว่างทาง (เช่น Supabase/Gemini ล่มชั่วคราว) ทำให้เงียบไปเลยไม่ตอบอะไรทั้งนั้น
+        // ลองใหม่ 1 รอบก่อนยอมแพ้ เผื่อ Supabase แค่ "degraded" ชั่วคราว
         try {
-          const messages = await answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text);
+          const messages = await retryOnce(() => answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text));
           await sendMessengerReply(senderId, messages);
         } catch (err: any) {
           console.error('answerQuestion error:', err);
