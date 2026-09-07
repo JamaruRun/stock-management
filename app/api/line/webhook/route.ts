@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { answerQuestion } from '@/lib/assistant';
 
+// Vercel (Hobby plan) ฆ่า serverless function ทิ้งทันทีถ้าเกิน 10 วินาที แบบไม่มีทางส่งอะไรกลับได้เลย
+// (แม้แต่ fallback message ก็ส่งไม่ทัน) — ต้องกันไว้เองไม่ให้ processing กินเวลาเกินจนโดนฆ่าก่อน
+export const maxDuration = 10;
+
 // ลองซ้ำ 1 ครั้งก่อนยอมแพ้ (เผื่อ Supabase/บริการภายนอกแค่ "หลุดชั่วครู่" ไม่ใช่ล่มสนิท) — replyToken ยังไม่ถูกใช้ตอน error
 // เกิดก่อนถึงขั้นตอน reply เสมอ (reply เป็นคำสั่งสุดท้าย) เลย retry ซ้ำด้วย replyToken เดิมได้อย่างปลอดภัย
 async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
@@ -11,6 +15,26 @@ async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   } catch (e) {
     await new Promise((r) => setTimeout(r, 600));
     return await fn();
+  }
+}
+
+// เผื่อ processing (Gemini + Supabase หลายรอบ + retry) รวมกันช้าจนใกล้โดน Vercel ฆ่าทิ้งที่ 10 วิ (โดยเฉพาะตอน Supabase
+// กำลัง degraded) - ตั้งเวลาตัดที่ 7 วิ ถ้ายังไม่เสร็จ ส่งข้อความ "ตอบช้ากว่าปกติ" ไปก่อนเลย ดีกว่าปล่อยให้เงียบสนิทตอนโดนฆ่า
+// งานจริงยังทำงานต่อในพื้นหลัง ถ้าเสร็จทันจะพยายาม reply ตามหลังอีกที (ถ้า replyToken ถูกใช้ไปแล้วก็แค่ reply ไม่สำเร็จเฉยๆ ไม่กระทบอะไร)
+async function runWithSlowFallback(replyToken: string, fn: () => Promise<void>, timeoutMs = 7000) {
+  let settled = false;
+  const work = fn()
+    .then(() => { settled = true; })
+    .catch(async (err) => {
+      settled = true;
+      console.error('handler error:', err);
+      await replyLine(replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
+    });
+
+  await Promise.race([work, new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
+
+  if (!settled) {
+    await replyLine(replyToken, '⚠️ ระบบตอบช้ากว่าปกติตอนนี้ (Supabase ขัดข้อง) รอสักครู่หรือถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
   }
 }
 
@@ -140,22 +164,15 @@ export async function POST(req: NextRequest) {
           }
         } else if (event.source?.type === 'user' && event.replyToken) {
           // ทัก 1:1 หา OA มา - ถือเป็นคำถามข้อมูลร้าน
-          // ครอบ try/catch เอง กัน exception ระหว่างทาง (เช่น Supabase/Gemini ล่มชั่วคราว) ทำให้เงียบไปเลยไม่ตอบอะไรทั้งนั้น
-          // ลองใหม่ 1 รอบก่อนยอมแพ้ เผื่อ Supabase แค่ "degraded" (ไม่เสถียรบางครั้ง) ไม่ใช่ล่มสนิท ลองใหม่มักจะผ่าน
-          try {
-            await retryOnce(() => handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken));
-          } catch (err: any) {
-            console.error('handleUserQuestion error:', err);
-            await replyLine(event.replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
-          }
+          // runWithSlowFallback ครอบทั้ง error-fallback และ slow-fallback ไว้ให้ ไม่ปล่อยให้เงียบสนิทไม่ว่าจะพังหรือช้า
+          await runWithSlowFallback(event.replyToken, () =>
+            retryOnce(() => handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken))
+          );
         } else if (event.source?.type === 'group' && event.replyToken && (text.startsWith('ถาม') || text.startsWith('สอน'))) {
           // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" หรือ "สอน" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
-          try {
-            await retryOnce(() => handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken));
-          } catch (err: any) {
-            console.error('handleGroupQuestion error:', err);
-            await replyLine(event.replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
-          }
+          await runWithSlowFallback(event.replyToken, () =>
+            retryOnce(() => handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken))
+          );
         }
       }
     }

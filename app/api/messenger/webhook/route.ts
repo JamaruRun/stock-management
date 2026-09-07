@@ -11,6 +11,9 @@ function getServiceClient() {
   );
 }
 
+// Vercel (Hobby plan) ฆ่า serverless function ทิ้งทันทีถ้าเกิน 10 วินาที แบบไม่มีทางส่งอะไรกลับได้เลย
+export const maxDuration = 10;
+
 // ลองซ้ำ 1 ครั้งก่อนยอมแพ้ (เผื่อ Supabase/บริการภายนอกแค่ "หลุดชั่วครู่" ไม่ใช่ล่มสนิท)
 async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   try {
@@ -18,6 +21,25 @@ async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   } catch (e) {
     await new Promise((r) => setTimeout(r, 600));
     return await fn();
+  }
+}
+
+// เผื่อ processing รวมกันช้าจนใกล้โดน Vercel ฆ่าทิ้งที่ 10 วิ (โดยเฉพาะตอน Supabase degraded) - ตัดที่ 7 วิ
+// ส่งข้อความ "ตอบช้ากว่าปกติ" ไปก่อนเลยถ้ายังไม่เสร็จ ดีกว่าปล่อยให้เงียบสนิทตอนโดนฆ่า งานจริงยังทำงานต่อในพื้นหลัง
+async function runWithSlowFallback(psid: string, fn: () => Promise<void>, timeoutMs = 7000) {
+  let settled = false;
+  const work = fn()
+    .then(() => { settled = true; })
+    .catch(async (err) => {
+      settled = true;
+      console.error('handler error:', err);
+      await sendMessengerReply(psid, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
+    });
+
+  await Promise.race([work, new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
+
+  if (!settled) {
+    await sendMessengerReply(psid, '⚠️ ระบบตอบช้ากว่าปกติตอนนี้ (Supabase ขัดข้อง) รอสักครู่หรือถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
   }
 }
 
@@ -103,15 +125,11 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // ครอบ try/catch เอง กัน exception ระหว่างทาง (เช่น Supabase/Gemini ล่มชั่วคราว) ทำให้เงียบไปเลยไม่ตอบอะไรทั้งนั้น
-        // ลองใหม่ 1 รอบก่อนยอมแพ้ เผื่อ Supabase แค่ "degraded" ชั่วคราว
-        try {
+        // runWithSlowFallback ครอบทั้ง error-fallback และ slow-fallback ไว้ให้ ไม่ปล่อยให้เงียบสนิทไม่ว่าจะพังหรือช้า
+        await runWithSlowFallback(senderId, async () => {
           const messages = await retryOnce(() => answerQuestion(supabase, profile.shop_id, profile.branch_id || null, 'messenger', senderId, text));
           await sendMessengerReply(senderId, messages);
-        } catch (err: any) {
-          console.error('answerQuestion error:', err);
-          await sendMessengerReply(senderId, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
-        }
+        });
       }
     }
 
