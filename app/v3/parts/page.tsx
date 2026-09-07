@@ -703,7 +703,7 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
                 <ShoppingCart size={13} /> ขาย
               </button>
               <button onClick={onRestock} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer', color: '#0284c7' }}>
-                <PackagePlus size={13} /> เติมสต๊อก
+                <PackagePlus size={13} /> ปรับสต๊อก
               </button>
               <button onClick={onEdit} style={{ ...menuLinkStyle, border: 'none', background: 'transparent', width: '100%', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
                 <Edit2 size={13} /> แก้ไข
@@ -943,7 +943,7 @@ function PartDetailModal({ item, isAdmin, onClose, onEdit, onRestock }: any) {
         <div style={{ padding: 18, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexShrink: 0 }}>
           <button onClick={onClose} style={{ flex: 1, padding: 12, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ปิด</button>
           <button onClick={onRestock} style={{ flex: 2, padding: 12, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'linear-gradient(135deg, #0ea5e9, #0284c7)' }}>
-            <PackagePlus size={15} /> เติมสต๊อก
+            <PackagePlus size={15} /> ปรับสต๊อก
           </button>
           <button onClick={onEdit} style={{ flex: 2, padding: 12, color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'linear-gradient(135deg, #ec4899, #db2777)' }}>
             <Edit2 size={15} /> แก้ไข

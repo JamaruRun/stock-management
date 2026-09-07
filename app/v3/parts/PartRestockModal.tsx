@@ -5,13 +5,14 @@ import { createClient } from '@/lib/supabase-client';
 import { sendLinePush } from '@/lib/line-notify';
 import { syncLedgerEntry } from '@/lib/ledger-sync';
 import {
-  Boxes, X, DollarSign, Loader2, CheckCircle2, AlertCircle, PackagePlus,
+  Boxes, X, DollarSign, Loader2, CheckCircle2, AlertCircle, PackagePlus, PackageMinus,
 } from 'lucide-react';
 
 interface Props { item: any; onClose: () => void; onSuccess: () => void; }
 
 export default function PartRestockModal({ item, onClose, onSuccess }: Props) {
   const supabase = createClient();
+  const [mode, setMode] = useState<'add' | 'reduce'>('add');
   const [qty, setQty] = useState('1');
   const [costPrice, setCostPrice] = useState(String(item.cost_price ?? ''));
   const [note, setNote] = useState('');
@@ -30,39 +31,52 @@ export default function PartRestockModal({ item, onClose, onSuccess }: Props) {
     load();
   }, []);
 
+  const currentQty = Number(item.stock_qty || 0);
+  const qtyNum = parseInt(qty) || 0;
+  const newQty = mode === 'add' ? currentQty + qtyNum : currentQty - qtyNum;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const addQty = parseInt(qty);
-    if (!addQty || addQty <= 0) return notify('กรอกจำนวนที่รับเข้าให้ถูกต้อง', false);
+    if (!qtyNum || qtyNum <= 0) return notify(mode === 'add' ? 'กรอกจำนวนที่รับเข้าให้ถูกต้อง' : 'กรอกจำนวนที่ลดให้ถูกต้อง', false);
+    if (mode === 'reduce' && qtyNum > currentQty) return notify(`มีของอยู่แค่ ${currentQty} ชิ้น ลดได้ไม่เกินนี้`, false);
     if (!profile) return notify('กำลังโหลดข้อมูล กรุณารอสักครู่', false);
     setLoading(true);
 
     const cost = parseFloat(costPrice) || 0;
-    const newQty = Number(item.stock_qty || 0) + addQty;
 
     const { error: txError } = await supabase.from('part_transactions').insert({
-      shop_id: profile.shop_id, part_id: item.id, type: 'in', qty_change: addQty,
-      cost_at_transaction: cost, reference_type: 'purchase', note: note.trim() || 'เติมสต๊อก',
+      shop_id: profile.shop_id, part_id: item.id,
+      type: mode === 'add' ? 'in' : 'out', qty_change: mode === 'add' ? qtyNum : -qtyNum,
+      cost_at_transaction: cost, reference_type: mode === 'add' ? 'purchase' : 'adjustment',
+      note: note.trim() || (mode === 'add' ? 'เติมสต๊อก' : 'ปรับลดสต๊อก'),
       done_by: profile.id, done_by_name: profile.full_name,
     });
     if (txError) { notify('บันทึกไม่สำเร็จ: ' + txError.message, false); setLoading(false); return; }
 
-    const { error: updateError } = await supabase.from('parts')
-      .update({ stock_qty: newQty, cost_price: cost })
-      .eq('id', item.id);
+    // ปรับลดไม่ใช่การซื้อเข้าใหม่ ไม่ควรอัปเดตราคาทุนอ้างอิงตาม (ราคาทุนคงเดิม)
+    const updatePayload: any = { stock_qty: newQty };
+    if (mode === 'add') updatePayload.cost_price = cost;
+    const { error: updateError } = await supabase.from('parts').update(updatePayload).eq('id', item.id);
     if (updateError) { notify('อัปเดตสต๊อกไม่สำเร็จ: ' + updateError.message, false); setLoading(false); return; }
 
     const codeTxt = item.sku || item.id.slice(0, 8);
-    const msg = `📦 เติมสต๊อกอะไหล่\n━━━━━━━━━━━━━\n🔧 ${item.name}\n🔖 ${codeTxt}\n➕ รับเข้า: ${addQty} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${cost.toLocaleString()}\n📊 คงเหลือ: ${newQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
-    sendLinePush(msg, 'restock').catch(() => {});
-    syncLedgerEntry(supabase, {
-      shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_stock_in',
-      amount: cost * addQty, description: `เติมสต๊อกอะไหล่ ${item.name} ${addQty} ชิ้น`,
-      userId: profile.id, userName: profile.full_name,
-    });
+    if (mode === 'add') {
+      const msg = `📦 เติมสต๊อกอะไหล่\n━━━━━━━━━━━━━\n🔧 ${item.name}\n🔖 ${codeTxt}\n➕ รับเข้า: ${qtyNum} ชิ้น\n💰 ต้นทุน/ชิ้น: ฿${cost.toLocaleString()}\n📊 คงเหลือ: ${newQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
+      sendLinePush(msg, 'restock').catch(() => {});
+      syncLedgerEntry(supabase, {
+        shopId: profile.shop_id, branchId: profile.branch_id, sourceEvent: 'parts_stock_in',
+        amount: cost * qtyNum, description: `เติมสต๊อกอะไหล่ ${item.name} ${qtyNum} ชิ้น`,
+        userId: profile.id, userName: profile.full_name,
+      });
+    } else {
+      const noteTxt = note.trim() ? `\n📝 เหตุผล: ${note.trim()}` : '';
+      const msg = `📉 ปรับลดสต๊อกอะไหล่\n━━━━━━━━━━━━━\n🔧 ${item.name}\n🔖 ${codeTxt}\n➖ ลด: ${qtyNum} ชิ้น${noteTxt}\n📊 คงเหลือ: ${newQty} ชิ้น\n👤 บันทึกโดย: ${profile.full_name}`;
+      sendLinePush(msg, 'restock').catch(() => {});
+      // ปรับลดแบบนี้ (ของเสีย/นับผิด ฯลฯ) ไม่ใช่รายรับ-รายจ่ายจริง เลยไม่บันทึกลงสมุดรายรับ-รายจ่าย
+    }
 
     setLoading(false);
-    notify('เติมสต๊อกสำเร็จ');
+    notify(mode === 'add' ? 'เติมสต๊อกสำเร็จ' : 'ปรับลดสต๊อกสำเร็จ');
     setTimeout(() => onSuccess(), 800);
   }
 
@@ -71,9 +85,11 @@ export default function PartRestockModal({ item, onClose, onSuccess }: Props) {
       <div onClick={(e) => e.stopPropagation()} className="v3-card" style={card}>
         <div style={headerSt}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><PackagePlus size={18} /></div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: mode === 'add' ? '#dcfce7' : '#fee2e2', color: mode === 'add' ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {mode === 'add' ? <PackagePlus size={18} /> : <PackageMinus size={18} />}
+            </div>
             <div style={{ minWidth: 0 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Prompt, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>เติมสต๊อก</h2>
+              <h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Prompt, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>ปรับสต๊อก</h2>
               <p style={{ fontSize: 11, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name} · คงเหลือตอนนี้ {item.stock_qty} ชิ้น</p>
             </div>
           </div>
@@ -81,16 +97,33 @@ export default function PartRestockModal({ item, onClose, onSuccess }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <F label="จำนวนที่รับเข้า" req><Inp Icon={Boxes} type="number" value={qty} onChange={(v: string) => setQty(v)} placeholder="1" /></F>
-          <F label="ต้นทุน/ชิ้น (฿)"><Inp Icon={DollarSign} type="number" value={costPrice} onChange={(v: string) => setCostPrice(v)} placeholder="0" /></F>
-          <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>คงเหลือหลังเติม: {Number(item.stock_qty || 0) + (parseInt(qty) || 0)} ชิ้น</div>
-          <F label="หมายเหตุ"><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="(ไม่บังคับ)" rows={2} style={{ ...inputSt, height: 'auto', minHeight: 52, padding: '10px 12px', resize: 'vertical' }} onFocus={fOn} onBlur={fOff} /></F>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setMode('add')} style={{
+              flex: 1, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+              background: mode === 'add' ? '#16a34a' : 'var(--surface-2)', color: mode === 'add' ? '#fff' : 'var(--text)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}><PackagePlus size={14} /> เพิ่ม (รับเข้า)</button>
+            <button type="button" onClick={() => setMode('reduce')} style={{
+              flex: 1, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+              background: mode === 'reduce' ? '#dc2626' : 'var(--surface-2)', color: mode === 'reduce' ? '#fff' : 'var(--text)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}><PackageMinus size={14} /> ลด (แก้ไข/ของเสีย)</button>
+          </div>
+
+          <F label={mode === 'add' ? 'จำนวนที่รับเข้า' : 'จำนวนที่ลด'} req><Inp Icon={Boxes} type="number" value={qty} onChange={(v: string) => setQty(v)} placeholder="1" /></F>
+          {mode === 'add' && (
+            <F label="ต้นทุน/ชิ้น (฿)"><Inp Icon={DollarSign} type="number" value={costPrice} onChange={(v: string) => setCostPrice(v)} placeholder="0" /></F>
+          )}
+          <div style={{ fontSize: 10, color: newQty < 0 ? '#dc2626' : 'var(--text-dim)' }}>คงเหลือหลัง{mode === 'add' ? 'เติม' : 'ลด'}: {newQty} ชิ้น</div>
+          <F label={mode === 'add' ? 'หมายเหตุ' : 'เหตุผลที่ลด'}>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={mode === 'add' ? '(ไม่บังคับ)' : 'เช่น ของเสีย, สูญหาย, นับสต็อกผิด'} rows={2} style={{ ...inputSt, height: 'auto', minHeight: 52, padding: '10px 12px', resize: 'vertical' }} onFocus={fOn} onBlur={fOff} />
+          </F>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             <button type="button" onClick={onClose} style={secBtn}>ยกเลิก</button>
-            <button type="submit" disabled={loading} style={{ ...priBtn, background: loading ? 'var(--surface-2)' : 'linear-gradient(135deg, #16a34a, #15803d)' }}>
-              {loading ? <Loader2 size={17} className="v3-spin" /> : <PackagePlus size={17} strokeWidth={2.4} />}
-              {loading ? 'กำลังบันทึก...' : 'เติมสต๊อก'}
+            <button type="submit" disabled={loading} style={{ ...priBtn, background: loading ? 'var(--surface-2)' : mode === 'add' ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+              {loading ? <Loader2 size={17} className="v3-spin" /> : mode === 'add' ? <PackagePlus size={17} strokeWidth={2.4} /> : <PackageMinus size={17} strokeWidth={2.4} />}
+              {loading ? 'กำลังบันทึก...' : mode === 'add' ? 'เติมสต๊อก' : 'ยืนยันลดสต๊อก'}
             </button>
           </div>
         </form>
