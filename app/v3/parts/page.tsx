@@ -776,34 +776,53 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
         {item.name}
       </div>
 
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 3,
-        marginBottom: 8,
-        minHeight: 16,
-      }}>
-        {(compatModels && compatModels.length > 0 ? compatModels : [item.phone_model || 'ทั่วไป']).map((m: string, idx: number) => (
-          <span key={idx} style={{
-            display: 'inline-flex',
-            alignItems: 'center',
+      {(() => {
+        // จำกัดจำนวน badge ที่โชว์ให้คงที่เสมอ (ไม่ว่าจะผูกไว้กี่รุ่น) กันไม่ให้ความสูงการ์ดขยับตามจำนวนรุ่นที่ผูกไว้
+        const models = compatModels && compatModels.length > 0 ? compatModels : [item.phone_model || 'ทั่วไป'];
+        const shown = models.slice(0, 2);
+        const remaining = models.length - shown.length;
+        return (
+          <div style={{
+            display: 'flex',
+            flexWrap: 'nowrap',
             gap: 3,
-            fontSize: 9,
-            color: 'var(--text-dim)',
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border)',
-            borderRadius: 100,
-            padding: '2px 7px',
-            maxWidth: '100%',
+            marginBottom: 8,
+            height: 20,
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
           }}>
-            <Smartphone size={8} style={{ flexShrink: 0 }} />
-            {m}
-          </span>
-        ))}
-      </div>
+            {shown.map((m: string, idx: number) => (
+              <span key={idx} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                fontSize: 9,
+                color: 'var(--text-dim)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 100,
+                padding: '2px 7px',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flexShrink: 1,
+              }}>
+                <Smartphone size={8} style={{ flexShrink: 0 }} />
+                {m}
+              </span>
+            ))}
+            {remaining > 0 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', fontSize: 9, fontWeight: 700,
+                color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--border)',
+                borderRadius: 100, padding: '2px 7px', flexShrink: 0,
+              }}>
+                +{remaining}
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       <div style={{
         display: 'flex',
