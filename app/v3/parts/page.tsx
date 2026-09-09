@@ -546,6 +546,9 @@ export default function V3PartsPage() {
         :global(.v3-parts-grid) {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          /* 1fr กับ auto-rows = ทุกแถวสูงเท่ากันหมดทั้งกริด (ไม่ใช่แค่เท่ากันภายในแถวเดียวกัน) */
+          grid-auto-rows: 1fr;
+          align-items: stretch;
           gap: 10px;
         }
         @media (max-width: 640px) {
@@ -726,15 +729,16 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
       </div>
 
       <div style={{
-        width: 90,
-        height: 90,
+        width: '100%',
+        aspectRatio: '3 / 2',
+        maxHeight: 130,
         flexShrink: 0,
-        margin: '0 auto 10px',
         background: 'var(--surface-2)',
         borderRadius: 10,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        marginBottom: 10,
         marginTop: 22,
         position: 'relative',
       }}>
