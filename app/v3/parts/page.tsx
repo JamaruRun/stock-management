@@ -726,15 +726,15 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
       </div>
 
       <div style={{
-        width: '100%',
+        width: 90,
         height: 90,
         flexShrink: 0,
+        margin: '0 auto 10px',
         background: 'var(--surface-2)',
         borderRadius: 10,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 10,
         marginTop: 22,
         position: 'relative',
       }}>
