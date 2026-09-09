@@ -727,7 +727,8 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
 
       <div style={{
         width: '100%',
-        aspectRatio: '1',
+        height: 90,
+        flexShrink: 0,
         background: 'var(--surface-2)',
         borderRadius: 10,
         display: 'flex',
@@ -737,7 +738,7 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
         marginTop: 22,
         position: 'relative',
       }}>
-        <Wrench size={36} color="#94a3b8" strokeWidth={1.5} />
+        <Wrench size={32} color="#94a3b8" strokeWidth={1.5} />
         {gradeInfo && (
           <div style={{
             position: 'absolute',
