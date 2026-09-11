@@ -552,8 +552,9 @@ export default function V3PartsPage() {
           align-items: stretch;
           gap: 10px;
         }
-        /* กันการ์ดดันความกว้างตัวเองจนกริดล้นจอ (ข้อความ nowrap ข้างในทำให้ min-content กว้างเกิน track) */
-        :global(.v3-parts-grid) > * {
+        /* กันการ์ดดันความกว้างตัวเองจนกริดล้นจอ (ข้อความ nowrap ข้างในทำให้ min-content กว้างเกิน track)
+           ต้องครอบ :global() ทั้ง selector เพราะการ์ดอยู่คนละคอมโพเนนต์ ถ้าเขียน :global(...) > * จะไม่ match */
+        :global(.v3-parts-grid > *) {
           min-width: 0;
         }
         @media (max-width: 640px) {
