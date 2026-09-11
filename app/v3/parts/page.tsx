@@ -545,12 +545,16 @@ export default function V3PartsPage() {
       <style jsx>{`
         :global(.v3-parts-grid) {
           display: grid;
-          /* คอลัมน์กว้างขั้นต่ำ 300px กันไม่ให้มือถือ (ที่รายงานความกว้างเกิน 640px) ยัดเป็น 4 คอลัมน์จนการ์ดแคบ+ตัวหนังสือจิ๋ว */
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          /* min() กัน track กว้างเกินจอบนมือถือแคบ (ถ้าใส่ 300px ตรงๆ จอที่แคบกว่านั้นจะล้นออกนอกขอบ) */
+          grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
           /* 1fr กับ auto-rows = ทุกแถวสูงเท่ากันหมดทั้งกริด (ไม่ใช่แค่เท่ากันภายในแถวเดียวกัน) */
           grid-auto-rows: 1fr;
           align-items: stretch;
           gap: 10px;
+        }
+        /* กันการ์ดดันความกว้างตัวเองจนกริดล้นจอ (ข้อความ nowrap ข้างในทำให้ min-content กว้างเกิน track) */
+        :global(.v3-parts-grid) > * {
+          min-width: 0;
         }
         @media (max-width: 640px) {
           :global(.v3-parts-stats) {
