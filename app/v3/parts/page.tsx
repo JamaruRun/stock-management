@@ -545,7 +545,8 @@ export default function V3PartsPage() {
       <style jsx>{`
         :global(.v3-parts-grid) {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          /* คอลัมน์กว้างขั้นต่ำ 300px กันไม่ให้มือถือ (ที่รายงานความกว้างเกิน 640px) ยัดเป็น 4 คอลัมน์จนการ์ดแคบ+ตัวหนังสือจิ๋ว */
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           /* 1fr กับ auto-rows = ทุกแถวสูงเท่ากันหมดทั้งกริด (ไม่ใช่แค่เท่ากันภายในแถวเดียวกัน) */
           grid-auto-rows: 1fr;
           align-items: stretch;
@@ -730,8 +731,8 @@ function PartCard({ item, compatModels, isAdmin, menuOpen, onToggleMenu, onClose
 
       <div style={{
         width: '100%',
-        aspectRatio: '3 / 2',
-        maxHeight: 130,
+        aspectRatio: '2 / 1',
+        maxHeight: 160,
         flexShrink: 0,
         background: 'var(--surface-2)',
         borderRadius: 10,
