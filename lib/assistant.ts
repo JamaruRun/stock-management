@@ -1,22 +1,18 @@
 import { classifyQuestion } from '@/lib/gemini';
 import { fetchAllRows } from '@/lib/db-utils';
 import { getCategoryLabel } from '@/lib/parts-constants';
+import { getCached, setCached } from '@/lib/parts-cache';
 
 const RATE_LIMIT_PER_MINUTE = 5;
 const RATE_LIMIT_PER_DAY = 50;
 const MAX_ITEMS_IN_MESSAGE = 15;
-// รายการที่ยาวเกินคำตอบเดียว (เช่นถามรุ่นที่มีหลายยี่ห้อ/เกรด) จะยอมโชว์ได้เยอะแค่ไหนก่อนจะเริ่มตัดแล้วบอกให้ถามเจาะจงขึ้น
 const MAX_ITEMS_HARD_CAP = 100;
 
-// แบ่งเป็นหลายข้อความแทนการตัดทิ้ง กันข้อความยาวเกิน limit ของแต่ละแพลตฟอร์ม (LINE ~5000 ตัวอักษร, Messenger ~2000)
-// เผื่อ margin ไว้พอสมควรเพราะ LINE/Messenger นับความยาวรวม emoji/อักขระพิเศษไม่เท่ากับ .length เป๊ะๆ เสมอไป
 const MAX_CHARS_BY_PLATFORM: Record<'line' | 'messenger', number> = { line: 4500, messenger: 1800 };
-// LINE ส่งได้สูงสุด 5 ข้อความต่อการ reply 1 ครั้ง (ไม่งั้นต้องใช้ push message ซึ่งมีโควต้าจำกัด ผิดหลักการที่ตั้งใจให้ฟรี)
 const MAX_CHUNKS = 5;
 
 function chunkMessage(text: string, maxChars: number): string[] {
   if (text.length <= maxChars) return [text];
-  // แบ่งตามรอยต่อรายการ (คั่นด้วยบรรทัดว่าง) ก่อน ไม่ตัดกลางรายการให้ข้อความขาดกลางคัน
   const blocks = text.split('\n\n');
   const chunks: string[] = [];
   let current = '';
@@ -30,7 +26,6 @@ function chunkMessage(text: string, maxChars: number): string[] {
     }
   }
   if (current) chunks.push(current);
-  // เผื่อกรณีมี block เดียวยาวเกิน maxChars เอง (ไม่ควรเกิดขึ้นบ่อย) ตัดตรงๆ กันพัง
   return chunks.flatMap((c) => {
     if (c.length <= maxChars) return [c];
     const hard: string[] = [];
@@ -39,14 +34,13 @@ function chunkMessage(text: string, maxChars: number): string[] {
   });
 }
 
-// ข้อความสั้นๆ ที่ไม่ใช่การถามหาอะไหล่แน่ๆ (ทักทาย/พูดเล่น) กันไม่ให้ fallback เดาเป็น stock_lookup ผิดๆ
 const CHITCHAT_WORDS = ['สวัสดี', 'หวัดดี', 'ขอบคุณ', 'ขอบใจ', 'thanks', 'thank you', 'hello', 'hi', 'ทดสอบ', 'test', '555', 'ฮ่า'];
 function looksLikeTerseProductQuery(q: string): boolean {
   const t = q.trim();
   if (t.length === 0 || t.length > 24) return false;
   const lower = t.toLowerCase();
   if (CHITCHAT_WORDS.some((w) => lower.includes(w))) return false;
-  if (/รายรับ|รายจ่าย|กำไร|ยอดขาย|จำนำ|ครบกำหนด/.test(t)) return false; // ให้ Gemini ตัดสินเองตามเดิมสำหรับหมวดอื่น
+  if (/รายรับ|รายจ่าย|กำไร|ยอดขาย|จำนำ|ครบกำหนด/.test(t)) return false;
   return true;
 }
 
@@ -54,8 +48,6 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// แอดมินสอนคำย่อ/ชื่อเล่นให้บอทจำเองได้ผ่านแชท เช่น "สอน ip13 = iphone 13" หรือ "สอน ss คือ samsung"
-// กันเคสตัวย่อ/รุ่นใหม่ๆ ที่ไม่ได้ฝังไว้ในโค้ด (เพิ่มไม่ทันตลอด) โดยไม่ต้องรอแก้โค้ด/deploy ใหม่ทุกครั้ง
 const TEACH_PATTERN = /^สอน\s+(.+?)\s*(?:=|คือ)\s*(.+)$/i;
 
 async function handleTeachCommand(supabase: any, shopId: string, rawText: string): Promise<string | null> {
@@ -73,8 +65,6 @@ async function handleTeachCommand(supabase: any, shopId: string, rawText: string
   return `✅ จำแล้วครับ: "${alias}" หมายถึง "${expansion}"\nต่อไปพิมพ์ "${alias}" ระบบจะเข้าใจอัตโนมัติ`;
 }
 
-// เอาคำย่อที่แอดมินสอนไว้ (เฉพาะร้านตัวเอง) มาแทนที่ในข้อความก่อนส่งให้ Gemini + ก่อนค้นฐานข้อมูล
-// ทำเป็น substring replace ตรงๆ (ไม่สนขอบเขตคำ) เพราะคำย่อมักติดกับคำไทยไม่มีเว้นวรรคอยู่แล้ว (เช่น "แบตip13")
 async function expandShopAliases(supabase: any, shopId: string, text: string): Promise<string> {
   const { data } = await supabase.from('assistant_aliases').select('alias, expansion').eq('shop_id', shopId);
   let result = text;
@@ -89,8 +79,6 @@ function todayThaiStr(): string {
   return `${thai.getUTCFullYear()}-${String(thai.getUTCMonth() + 1).padStart(2, '0')}-${String(thai.getUTCDate()).padStart(2, '0')}`;
 }
 
-/** เรียกหลังยืนยันตัวตนผู้ถามแล้ว (reverse-lookup shop_id ของแต่ละแพลตฟอร์มทำก่อนเรียกฟังก์ชันนี้)
- * คืน array ของ message string (1 อันขึ้นไป) ให้ webhook ของแต่ละแพลตฟอร์มส่งต่อเป็นหลายข้อความ — ฟังก์ชันนี้ไม่ยุ่งกับการส่งข้อความจริง */
 export async function answerQuestion(
   supabase: any,
   shopId: string,
@@ -101,8 +89,6 @@ export async function answerQuestion(
 ): Promise<string[]> {
   const today = todayThaiStr();
 
-  // ===== Rate limit (กัน quota Gemini/DB โดนใช้เกินจากสแปม) — 2 query นี้ไม่ขึ้นกับกัน ยิงพร้อมกันประหยัดเวลา =====
-  // (LINE reply token มีอายุสั้นมาก ถ้า pipeline นี้ช้าเกินไปจะตอบไม่ทันแล้วเงียบไปเลย เลยต้องรีบทุก step ที่ทำได้)
   const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString();
   const dayStart = `${today}T00:00:00.000Z`;
   const [{ count: minuteCount }, { count: dayCount }] = await Promise.all([
@@ -116,7 +102,6 @@ export async function answerQuestion(
     return ['📵 วันนี้ถามครบจำนวนที่กำหนดแล้วครับ พรุ่งนี้ถามใหม่ได้เลย'];
   }
 
-  // ===== "สอน" คำย่อ: ไม่ต้องผ่าน Gemini เลย จัดการแล้ว return ทันที =====
   const teachReply = await handleTeachCommand(supabase, shopId, question);
   if (teachReply) return [teachReply];
 
@@ -126,12 +111,9 @@ export async function answerQuestion(
   ]);
 
   const classified = await classifyQuestion(expandedQuestion, today);
-  // เผื่อ Gemini เข้าใจข้อความสั้นๆ/แปลกๆ ผิดเป็น unknown (ไม่ deterministic 100% ทุกครั้ง) — ถ้าข้อความหน้าตาเหมือนกำลังถามหาอะไหล่
-  // สั้นๆ อยู่แล้วให้ fallback เป็น stock_lookup เอง แทนที่จะปล่อยให้ตอบ "ไม่เข้าใจ" ทั้งที่จริงๆ น่าจะเดาเจตนาได้
   const parsed = classified.intent === 'unknown' && looksLikeTerseProductQuery(expandedQuestion)
     ? ({ intent: 'stock_lookup', keyword: expandedQuestion.trim() } as const)
     : classified;
-  // ไม่ await การอัปเดต intent เพราะเป็นแค่ log สำหรับ debug ไม่ควรทำให้ตอบผู้ใช้ช้าลงอีก 1 round-trip
   if (logRow?.id) {
     supabase.from('assistant_query_log').update({ intent: parsed.intent }).eq('id', logRow.id).then(() => {}, () => {});
   }
@@ -212,8 +194,6 @@ async function answerLedger(supabase: any, shopId: string, branchId: string | nu
   return [`📊 สรุปรายรับ-รายจ่าย ${periodTxt}${kwTxt}`, '━━━━━━━━━━━━━', ...summaryLines].join('\n') + detailTxt;
 }
 
-// ตัวย่อยี่ห้อที่ช่างซ่อมมือถือไทยนิยมพิมพ์กันสั้นๆ (เช่น "ip12" แทน "iphone 12", "ss a50" แทน "samsung a50")
-// ขยายก่อนค้นหา เทียบกับชื่อรุ่นเต็มๆ ที่เก็บในระบบ (ไม่ได้เก็บเป็นตัวย่อ)
 const BRAND_ABBREV: [RegExp, string][] = [
   [/^ip(\d.*)?$/i, 'iphone$1'],
   [/^ss(\d.*)?$/i, 'samsung$1'],
@@ -225,22 +205,13 @@ function expandAbbrev(word: string): string {
   return word;
 }
 
-// คนพิมพ์มักติดคำไทย (ชื่อหมวด เช่น "แบต", "จอ") ชิดกับรุ่น/ตัวย่อภาษาอังกฤษโดยไม่เว้นวรรค (เช่น "แบตip12", "จอoppoa18")
-// แยกคำตรงรอยต่อไทย↔อังกฤษ/ตัวเลข ก่อนค้นหา ไม่งั้นจะกลายเป็นคำเดียวยาวๆ ที่ไม่ตรงกับอะไรในระบบเลยสักคำ
 function splitThaiLatinBoundary(word: string): string[] {
   return word.split(/(?<=[฀-๿])(?=[a-zA-Z0-9])|(?<=[a-zA-Z0-9])(?=[฀-๿])/).filter(Boolean);
 }
 
-/** ค้นหาแบบแยกคำ: ลองแบบเข้มก่อน (ต้องเจอทุกคำ) ถ้าไม่เจอเลยค่อย fallback เป็นแบบหลวม (เจอคำไหนก็ได้)
- * กันเคส Gemini สกัด keyword มาไม่สะอาด 100% (มีคำฟุ่มเฟือยหลงเหลือ) ไม่ให้ตอบ "ไม่พบ" ทั้งที่มีของจริง
- *
- * ข้อยกเว้นสำคัญ: ถ้าคำค้นมีคำที่มีตัวเลขปน (เช่น "ip12", "a18") ซึ่งมักเป็นรุ่นเครื่อง/รหัสเฉพาะที่ผู้ใช้ตั้งใจถามจริงๆ
- * แล้วไม่มีรายการไหนมีคำนั้นเลย ให้ถือว่า "ไม่มีของจริง" ไม่ fallback แบบหลวม — กันเคสถามรุ่นที่ไม่มีในสต็อค
- * แล้วดันไปเจอรายการอื่นที่บังเอิญมีคำทั่วไปตรงกัน (เช่น "จอ"/"งาน"/"tft") ทำให้ตอบรุ่นผิดเป็นรุ่นอื่นแทน */
 function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => string): T[] {
   const rawWords = keyword.toLowerCase().split(/\s+/).filter(Boolean).flatMap(splitThaiLatinBoundary);
   if (rawWords.length === 0) return [];
-  // เทียบทั้งคำเดิม (มีช่องว่างคงเดิม) และคำที่ขยายตัวย่อแล้วแบบไม่มีช่องว่าง (กัน "iphone12" ไม่ตรงกับ "iphone 12" ที่มีเว้นวรรค)
   const words = rawWords.map((w) => ({ raw: w, expanded: expandAbbrev(w).replace(/\s+/g, '') }));
   const matchWord = (haystack: string, haystackCompact: string, w: { raw: string; expanded: string }) =>
     haystack.includes(w.raw) || haystackCompact.includes(w.expanded);
@@ -263,34 +234,41 @@ function matchByWords<T>(rows: T[], keyword: string, getHaystack: (row: T) => st
 }
 
 async function answerStockLookup(supabase: any, shopId: string, keyword: string) {
-  // .select() ของ Supabase คืนสูงสุด 1000 แถวเสมอแม้ไม่ใส่ .limit() เอง ต้อง page ผ่าน fetchAllRows
-  // ไม่งั้นร้านที่มีอะไหล่เกิน 1000 ชิ้น บอทจะหาของบางรุ่นไม่เจอทั้งที่มีจริงในสต๊อก
-  const allParts = await fetchAllRows<any>(() =>
-    supabase.from('parts')
-      .select('id, name, sku, phone_model, battery_model, brand, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
-      .eq('shop_id', shopId).order('id', { ascending: true })
-  );
-  const allPartIds = allParts.map((p: any) => p.id);
+  // ดึงจาก cache ก่อน ถ้าไม่มีค่อย fetch จาก DB แล้วเก็บ cache ไว้ 5 นาที
+  let allParts = getCached<any[]>(`parts:${shopId}`);
+  let modelsByPart = getCached<Record<string, string[]>>(`compat:${shopId}`);
 
-  // ดึง "รุ่นมือถือที่ใช้ได้" ทั้งหมดของทุกอะไหล่ (ไม่ใช่แค่ phone_model ซึ่งเป็นแค่รุ่นแรกที่ sync ไว้)
-  // เพราะอะไหล่ 1 ชิ้นผูกได้หลายรุ่นผ่านตาราง part_compatibility เหมือนหน้า "ขาย"/"ใช้ในงานซ่อม" ที่ค้นหาแบบนี้อยู่แล้ว
-  const modelsByPart: Record<string, string[]> = {};
-  if (allPartIds.length > 0) {
-    const compatRows = await fetchAllRows<any>(() =>
-      supabase.from('part_compatibility').select('part_id, device_models(model_name)').in('part_id', allPartIds).order('part_id', { ascending: true })
+  if (!allParts) {
+    allParts = await fetchAllRows<any>(() =>
+      supabase.from('parts')
+        .select('id, name, sku, phone_model, battery_model, brand, stock_qty, low_stock_alert, cost_price, wholesale_price, sell_price')
+        .eq('shop_id', shopId).order('id', { ascending: true })
     );
-    for (const r of compatRows) {
-      const name = (r as any).device_models?.model_name;
-      if (!name) continue;
-      (modelsByPart[(r as any).part_id] ||= []).push(name);
-    }
+    setCached(`parts:${shopId}`, allParts);
   }
 
-  // เทียบกับชื่ออะไหล่ + รุ่นเครื่องทั้งหมดที่ผูกไว้ + รุ่นแบต + ยี่ห้อ + sku รวมกัน เผื่อคำค้นมีทั้งชื่ออะไหล่และรุ่นเครื่อง/รุ่นแบต/ยี่ห้อปนกัน (เช่น "หน้าจอ oppo a18", "แบต apn 616-00259", "แบต leeplus")
+  if (!modelsByPart) {
+    modelsByPart = {};
+    const allPartIds = (allParts || []).map((p: any) => p.id);
+    if (allPartIds.length > 0) {
+      const compatRows = await fetchAllRows<any>(() =>
+        supabase.from('part_compatibility')
+          .select('part_id, device_models(model_name)')
+          .in('part_id', allPartIds)
+          .order('part_id', { ascending: true })
+      );
+      for (const r of compatRows) {
+        const name = (r as any).device_models?.model_name;
+        if (!name) continue;
+        (modelsByPart![(r as any).part_id] ||= []).push(name);
+      }
+    }
+    setCached(`compat:${shopId}`, modelsByPart);
+  }
+
   const matchedRaw = matchByWords(allParts || [], keyword, (p: any) =>
-    `${p.name} ${p.phone_model || ''} ${(modelsByPart[p.id] || []).join(' ')} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`
+    `${p.name} ${p.phone_model || ''} ${(modelsByPart![p.id] || []).join(' ')} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`
   );
-  // เอาตัวที่มีของในสต๊อกขึ้นก่อนเสมอ ตัวหมดสต๊อกไปอยู่ท้ายๆ (คนถามอยากรู้ตัวที่ซื้อได้จริงก่อน)
   const matched = [...matchedRaw].sort((a: any, b: any) => (Number(b.stock_qty) > 0 ? 1 : 0) - (Number(a.stock_qty) > 0 ? 1 : 0));
   const data = matched.slice(0, MAX_ITEMS_HARD_CAP);
   if (!data || data.length === 0) {
@@ -312,7 +290,7 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     ].filter(Boolean).join(' · ');
     const qty = Number(p.stock_qty || 0);
     const qtyTxt = qty === 0 ? '❌ ไม่มีอะไหล่ในสต๊อก (0 ชิ้น)' : `✅ คงเหลือ ${qty} ชิ้น`;
-    const modelsTxt = (modelsByPart[p.id] || []).join(' / ') || p.phone_model || '';
+    const modelsTxt = (modelsByPart![p.id] || []).join(' / ') || p.phone_model || '';
     return `🔧 ${p.brand ? `${p.brand} ` : ''}${p.name}${modelsTxt ? ` - ${modelsTxt}` : ''}${p.battery_model ? ` [${p.battery_model}]` : ''}${p.sku ? ` (${p.sku})` : ''}\n   ${qtyTxt}${priceParts ? `\n   ราคา: ${priceParts}` : ''}`;
   });
   const remaining = matched.length - data.length;
@@ -369,7 +347,6 @@ async function answerStockValue(supabase: any, shopId: string, keyword?: string)
     supabase.from('parts').select('name, category, phone_model, battery_model, brand, sku, stock_qty, cost_price').eq('shop_id', shopId).gt('stock_qty', 0)
   );
 
-  // ถ้าระบุหมวด/ยี่ห้อ/รุ่นมา ให้กรองเฉพาะที่ตรง (ใช้ตัวจับคู่เดียวกับ stock_lookup เพื่อความสม่ำเสมอ)
   const scoped = keyword
     ? matchByWords(allParts, keyword, (p: any) => `${p.name} ${p.phone_model || ''} ${p.battery_model || ''} ${p.brand || ''} ${p.sku || ''}`)
     : allParts;
@@ -406,8 +383,6 @@ async function answerStockValue(supabase: any, shopId: string, keyword?: string)
 async function answerPawnLookup(supabase: any, shopId: string, keyword: string) {
   const { data: allPawn } = await supabase.from('pawn_stock')
     .select('model, customer_name, due_date, pawn_price').eq('shop_id', shopId);
-  // เทียบกับรุ่นเครื่อง + ชื่อลูกค้ารวมกัน เผื่อคำค้นมีทั้งสองอย่างปนกัน (เช่น "oppo a18 ของสมชาย")
-  // ค้นหาแบบ client-side (ไม่ใช้ .or() ของ Supabase) เพื่อเลี่ยงปัญหา keyword มีอักขระพิเศษ (เช่น comma) ทำให้ query string พัง
   const matched = matchByWords(allPawn || [], keyword, (p: any) => `${p.model || ''} ${p.customer_name || ''}`);
   const data = matched.slice(0, MAX_ITEMS_HARD_CAP);
   if (!data || data.length === 0) return `🔍 ไม่พบเครื่องจำนำที่ตรงกับ "${keyword}"`;
