@@ -3,12 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { answerQuestion } from '@/lib/assistant';
 
-// Vercel (Hobby plan) ฆ่า serverless function ทิ้งทันทีถ้าเกิน 10 วินาที แบบไม่มีทางส่งอะไรกลับได้เลย
-// (แม้แต่ fallback message ก็ส่งไม่ทัน) — ต้องกันไว้เองไม่ให้ processing กินเวลาเกินจนโดนฆ่าก่อน
 export const maxDuration = 10;
 
-// ลองซ้ำ 1 ครั้งก่อนยอมแพ้ (เผื่อ Supabase/บริการภายนอกแค่ "หลุดชั่วครู่" ไม่ใช่ล่มสนิท) — replyToken ยังไม่ถูกใช้ตอน error
-// เกิดก่อนถึงขั้นตอน reply เสมอ (reply เป็นคำสั่งสุดท้าย) เลย retry ซ้ำด้วย replyToken เดิมได้อย่างปลอดภัย
 async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -18,10 +14,9 @@ async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// เผื่อ processing (Gemini + Supabase หลายรอบ + retry) รวมกันช้าจนใกล้โดน Vercel ฆ่าทิ้งที่ 10 วิ (โดยเฉพาะตอน Supabase
-// กำลัง degraded) - ตั้งเวลาตัดที่ 7 วิ ถ้ายังไม่เสร็จ ส่งข้อความ "ตอบช้ากว่าปกติ" ไปก่อนเลย ดีกว่าปล่อยให้เงียบสนิทตอนโดนฆ่า
-// งานจริงยังทำงานต่อในพื้นหลัง ถ้าเสร็จทันจะพยายาม reply ตามหลังอีกที (ถ้า replyToken ถูกใช้ไปแล้วก็แค่ reply ไม่สำเร็จเฉยๆ ไม่กระทบอะไร)
-async function runWithSlowFallback(replyToken: string, fn: () => Promise<void>, timeoutMs = 7000) {
+// เพิ่ม timeout เป็น 9 วิ (จาก 7) เพราะ cold start + Supabase ใช้เวลาถึง ~7.4 วิ
+// ทำให้ fallback ยิงก่อนงานเสร็จ — 9 วิให้ margin พอดีก่อน Vercel ฆ่าที่ 10 วิ
+async function runWithSlowFallback(replyToken: string, fn: () => Promise<void>, timeoutMs = 9000) {
   let settled = false;
   const work = fn()
     .then(() => { settled = true; })
@@ -38,7 +33,6 @@ async function runWithSlowFallback(replyToken: string, fn: () => Promise<void>, 
   }
 }
 
-// Service role client (เพราะ webhook ไม่มี user session)
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,13 +43,12 @@ function getServiceClient() {
 
 function verifySignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.LINE_MESSAGING_CHANNEL_SECRET;
-  if (!secret) return true; // ยังไม่ได้ตั้งค่า secret - ข้ามการเช็ค (backward compatible จนกว่าจะตั้งค่า)
+  if (!secret) return true;
   if (!signature) return false;
   const hash = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
   return hash === signature;
 }
 
-// LINE รับ messages เป็น array ได้สูงสุด 5 ข้อความต่อการ reply 1 ครั้ง (ใช้ตอบหลายข้อความแทนตัดข้อมูลทิ้งเวลาคำตอบยาว)
 async function replyLine(replyToken: string, texts: string | string[]) {
   const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
   if (!channelToken || !replyToken) return;
@@ -66,7 +59,6 @@ async function replyLine(replyToken: string, texts: string | string[]) {
     body: JSON.stringify({ replyToken, messages }),
   });
   if (!res.ok) {
-    // เดิมไม่เช็ค response เลย ถ้า LINE ปฏิเสธ (เช่น replyToken หมดอายุเพราะประมวลผลช้าเกินไป) จะเงียบสนิท ไม่มีร่องรอยใน log ไหนเลย
     const body = await res.text().catch(() => '');
     console.error('LINE reply failed:', res.status, body);
   }
@@ -93,9 +85,8 @@ async function handleGroupQuestion(supabase: any, groupId: string, rawText: stri
 
   const { data: shop } = await supabase
     .from('shops').select('id').eq('line_group_id', groupId).single();
-  if (!shop?.id) return; // กลุ่มนี้ยังไม่ได้เชื่อมกับร้านไหนเลย เงียบไว้ ไม่ต้องตอบ
+  if (!shop?.id) return;
 
-  // ใช้ groupId เป็น sender_key เพื่อจำกัด rate limit ร่วมกันทั้งกลุ่ม (ไม่ใช่แยกตามคนที่พิมพ์)
   const messages = await answerQuestion(supabase, shop.id, null, 'line', `group:${groupId}`, question);
   await replyLine(replyToken, messages);
 }
@@ -115,11 +106,8 @@ export async function POST(req: NextRequest) {
     const channelToken = process.env.LINE_MESSAGING_CHANNEL_TOKEN;
 
     for (const event of events) {
-      // เหตุการณ์ "join" - บอทถูก add เข้ากลุ่ม
       if (event.type === 'join' && event.source?.type === 'group') {
         const groupId = event.source.groupId;
-
-        // ส่งข้อความตอบกลับในกลุ่ม - แจ้ง Group ID
         if (channelToken && event.replyToken) {
           await fetch('https://api.line.me/v2/bot/message/reply', {
             method: 'POST',
@@ -138,13 +126,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // เหตุการณ์ "message"
       if (event.type === 'message' && event.message?.type === 'text') {
         const text = event.message.text.toLowerCase().trim();
         const isIdCommand = text === 'id' || text === '/id' || text === 'group id';
 
         if (isIdCommand && event.source?.type === 'group') {
-          // มีคนพิมพ์ "id" ในกลุ่ม → ตอบกลับด้วย Group ID
           if (channelToken && event.replyToken) {
             const groupId = event.source.groupId;
             await fetch('https://api.line.me/v2/bot/message/reply', {
@@ -163,13 +149,10 @@ export async function POST(req: NextRequest) {
             });
           }
         } else if (event.source?.type === 'user' && event.replyToken) {
-          // ทัก 1:1 หา OA มา - ถือเป็นคำถามข้อมูลร้าน
-          // runWithSlowFallback ครอบทั้ง error-fallback และ slow-fallback ไว้ให้ ไม่ปล่อยให้เงียบสนิทไม่ว่าจะพังหรือช้า
           await runWithSlowFallback(event.replyToken, () =>
             retryOnce(() => handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken))
           );
         } else if (event.source?.type === 'group' && event.replyToken && (text.startsWith('ถาม') || text.startsWith('สอน'))) {
-          // ในกลุ่ม ต้องขึ้นต้นด้วย "ถาม" หรือ "สอน" ถึงจะตอบ กันบอทตอบทุกข้อความที่คนคุยกันเองในกลุ่ม
           await runWithSlowFallback(event.replyToken, () =>
             retryOnce(() => handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken))
           );
@@ -184,7 +167,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// LINE บางครั้งจะส่ง GET เพื่อ verify webhook URL
 export async function GET() {
   return NextResponse.json({ status: 'ok' });
 }
