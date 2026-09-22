@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const PROTECTED = ['/dashboard', '/v3', '/super-admin', '/api/admin', '/api/super-admin'];
 
-// แผนที่ redirect หน้า list ระดับบนของ dashboard → v3 (ฟอร์ม add/edit 3-segment ปล่อยผ่าน)
 const DASHBOARD_TO_V3: Record<string, string> = {
   home: '/v3/home',
   add: '/v3/stock',
@@ -27,7 +26,6 @@ export async function middleware(request: NextRequest) {
   const isProtected = PROTECTED.some(r => path.startsWith(r));
   const isAuthPage = path === '/login' || path === '/' || path === '/signup-beta' || path === '/register';
 
-  // 🚀 Fast path: ไม่ใช่ route ที่ต้อง auth → skip getUser ทั้งหมด
   if (!isProtected && !isAuthPage) {
     return NextResponse.next({ request });
   }
@@ -53,8 +51,21 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getUser() = network call → run เฉพาะที่จำเป็น
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  // ล้าง session เก่าที่เน่าแล้ว แทนที่จะวนลูป redirect
+  if (authError?.code === 'refresh_token_not_found' ||
+      authError?.message?.includes('Refresh Token Not Found')) {
+    const response = path.startsWith('/api/')
+      ? NextResponse.json({ error: 'session หมดอายุ กรุณา login ใหม่' }, { status: 401 })
+      : NextResponse.redirect(new URL('/login', request.url));
+
+    request.cookies.getAll()
+      .filter(c => c.name.startsWith('sb-'))
+      .forEach(c => response.cookies.delete(c.name));
+
+    return response;
+  }
 
   if (!user && isProtected) {
     if (path.startsWith('/api/')) {
@@ -67,13 +78,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/v3/home', request.url));
   }
 
-  // เปลี่ยนระบบมา v3: redirect หน้า list ระดับบนของ dashboard → v3
-  // (ฟอร์ม add/edit แบบ 3-segment เช่น /dashboard/pawn/add ปล่อยผ่าน ยังใช้ของเดิม)
-  // 🔓 ทางลัดเทียบของเก่า: เติม ?old=1 ท้าย URL = ไม่เด้ง (เช่น /dashboard/home?old=1)
   if (user && path.startsWith('/dashboard')) {
     const bypassOld = request.nextUrl.searchParams.get('old') === '1';
     if (!bypassOld) {
-      const seg = path.split('/').filter(Boolean); // ['dashboard', 'pawn', 'add']
+      const seg = path.split('/').filter(Boolean);
       if (seg.length <= 2) {
         const top = seg[1] || 'home';
         const target = DASHBOARD_TO_V3[top];
@@ -89,13 +97,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Exclude:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon, images, fonts, etc.
-     * - API route ของ LINE OAuth (มี auth ในตัวแล้ว)
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf)$|api/line/).*)',
   ],
 };
