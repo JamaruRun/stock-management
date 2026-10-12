@@ -3,36 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { answerQuestion } from '@/lib/assistant';
 
-export const maxDuration = 10;
+export const maxDuration = 60;
 
-async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
+// Await the result and use each reply token once; never race a background reply.
+async function runWithSlowFallback(replyToken: string, fn: () => Promise<void>) {
   try {
-    return await fn();
-  } catch (e) {
-    await new Promise((r) => setTimeout(r, 600));
-    return await fn();
+    await fn();
+  } catch (err: any) {
+    const message = String(err?.message || 'unknown');
+    console.error('assistant request failed:', { code: err?.code, message: /<html|<!doctype/i.test(message) ? 'Upstream returned HTML instead of database JSON' : message.slice(0, 300) });
+    await replyLine(replyToken, '⚠️ อ่านข้อมูลไม่สำเร็จในครั้งนี้ กรุณาลองใหม่อีกครั้งครับ').catch(() => {});
   }
 }
-
-// เพิ่ม timeout เป็น 9 วิ (จาก 7) เพราะ cold start + Supabase ใช้เวลาถึง ~7.4 วิ
-// ทำให้ fallback ยิงก่อนงานเสร็จ — 9 วิให้ margin พอดีก่อน Vercel ฆ่าที่ 10 วิ
-async function runWithSlowFallback(replyToken: string, fn: () => Promise<void>, timeoutMs = 9000) {
-  let settled = false;
-  const work = fn()
-    .then(() => { settled = true; })
-    .catch(async (err) => {
-      settled = true;
-      console.error('handler error:', err);
-      await replyLine(replyToken, '⚠️ ระบบขัดข้องชั่วคราว ลองถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
-    });
-
-  await Promise.race([work, new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
-
-  if (!settled) {
-    await replyLine(replyToken, '⚠️ ระบบตอบช้ากว่าปกติตอนนี้ (Supabase ขัดข้อง) รอสักครู่หรือถามใหม่อีกครั้งได้เลยครับ').catch(() => {});
-  }
-}
-
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,8 +47,9 @@ async function replyLine(replyToken: string, texts: string | string[]) {
 }
 
 async function handleUserQuestion(supabase: any, userId: string, question: string, replyToken: string) {
-  const { data: profile } = await supabase
-    .from('profiles').select('shop_id, branch_id, full_name').eq('line_user_id', userId).single();
+  const { data: profile, error } = await supabase
+    .from('profiles').select('shop_id, branch_id, full_name').eq('line_user_id', userId).maybeSingle();
+  if (error) throw error;
 
   if (!profile?.shop_id) {
     await replyLine(replyToken, '❌ บัญชี LINE นี้ยังไม่ได้เชื่อมกับระบบ\n\nไปที่หน้าตั้งค่า > แจ้งเตือน ในเว็บ แล้วกด "เชื่อม LINE" ก่อนถามได้เลยครับ');
@@ -83,8 +66,9 @@ async function handleGroupQuestion(supabase: any, groupId: string, rawText: stri
   const question = rawText.replace(GROUP_QUESTION_PREFIX, '').trim();
   if (!question) return;
 
-  const { data: shop } = await supabase
-    .from('shops').select('id').eq('line_group_id', groupId).single();
+  const { data: shop, error } = await supabase
+    .from('shops').select('id').eq('line_group_id', groupId).maybeSingle();
+  if (error) throw error;
   if (!shop?.id) return;
 
   const messages = await answerQuestion(supabase, shop.id, null, 'line', `group:${groupId}`, question);
@@ -150,11 +134,11 @@ export async function POST(req: NextRequest) {
           }
         } else if (event.source?.type === 'user' && event.replyToken) {
           await runWithSlowFallback(event.replyToken, () =>
-            retryOnce(() => handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken))
+            handleUserQuestion(supabase, event.source.userId, event.message.text, event.replyToken)
           );
         } else if (event.source?.type === 'group' && event.replyToken && (text.startsWith('ถาม') || text.startsWith('สอน'))) {
           await runWithSlowFallback(event.replyToken, () =>
-            retryOnce(() => handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken))
+            handleGroupQuestion(supabase, event.source.groupId, event.message.text, event.replyToken)
           );
         }
       }

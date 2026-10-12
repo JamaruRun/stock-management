@@ -1,5 +1,5 @@
 import { classifyQuestion } from '@/lib/gemini';
-import { fetchAllRows } from '@/lib/db-utils';
+import { fetchAllRows, fetchRowsByIds } from '@/lib/db-utils';
 import { getCategoryLabel } from '@/lib/parts-constants';
 import { getCached, setCached } from '@/lib/parts-cache';
 
@@ -251,10 +251,10 @@ async function answerStockLookup(supabase: any, shopId: string, keyword: string)
     modelsByPart = {};
     const allPartIds = (allParts || []).map((p: any) => p.id);
     if (allPartIds.length > 0) {
-      const compatRows = await fetchAllRows<any>(() =>
+      const compatRows = await fetchRowsByIds<any>(allPartIds, (batch) =>
         supabase.from('part_compatibility')
           .select('part_id, device_models(model_name)')
-          .in('part_id', allPartIds)
+          .in('part_id', batch)
           .order('part_id', { ascending: true })
       );
       for (const r of compatRows) {
@@ -320,8 +320,8 @@ async function answerDeadStock(supabase: any, shopId: string, days: number) {
   if (partIds.length === 0) return '✅ ไม่มีอะไหล่ในสต็อกตอนนี้';
 
   const [moveTx, inTx] = await Promise.all([
-    fetchAllRows<any>(() => supabase.from('part_transactions').select('part_id, created_at').in('part_id', partIds).in('type', ['out', 'used_in_repair']).order('id', { ascending: true })),
-    fetchAllRows<any>(() => supabase.from('part_transactions').select('part_id, created_at').in('part_id', partIds).eq('type', 'in').order('id', { ascending: true })),
+    fetchRowsByIds<any>(partIds, (batch) => supabase.from('part_transactions').select('part_id, created_at').in('part_id', batch).in('type', ['out', 'used_in_repair']).order('id', { ascending: true })),
+    fetchRowsByIds<any>(partIds, (batch) => supabase.from('part_transactions').select('part_id, created_at').in('part_id', batch).eq('type', 'in').order('id', { ascending: true })),
   ]);
   const lastMove: Record<string, string> = {};
   for (const t of moveTx || []) if (t.part_id && t.created_at && (!lastMove[t.part_id] || t.created_at > lastMove[t.part_id])) lastMove[t.part_id] = t.created_at;
