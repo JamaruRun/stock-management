@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import { sendLinePush } from '@/lib/line-notify';
 import { REPAIR_STATUSES, getStatusInfo } from '@/lib/repair-constants';
@@ -183,6 +184,7 @@ export default function RepairManageModal({ jobId, onClose, onChanged }: Props) 
             </div>
 
             <div style={{ overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Link className="v3-btn v3-btn-secondary" href={`/v3/repair/detail?id=${encodeURIComponent(jobId)}`}>รายละเอียดใบงานและยอดชำระ</Link>
               {/* สถานะ */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // สร้าง URL ของเราเอง ชี้ไป /auth/confirm
     // ใช้ token_hash ที่ Supabase ให้มา
     const tokenHash = linkData.properties.hashed_token;
-    const confirmUrl = `${request.nextUrl.origin}/auth/confirm?token_hash=${tokenHash}&type=magiclink&next=/dashboard/home`;
+    const confirmUrl = `${request.nextUrl.origin}/auth/confirm?token_hash=${tokenHash}&type=magiclink&next=/v3/home`;
 
     console.log(`[Impersonate] ${user.id} → ${targetUserId} (${email})`);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
@@ -49,6 +49,7 @@ export default function V3PartsPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const sp = useSearchParams();
+  const router = useRouter();
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [showSell, setShowSell] = useState(sp.get('sell') === '1');
   const [showRepair, setShowRepair] = useState(false);
@@ -122,6 +123,17 @@ export default function V3PartsPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const id = sp.get('edit');
+    if (id && (profile?.role === 'admin' || profile?.is_super_admin)) {
+      const item = items.find(row => row.id === id);
+      if (item) {
+        setEditItem(item);
+        router.replace('/v3/parts', { scroll: false });
+      }
+    }
+  }, [sp, items, profile]);
 
   useEffect(() => {
     const q = modelQuery.trim();
@@ -240,74 +252,18 @@ export default function V3PartsPage() {
         </div>
       </div>
 
-      <div className="v3-mobile-only" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-      }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>
-            อะไหล่ซ่อม
-          </h1>
-          <p style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-            {stats.totalSkus} รายการ · {stats.totalQty} ชิ้น
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setViewMode(viewMode === 'dead' ? 'active' : 'dead')} style={{
-            width: 40, height: 40,
-            borderRadius: 10,
-            background: viewMode === 'dead' ? '#f59e0b' : 'var(--surface)',
-            border: '1px solid var(--border)',
-            color: viewMode === 'dead' ? '#fff' : 'var(--text)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', position: 'relative',
-          }}>
-            <Box size={18} />
-            {deadStockItems.length > 0 && (
-              <span style={{ position: 'absolute', top: -4, right: -4, background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 100, minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
-                {deadStockItems.length}
-              </span>
-            )}
-          </button>
-          <button onClick={() => setShowSell(true)} style={{
-            width: 40, height: 40,
-            borderRadius: 10,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            color: 'var(--text)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <ShoppingCart size={18} />
-          </button>
-          <button onClick={() => setShowRepair(true)} style={{
-            width: 40, height: 40,
-            borderRadius: 10,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            color: 'var(--text)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <Wrench size={18} />
-          </button>
-          <button onClick={() => setShowAdd(true)} style={{
-            width: 40, height: 40,
-            borderRadius: 10,
-            background: 'var(--accent)',
-            color: '#fff',
-            border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <Plus size={20} strokeWidth={2.5} />
+            <div className="v3-mobile-only v3-parts-mobile-toolbar">
+        <p className="v3-parts-count">{stats.totalSkus} รายการ · {stats.totalQty} ชิ้น</p>
+        <div className="v3-parts-mobile-actions">
+          <button onClick={() => setShowAdd(true)} className="v3-btn v3-btn-primary"><Plus size={16} /> เพิ่มอะไหล่</button>
+          <button onClick={() => setShowSell(true)} className="v3-btn v3-btn-secondary"><ShoppingCart size={16} /> ขาย</button>
+          <button onClick={() => setShowRepair(true)} className="v3-btn v3-btn-secondary"><Wrench size={16} /> ซ่อม</button>
+          <button onClick={() => setViewMode(viewMode === 'dead' ? 'active' : 'dead')} className="v3-btn v3-btn-secondary" aria-pressed={viewMode === 'dead'}>
+            <Box size={16} /> {viewMode === 'dead' ? 'กลับรายการ' : 'เดดสต๊อก'}
           </button>
         </div>
       </div>
-
-      <div className="v3-parts-stats" style={{
+<div className="v3-parts-stats" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 10,
@@ -342,7 +298,7 @@ export default function V3PartsPage() {
               background: searchMode === 'part' ? 'var(--accent)' : 'var(--surface-2)',
               color: searchMode === 'part' ? '#fff' : 'var(--text)',
             }}
-          >อะไหล่ → รุ่น</button>
+          >ค้นหาอะไหล่</button>
           <button
             type="button"
             onClick={() => { setSearchMode('model'); setSearch(''); }}
@@ -352,7 +308,7 @@ export default function V3PartsPage() {
               background: searchMode === 'model' ? 'var(--accent)' : 'var(--surface-2)',
               color: searchMode === 'model' ? '#fff' : 'var(--text)',
             }}
-          >รุ่น → อะไหล่</button>
+          >ค้นหาตามรุ่นเครื่อง</button>
         </div>
 
         {searchMode === 'part' ? (
@@ -428,6 +384,11 @@ export default function V3PartsPage() {
           </div>
         )}
 
+        <details className="v3-parts-filters">
+          <summary>
+            ตัวกรองประเภทและเกรด
+            <span>{[activeCategory !== 'all', activeGrade !== 'all'].filter(Boolean).length > 0 ? ` · เลือก ${[activeCategory !== 'all', activeGrade !== 'all'].filter(Boolean).length} ตัวกรอง` : ' · ทั้งหมด'}</span>
+          </summary>
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 6, fontWeight: 600 }}>
             ประเภทอะไหล่
@@ -484,6 +445,17 @@ export default function V3PartsPage() {
             ))}
           </div>
         </div>
+        </details>
+      </div>
+
+      <div className="v3-parts-results-bar">
+        <span role="status">{loading ? 'กำลังโหลดรายการ' : `พบ ${filtered.length.toLocaleString()} รายการ`}</span>
+        {!!(search || selectedModel || modelQuery || activeCategory !== 'all' || activeGrade !== 'all') && (
+          <button type="button" onClick={() => {
+            setSearch(''); setSelectedModel(null); setModelQuery('');
+            setSearchMode('part'); setActiveCategory('all'); setActiveGrade('all');
+          }}>ล้างการค้นหาและตัวกรอง</button>
+        )}
       </div>
 
       {loading ? (

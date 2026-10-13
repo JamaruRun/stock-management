@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
 import {
   CreditCard, X, Smartphone, User, Phone, Calendar, CheckCircle2, Loader2, Wallet,
@@ -54,6 +55,7 @@ export default function InstallmentDetailModal({ itemId, onClose, onPay }: Props
             </div>
 
             <div style={{ overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Link className="v3-btn v3-btn-secondary" href={`/v3/installment/detail?id=${encodeURIComponent(itemId)}`}>จัดการสัญญาและประวัติชำระ</Link>
               {/* ลูกค้า */}
               <div style={{ fontSize: 12, color: 'var(--text-dim)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <span><User size={11} style={{ display: 'inline', verticalAlign: '-1px' }} /> {item.customer_name}</span>

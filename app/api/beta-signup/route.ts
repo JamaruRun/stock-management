@@ -151,7 +151,7 @@ async function notifySuperAdmins(signup: any, supabase: any) {
     '',
     signup.note ? `💭 หมายเหตุ:\n${signup.note}\n` : '',
     '👉 เข้า Super Admin Panel เพื่อ approve',
-    'https://stock-management-mu-two.vercel.app/super-admin',
+    'https://stock-management-mu-two.vercel.app/v3/super-admin',
   ].filter(Boolean).join('\n');
 
   // ส่งให้ super admin แต่ละคน

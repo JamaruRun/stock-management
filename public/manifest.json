@@ -2,7 +2,7 @@
   "name": "Stock Manager - ระบบจัดการสต๊อก",
   "short_name": "Stock",
   "description": "ระบบจัดการร้านมือถือ + ร้านซ่อม - สต๊อก จำนำ ผ่อน ขาย ซ่อม รายงาน",
-  "start_url": "/dashboard/home",
+  "start_url": "/v3/home",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
@@ -38,19 +38,19 @@
     {
       "name": "สต๊อกเครื่อง",
       "short_name": "Stock",
-      "url": "/dashboard/stock",
+      "url": "/v3/stock",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "ขายของ (สแกน)",
       "short_name": "Scan",
-      "url": "/dashboard/goods/sell",
+      "url": "/v3/goods?sell=1",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "ใบงานซ่อม",
       "short_name": "Repair",
-      "url": "/dashboard/repair",
+      "url": "/v3/repair",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

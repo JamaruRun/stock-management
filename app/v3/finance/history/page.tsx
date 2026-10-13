@@ -162,9 +162,9 @@ export default function V3FinanceHistoryPage() {
         </div>
 
         {range === 'custom' && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={{ ...fieldInputStyle, flex: 1 }} />
-            <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} style={{ ...fieldInputStyle, flex: 1 }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <input aria-label="วันที่เริ่มต้น" type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={{ ...fieldInputStyle, flex: '1 1 140px', minWidth: 0 }} />
+            <input aria-label="วันที่สิ้นสุด" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} style={{ ...fieldInputStyle, flex: '1 1 140px', minWidth: 0 }} />
           </div>
         )}
 

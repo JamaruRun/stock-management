@@ -129,7 +129,7 @@ export default function V3FinancePage() {
       <div className="v3-page-header v3-desktop-only">
         <div>
           <h1 className="v3-page-title">รายรับ-รายจ่าย</h1>
-          <p className="v3-page-subtitle">สรุปตามวันบัญชี (business date)</p>
+          <p className="v3-page-subtitle">สรุปรายรับและรายจ่ายตามรอบบัญชีของร้าน</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href="/v3/finance/history" className="v3-btn v3-btn-secondary" style={{ textDecoration: 'none' }}>
@@ -141,21 +141,13 @@ export default function V3FinancePage() {
         </div>
       </div>
 
-      <div className="v3-mobile-only" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Prompt, sans-serif' }}>รายรับ-รายจ่าย</h1>
-          <p style={{ fontSize: 11, color: 'var(--text-dim)' }}>สรุปตามวันบัญชี</p>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Link href="/v3/finance/history" style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
-            <History size={18} />
-          </Link>
-          <button onClick={() => setShowAddModal(true)} style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <Plus size={20} strokeWidth={2.5} />
-          </button>
+            <div className="v3-mobile-only v3-compact-toolbar">
+        <p className="v3-parts-count">สรุปตามวันบัญชี</p>
+        <div className="v3-parts-mobile-actions">
+          <button onClick={() => setShowAddModal(true)} className="v3-btn v3-btn-primary"><Plus size={16} /> เพิ่มรายการ</button>
+          <Link href="/v3/finance/history" className="v3-btn v3-btn-secondary"><History size={16} /> ดูประวัติ</Link>
         </div>
       </div>
-
       {/* ตัวกรอง: รายวัน/รายเดือน + สาขา */}
       <div className="v3-card" style={{ padding: 10, marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -164,12 +156,12 @@ export default function V3FinancePage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {viewMode === 'day' ? (
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ ...fieldInputStyle, flex: 1, minWidth: 140 }} />
+            <input aria-label="วันที่บัญชี" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ ...fieldInputStyle, flex: 1, minWidth: 140 }} />
           ) : (
-            <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={{ ...fieldInputStyle, flex: 1, minWidth: 140 }} />
+            <input aria-label="เดือนบัญชี" type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={{ ...fieldInputStyle, flex: 1, minWidth: 140 }} />
           )}
           {branches.length > 0 && (
-            <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} style={{ ...fieldInputStyle, flex: 1, minWidth: 140 }}>
+            <select aria-label="กรองตามสาขา" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} style={{ ...fieldInputStyle, flex: 1, minWidth: 140 }}>
               <option value="">ทุกสาขา</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>

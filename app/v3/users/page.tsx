@@ -286,7 +286,7 @@ export default function V3UsersPage() {
         </button>
       </div>
 
-      <div style={{
+      <div className="v3-user-stats" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 10,

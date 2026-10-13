@@ -194,6 +194,8 @@ export default function V3PawnPage() {
         <StatCard label="เลยกำหนด" value={counts.overdue} sub="ต้องติดตาม" color="#ef4444" Icon={AlertTriangle} />
       </div>
 
+      <details className="v3-financial-details">
+      <summary>สรุปเงินต้นและดอกเบี้ย <span>ทุน ฿{finance.totalPrincipal.toLocaleString()}</span></summary>
       <div className="v3-pawn-stats" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
@@ -205,6 +207,7 @@ export default function V3PawnPage() {
         <StatCard label="รวม" value={`฿${finance.grandTotal.toLocaleString()}`} sub="ทุน+ดอก" color="#8b5cf6" Icon={Coins} />
         <StatCard label="ดอกเฉลี่ย/วัน" value={`฿${finance.dailyRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} sub="ทั้งร้าน" color="#f59e0b" Icon={Percent} />
       </div>
+      </details>
 
       <div style={{
         display: 'grid',

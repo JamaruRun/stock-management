@@ -11,6 +11,7 @@ import {
   Wallet, Truck, Database, Download,
 } from 'lucide-react';
 import InstallAppButton from '@/components/InstallAppButton';
+import V3ModuleLinks from '@/components/V3ModuleLinks';
 
 interface Profile {
   id: string;
@@ -39,8 +40,17 @@ const MENU = [
   { Icon: Wallet, label: 'การเงิน', path: '/v3/finance', adminOnly: true },
   { Icon: Truck, label: 'ซัพพลายเออร์', path: '/v3/suppliers', adminOnly: true },
   { Icon: Database, label: 'สำรองข้อมูล', path: '/v3/backup', adminOnly: true },
+  { Icon: Download, label: 'นำเข้า / พิมพ์ป้าย', path: '/v3/tools' },
   { Icon: Building2, label: 'จัดการผู้ใช้', path: '/v3/users', adminOnly: true },
   { Icon: Settings, label: 'ตั้งค่า', path: '/v3/settings' },
+];
+
+const MENU_GROUPS = [
+  { label: 'ภาพรวม', paths: ['/v3/home'] },
+  { label: 'สินค้าและงานซ่อม', paths: ['/v3/stock', '/v3/sell', '/v3/parts', '/v3/repair', '/v3/goods'] },
+  { label: 'ลูกค้าและบริการ', paths: ['/v3/customers', '/v3/pawn', '/v3/installment'] },
+  { label: 'บัญชีและรายงาน', paths: ['/v3/finance', '/v3/history', '/v3/reports'] },
+  { label: 'จัดการร้าน', paths: ['/v3/suppliers', '/v3/users', '/v3/tools', '/v3/backup', '/v3/settings'] },
 ];
 
 export default function V3Shell({
@@ -91,7 +101,20 @@ export default function V3Shell({
   // Close sidebar on navigation
   useEffect(() => {
     setSidebarOpen(false);
+    setProfileMenuOpen(false);
+    setShowScanModal(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setSidebarOpen(false);
+      setProfileMenuOpen(false);
+      setShowScanModal(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -99,7 +122,9 @@ export default function V3Shell({
     router.refresh();
   }
 
-  const currentPage = MENU.find(m => pathname?.startsWith(m.path)) || MENU[0];
+  const currentPage = pathname.startsWith('/v3/sales/history')
+    ? { Icon: BarChart3, label: 'ประวัติขายเครื่อง', path: '/v3/sales/history' }
+    : MENU.find(m => pathname?.startsWith(m.path)) || MENU[0];
   const CurrentIcon = currentPage.Icon;
   const visibleMenu = MENU.filter(m => !m.adminOnly || isAdmin);
 
@@ -125,7 +150,12 @@ export default function V3Shell({
           </div>
 
           <nav className="v3-sidebar-nav">
-            {visibleMenu.map(item => {
+            {MENU_GROUPS.map(group => {
+              const entries = group.paths.flatMap(path => visibleMenu.filter(item => item.path === path));
+              if (!entries.length) return null;
+              return <div key={group.label} className="v3-nav-group">
+                <div className="v3-sidebar-section-label">{group.label}</div>
+                {entries.map(item => {
               const ItemIcon = item.Icon;
               const active = pathname?.startsWith(item.path);
               return (
@@ -133,11 +163,14 @@ export default function V3Shell({
                   key={item.path}
                   href={item.path}
                   className={`v3-sidebar-item ${active ? 'active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
                 >
                   <ItemIcon size={20} strokeWidth={2} />
                   <span>{item.label}</span>
                 </Link>
               );
+                })}
+              </div>;
             })}
 
             {profile.is_super_admin && (
@@ -187,29 +220,15 @@ export default function V3Shell({
           {/* Desktop Header */}
           {!isMobile && (
             <header className="v3-header">
-              <div className="v3-header-search">
-                <Search 
-                  size={18} 
-                  style={{ 
-                    position: 'absolute', 
-                    left: 14, 
-                    top: '50%', 
-                    transform: 'translateY(-50%)', 
-                    color: 'var(--text-muted)',
-                    pointerEvents: 'none',
-                  }} 
-                />
-                <input type="text" placeholder="ค้นหา IMEI, รุ่น, ลูกค้า..." />
+              <div className="v3-header-context">
+                <CurrentIcon size={20} aria-hidden="true" />
+                <span>{currentPage.label}</span>
               </div>
               <div className="v3-header-actions">
-                <button className="v3-header-branch">
-                  <MapPin size={14} />
+                <div className="v3-header-branch">
+                  <MapPin size={14} aria-hidden="true" />
                   {profile.branches?.name || profile.branches?.[0]?.name || 'สาขาหลัก'}
-                  <ChevronDown size={12} />
-                </button>
-                <button className="v3-header-btn">
-                  <Bell size={18} />
-                </button>
+                </div>
                 <div ref={profileMenuRef} style={{ position: 'relative' }}>
                   <button 
                     className="v3-header-btn"
@@ -326,14 +345,14 @@ export default function V3Shell({
           {/* Mobile Header */}
           {isMobile && (
             <header className="v3-mobile-header">
-              <button className="v3-mobile-header-back" onClick={() => setSidebarOpen(true)}>
+              <button className="v3-mobile-header-back" aria-label="เปิดเมนู" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>
                 <Menu size={20} />
               </button>
               <div className="v3-mobile-header-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CurrentIcon size={18} strokeWidth={2.2} />
                 {currentPage.label}
               </div>
-              <button className="v3-mobile-header-back" onClick={handleLogout}>
+              <button className="v3-mobile-header-back" aria-label="ออกจากระบบ" onClick={handleLogout}>
                 <LogOut size={18} />
               </button>
             </header>
@@ -341,6 +360,7 @@ export default function V3Shell({
 
           {/* Content */}
           <div className={isMobile ? 'v3-mobile-content' : 'v3-content'}>
+            <V3ModuleLinks admin={isAdmin} />
             {children}
           </div>
         </div>
@@ -384,7 +404,7 @@ export default function V3Shell({
         </nav>
 
         {/* Floating Scan FAB */}
-        <button className="v3-scan-fab" onClick={() => setShowScanModal(true)}>
+        <button className="v3-scan-fab" aria-label="เปิดเครื่องมือสแกนและทางลัด" onClick={() => setShowScanModal(true)}>
           <Camera size={26} strokeWidth={2.2} />
         </button>
 

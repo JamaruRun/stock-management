@@ -193,18 +193,6 @@ export default function V3HomePage() {
       <div className="v3-mobile-hero">
         <div className="v3-mobile-hero-greet">สวัสดีครับ{userName ? `, ${userName}` : ''} 👋</div>
         <div className="v3-mobile-hero-title">ยินดีต้อนรับกลับมา</div>
-        {isAdmin && (
-          <div className="v3-mobile-hero-stats">
-            <div className="v3-mobile-hero-stat">
-              <div className="v3-mobile-hero-stat-label">ยอดขายวันนี้</div>
-              <div className="v3-mobile-hero-stat-value">฿{todayRev.toLocaleString()}</div>
-            </div>
-            <div className="v3-mobile-hero-stat">
-              <div className="v3-mobile-hero-stat-label">กำไรวันนี้</div>
-              <div className="v3-mobile-hero-stat-value">฿{todayProfit.toLocaleString()}</div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Greeting (desktop only - hide on mobile) */}
@@ -390,7 +378,7 @@ export default function V3HomePage() {
       {/* Quick Actions */}
       <div className="v3-card">
         <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          ทางลัด (Quick Actions)
+          งานที่ใช้บ่อย
         </h2>
         <div className="v3-quick-grid" style={{
           display: 'grid',
@@ -398,7 +386,7 @@ export default function V3HomePage() {
           gap: 8,
         }}>
           <QuickAction Icon={Plus} label="เพิ่มเครื่อง" href="/v3/stock?add=1" color="#3b82f6" />
-          <QuickAction Icon={ShoppingCart} label="ขายสินค้า" href="/v3/goods?sell=1" color="#22c55e" />
+          <QuickAction Icon={ShoppingCart} label="ขายสินค้า" href="/v3/sell" color="#22c55e" />
           <QuickAction Icon={Hammer} label="รับงานซ่อม" href="/v3/repair?new=1" color="#f59e0b" />
           <QuickAction Icon={Coins} label="รับจำนำ" href="/v3/pawn?add=1" color="#ef4444" />
           <QuickAction Icon={UserPlus} label="ลูกค้าใหม่" href="/v3/customers" color="#8b5cf6" />

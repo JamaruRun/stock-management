@@ -217,7 +217,7 @@ export default function V3RepairPage() {
         </div>
 
         {/* Status mini chips */}
-        <div className="v3-status-strip" style={{
+        <div className="v3-status-strip v3-repair-stats" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 8,

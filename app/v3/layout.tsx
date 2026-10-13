@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import './workspace.css';
 import { createClient } from '@/lib/supabase-server';
 import V3Shell from './v3-shell';
 import Heartbeat from '@/components/Heartbeat';

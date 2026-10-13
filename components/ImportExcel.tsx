@@ -19,6 +19,8 @@ interface Props {
 
 interface PawnRow {
   imei: string;
+  interest_days?: number;
+  interest_amount?: number;
   model: string;
   color?: string;
   spec?: string;
@@ -68,7 +70,7 @@ interface StockRow {
 const TEMPLATES = {
   pawn: {
     title: 'รายการจำนำ',
-    headers: ['IMEI', 'รุ่น', 'สี', 'สเปค', 'ราคาจำนำ', 'วันที่จำนำ (YYYY-MM-DD)', 'ชื่อลูกค้า', 'เบอร์โทร', 'หมายเหตุ'],
+    headers: ['IMEI (เว้นว่างได้)', 'รุ่น', 'สี', 'สเปค', 'ราคาจำนำ', 'วันที่จำนำ (YYYY-MM-DD)', 'ชื่อลูกค้า', 'เบอร์โทร', 'หมายเหตุ', 'วันต่อรอบ (ค่าเริ่มต้น 30)', 'ดอกเบี้ยต่อรอบ'],
     sample: [
       ['356789012345678', 'iPhone 15 Pro Max', 'Natural Titanium', '256GB', 25000, '2026-05-01', 'นายสมชาย ใจดี', '0812345678', 'ทอง 2 บาท'],
       ['357890123456789', 'Samsung S24 Ultra', 'Black', '512GB', 18000, '2026-05-02', 'นางสาวสมหญิง สวยใส', '0823456789', ''],
@@ -171,13 +173,16 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
       customer_name: String(r[6] || '').trim(),
       customer_phone: String(r[7] || '').trim() || undefined,
       customer_note: String(r[8] || '').trim() || undefined,
+      interest_days: r[9] === undefined || r[9] === '' ? 30 : Number(r[9]),
+      interest_amount: r[10] === undefined || r[10] === '' ? 0 : Number(r[10]),
       _row: idx + 2, // +2 เพราะ header + 1-indexed
     };
 
     const errors: string[] = [];
-    if (!row.imei) errors.push('ไม่มี IMEI');
     if (!row.model) errors.push('ไม่มีรุ่น');
     if (!row.pawn_price || row.pawn_price <= 0) errors.push('ราคาผิด');
+    if (!Number.isInteger(row.interest_days) || Number(row.interest_days) < 1) errors.push('วันต่อรอบผิด');
+    if (!Number.isFinite(row.interest_amount) || Number(row.interest_amount) < 0) errors.push('ดอกเบี้ยผิด');
     if (!row.pawn_date) errors.push('วันที่ผิด');
     if (!row.customer_name) errors.push('ไม่มีชื่อลูกค้า');
     
@@ -320,12 +325,17 @@ export default function ImportExcel({ type, branchId, shopId, userId, userName, 
       try {
         if (type === 'pawn') {
           const { error } = await supabase.from('pawn_stock').insert({
-            imei: row.imei,
+            imei: row.imei || null,
             model: row.model,
             color: row.color || null,
             spec: row.spec || null,
             pawn_price: row.pawn_price,
             pawn_date: row.pawn_date,
+            interest_days: row.interest_days || 30,
+            interest_amount: row.interest_amount || 0,
+            due_date: new Date(Date.parse(`${row.pawn_date}T00:00:00Z`) + (row.interest_days || 30) * 86400000).toISOString().slice(0, 10),
+            status: 'active',
+            renew_count: 0,
             customer_name: row.customer_name,
             customer_phone: row.customer_phone || null,
             customer_note: row.customer_note || null,
